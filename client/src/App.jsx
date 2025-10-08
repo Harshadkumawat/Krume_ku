@@ -7,15 +7,14 @@ import { useDispatch } from "react-redux";
 import Registerpage from "./pages/Registerpage";
 import Loginpage from "./pages/Loginpage";
 import Home from "./pages/Home";
-import Navbar from "./components/NavBar";
+
 import { fetchCurrentUser } from "./features/auth/authSlice";
+import Navbar from "./components/Navbar";
 
 const App = () => {
   const dispatch = useDispatch();
 
   useEffect(() => {
-    
-
     dispatch(fetchCurrentUser());
   }, [dispatch]);
 
