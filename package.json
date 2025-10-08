@@ -1,0 +1,29 @@
+{
+  "name": "krumeku",
+  "version": "1.0.0",
+  "description": "Backend for Krumeku project",
+  "main": "Server/Server.js",
+  "scripts": {
+    "start": "node Server/Server.js",
+    "dev": "nodemon Server/Server.js"
+  },
+  "author": "Your Name",
+  "license": "ISC",
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "cloudinary": "^1.41.3",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.1",
+    "express": "^5.1.0",
+    "express-async-handler": "^1.2.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.17.0",
+    "multer": "^2.0.2",
+    "multer-storage-cloudinary": "^4.0.0",
+    "nodemailer": "^7.0.6"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.0"
+  }
+}
