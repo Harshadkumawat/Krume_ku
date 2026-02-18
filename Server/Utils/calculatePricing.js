@@ -1,20 +1,24 @@
 const calculatePricing = (product) => {
-  const finalPrice = Math.round(
-    product.price - (product.price * product.discountPrice) / 100
-  );
+  const originalPrice = Number(product.price) || 0;
+  const discountPercent = Number(product.discountPercent) || 0;
 
-  const gstRate = finalPrice <= 1000 ? 5 : 12;
-  const gstAmount = Math.round(finalPrice * (gstRate / 100));
-  const finalPriceWithTax = Math.round(finalPrice + gstAmount);
+  const discountAmountRaw = (originalPrice * discountPercent) / 100;
+  const discountPrice = Math.round(originalPrice - discountAmountRaw);
+
+  const gstRate = discountPrice <= 1000 ? 5 : 12;
+
+  const gstAmount = Math.round(discountPrice * (gstRate / 100));
+
+  const finalPriceWithTax = discountPrice + gstAmount;
 
   return {
-    finalPrice,
+    originalPrice,
+    discountPercent,
+    discountPrice,
     gstRate,
     gstAmount,
     finalPriceWithTax,
-    pricingLabel: `₹${finalPriceWithTax} (Incl. Tax)`,
-    discountAmount: product.price - finalPrice,
-    discountPercentage: product.discountPrice,
+    discountAmount: originalPrice - discountPrice,
   };
 };
 

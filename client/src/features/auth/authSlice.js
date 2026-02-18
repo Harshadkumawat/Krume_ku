@@ -1,7 +1,7 @@
-
-
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { authService } from "./authService";
+
+// -------------------- THUNKS --------------------
 
 export const registerUser = createAsyncThunk(
   "AUTH/REGISTER",
@@ -10,13 +10,12 @@ export const registerUser = createAsyncThunk(
       return await authService.authRegister(data);
     } catch (error) {
       return thunkAPI.rejectWithValue(
-        error.response?.data?.message || "Registration failed"
+        error.response?.data?.message || "Registration failed",
       );
     }
-  }
+  },
 );
 
-// login
 export const loginUser = createAsyncThunk(
   "AUTH/LOGIN",
   async (data, thunkAPI) => {
@@ -24,22 +23,45 @@ export const loginUser = createAsyncThunk(
       return await authService.authLogin(data);
     } catch (error) {
       return thunkAPI.rejectWithValue(
-        error.response?.data?.message || "Login failed"
+        error.response?.data?.message || "Login failed",
       );
     }
-  }
+  },
 );
 
-// logout
-export const logout = createAsyncThunk("auth/logout", async (_, thunkAPI) => {
-  try {
-    const res = await authService.authLogout();
+export const googleLoginUser = createAsyncThunk(
+  "AUTH/GOOGLE_LOGIN",
+  async (googleData, thunkAPI) => {
+    try {
+      return await authService.authGoogle(googleData);
+    } catch (error) {
+      return thunkAPI.rejectWithValue(
+        error.response?.data?.message || "Google Login failed",
+      );
+    }
+  },
+);
 
-    localStorage.removeItem("token");
-    return res;
+// 🔥 NEW: Isse export karna zaroori tha Dashboard ke liye
+export const getAllUsers = createAsyncThunk(
+  "AUTH/GET_ALL_USERS",
+  async (_, thunkAPI) => {
+    try {
+      return await authService.getAllUsers();
+    } catch (error) {
+      return thunkAPI.rejectWithValue(
+        error.response?.data?.message || "Fetch users failed",
+      );
+    }
+  },
+);
+
+export const logout = createAsyncThunk("AUTH/LOGOUT", async (_, thunkAPI) => {
+  try {
+    return await authService.authLogout();
   } catch (error) {
     return thunkAPI.rejectWithValue(
-      error.response?.data?.message || "Logout failed"
+      error.response?.data?.message || "Logout failed",
     );
   }
 });
@@ -50,20 +72,23 @@ export const fetchCurrentUser = createAsyncThunk(
     try {
       return await authService.getCurrentUser();
     } catch (error) {
-      return thunkAPI.rejectWithValue(
-        error.response?.data?.message || "Not authenticated"
-      );
+      return thunkAPI.rejectWithValue("Not authenticated");
     }
-  }
+  },
 );
+
+// -------------------- INITIAL STATE --------------------
 
 const initialState = {
   user: null,
+  allUsers: [],
   isLoading: false,
   isSuccess: false,
   isError: false,
   message: "",
 };
+
+// -------------------- SLICE --------------------
 
 const authSlice = createSlice({
   name: "auth",
@@ -74,7 +99,6 @@ const authSlice = createSlice({
       state.isSuccess = false;
       state.isError = false;
       state.message = "";
-      state.user = null;
     },
     setUser: (state, action) => {
       state.user = action.payload;
@@ -82,64 +106,129 @@ const authSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      // REGISTER
+      // ==========================
+      // REGISTER CASES
+      // ==========================
       .addCase(registerUser.pending, (state) => {
         state.isLoading = true;
+        state.isSuccess = false;
         state.isError = false;
       })
       .addCase(registerUser.fulfilled, (state, action) => {
         state.isLoading = false;
         state.isSuccess = true;
-        state.user = action.payload?.data ?? action.payload;
+        state.isError = false;
+        state.user = action.payload?.data || action.payload;
       })
       .addCase(registerUser.rejected, (state, action) => {
         state.isLoading = false;
         state.isError = true;
+        state.isSuccess = false;
         state.message = action.payload;
       })
 
-      // LOGIN
+      // ==========================
+      // LOGIN CASES
+      // ==========================
       .addCase(loginUser.pending, (state) => {
         state.isLoading = true;
+        state.isSuccess = false;
         state.isError = false;
       })
       .addCase(loginUser.fulfilled, (state, action) => {
         state.isLoading = false;
         state.isSuccess = true;
-        state.user = action.payload?.data ?? action.payload;
+        state.isError = false;
+        state.user = action.payload?.data || action.payload;
       })
       .addCase(loginUser.rejected, (state, action) => {
         state.isLoading = false;
         state.isError = true;
+        state.isSuccess = false;
         state.message = action.payload;
       })
 
-      // LOGOUT
+      // ==========================
+      // GOOGLE LOGIN CASES
+      // ==========================
+      .addCase(googleLoginUser.pending, (state) => {
+        state.isLoading = true;
+        state.isSuccess = false;
+        state.isError = false;
+      })
+      .addCase(googleLoginUser.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.isSuccess = true;
+        state.isError = false;
+        state.user = action.payload?.data || action.payload;
+      })
+      .addCase(googleLoginUser.rejected, (state, action) => {
+        state.isLoading = false;
+        state.isError = true;
+        state.isSuccess = false;
+        state.message = action.payload;
+      })
+
+      // ==========================
+      // GET ALL USERS (Admin Only)
+      // ==========================
+      .addCase(getAllUsers.pending, (state) => {
+        state.isLoading = true;
+        state.isSuccess = false;
+        state.isError = false;
+      })
+      .addCase(getAllUsers.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.isSuccess = true;
+        state.isError = false;
+        state.allUsers = action.payload.data || action.payload;
+      })
+      .addCase(getAllUsers.rejected, (state, action) => {
+        state.isLoading = false;
+        state.isError = true;
+        state.isSuccess = false;
+        state.message = action.payload;
+      })
+
+      // ==========================
+      // FETCH CURRENT USER CASES
+      // ==========================
+      .addCase(fetchCurrentUser.pending, (state) => {
+        state.isLoading = true;
+        state.isSuccess = false;
+        state.isError = false;
+      })
+      .addCase(fetchCurrentUser.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.isSuccess = true;
+        state.isError = false;
+        state.user = action.payload?.data || action.payload;
+      })
+      .addCase(fetchCurrentUser.rejected, (state) => {
+        state.isLoading = false;
+        state.user = null;
+        state.isSuccess = false;
+        state.isError = false;
+      })
+
+      // ==========================
+      // LOGOUT CASES
+      // ==========================
       .addCase(logout.pending, (state) => {
         state.isLoading = true;
       })
       .addCase(logout.fulfilled, (state) => {
-        state.isLoading = false;
-        state.isSuccess = true;
         state.user = null;
+        state.allUsers = [];
+        state.isLoading = false;
+        state.isSuccess = false;
+        state.isError = false;
+        state.message = "";
       })
       .addCase(logout.rejected, (state, action) => {
         state.isLoading = false;
         state.isError = true;
         state.message = action.payload;
-      })
-
-      .addCase(fetchCurrentUser.pending, (state) => {
-        state.isLoading = true;
-      })
-      .addCase(fetchCurrentUser.fulfilled, (state, action) => {
-        state.isLoading = false;
-        state.isSuccess = true;
-        state.user = action.payload?.data ?? action.payload;
-      })
-      .addCase(fetchCurrentUser.rejected, (state) => {
-        state.isLoading = false;
-        state.user = null;
       });
   },
 });

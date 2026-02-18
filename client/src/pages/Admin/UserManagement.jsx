@@ -1,0 +1,166 @@
+import React, { useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
+
+import {
+  Loader2,
+  Mail,
+  Phone,
+  Calendar,
+  ShieldCheck,
+  User as UserIcon,
+  Search,
+} from "lucide-react";
+import { toast } from "react-toastify";
+import { getAllUsers, reset } from "../../features/auth/authSlice";
+
+const UserManagement = () => {
+  const dispatch = useDispatch();
+  const { allUsers, isLoading, isError, message } = useSelector(
+    (state) => state.auth,
+  );
+
+  useEffect(() => {
+    dispatch(getAllUsers());
+    return () => dispatch(reset());
+  }, [dispatch]);
+
+  if (isLoading) {
+    return (
+      <div className="h-96 flex flex-col items-center justify-center gap-4">
+        <Loader2 className="animate-spin text-black" size={40} />
+        <p className="text-xs font-black uppercase tracking-widest text-gray-400">
+          Loading Archive...
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-6 lg:p-10 bg-white min-h-screen font-sans">
+      {/* Header Section */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
+        <div>
+          <h1 className="text-5xl font-black uppercase italic tracking-tighter leading-none mb-2">
+            User <span className="text-transparent stroke-text">Archive.</span>
+          </h1>
+          <p className="text-gray-500 text-xs font-bold uppercase tracking-[0.3em]">
+            Managing {allUsers?.length || 0} Registered Members
+          </p>
+        </div>
+
+        {/* Search Bar (Optional UI) */}
+        <div className="relative group">
+          <Search
+            className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-black transition-colors"
+            size={18}
+          />
+          <input
+            type="text"
+            placeholder="SEARCH MEMBERS..."
+            className="pl-12 pr-6 py-4 bg-gray-50 border-2 border-gray-100 rounded-2xl outline-none focus:border-black transition-all text-xs font-bold w-full md:w-80 uppercase tracking-widest"
+          />
+        </div>
+      </div>
+
+      {/* Users Table */}
+      <div className="bg-white border-2 border-gray-100 rounded-[2.5rem] overflow-hidden shadow-sm">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-gray-50/50 border-b-2 border-gray-100">
+                <th className="p-6 text-[10px] font-black uppercase tracking-widest text-gray-400">
+                  Member Info
+                </th>
+                <th className="p-6 text-[10px] font-black uppercase tracking-widest text-gray-400">
+                  Contact Details
+                </th>
+                <th className="p-6 text-[10px] font-black uppercase tracking-widest text-gray-400">
+                  Auth Method
+                </th>
+                <th className="p-6 text-[10px] font-black uppercase tracking-widest text-gray-400 text-right">
+                  Joined Date
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y-2 divide-gray-50">
+              {allUsers?.map((u) => (
+                <tr
+                  key={u._id}
+                  className="hover:bg-gray-50/30 transition-all group"
+                >
+                  <td className="p-6">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-2xl bg-black flex items-center justify-center text-white font-black text-lg overflow-hidden shrink-0 shadow-lg shadow-black/10 transition-transform group-hover:scale-105">
+                        {u.avatar ? (
+                          <img
+                            src={u.avatar}
+                            alt={u.fullName}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          u.fullName[0].toUpperCase()
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-sm font-black uppercase italic tracking-tight">
+                          {u.fullName}
+                        </p>
+                        <p className="text-[10px] font-bold text-gray-400 tracking-tighter uppercase">
+                          Role: {u.role}
+                        </p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="p-6">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 text-xs font-bold text-gray-600">
+                        <Mail size={14} className="text-gray-300" /> {u.email}
+                      </div>
+                      <div className="flex items-center gap-2 text-xs font-bold text-gray-600">
+                        <Phone size={14} className="text-gray-300" />{" "}
+                        {u.phone || "--- --- ----"}
+                      </div>
+                    </div>
+                  </td>
+                  <td className="p-6">
+                    {u.isGoogleUser ? (
+                      <div className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 rounded-full w-fit">
+                        <ShieldCheck size={14} />
+                        <span className="text-[9px] font-black uppercase tracking-wider">
+                          Google Verified
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 text-gray-500 rounded-full w-fit">
+                        <UserIcon size={14} />
+                        <span className="text-[9px] font-black uppercase tracking-wider">
+                          Direct Signup
+                        </span>
+                      </div>
+                    )}
+                  </td>
+                  <td className="p-6 text-right">
+                    <div className="flex flex-col items-end">
+                      <div className="flex items-center gap-1 text-xs font-black text-gray-400">
+                        <Calendar size={12} />
+                        {new Date(u.createdAt).toLocaleDateString("en-IN", {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                        })}
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <style>{`.stroke-text { -webkit-text-stroke: 1.5px black; }`}</style>
+    </div>
+  );
+};
+
+export default UserManagement;

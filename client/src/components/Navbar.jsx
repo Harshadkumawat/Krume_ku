@@ -1,235 +1,416 @@
-import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-toastify";
-import { logout, reset } from "../features/auth/authSlice";
+import { logout } from "../features/auth/authSlice";
 import {
   Menu,
   X,
   User,
   LogOut,
   ShoppingBag,
-  Home,
-  Info,
-  Mail,
-  Crown,
+  Search,
+  Heart,
+  ChevronRight,
+  Package,
+  UserCircle,
+  ArrowRight,
 } from "lucide-react";
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
+  const [profilePanel, setProfilePanel] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const { user } = useSelector((state) => state.auth);
+  const { cartItems } = useSelector((state) => state.cart || { cartItems: [] });
+  const { wishlistItems } = useSelector(
+    (state) => state.wishlist || { wishlistItems: [] },
+  );
 
-  const handleLogout = async () => {
-    try {
-      await dispatch(logout()).unwrap();
-      dispatch(reset());
+  const cartCount = cartItems?.length || 0;
+  const wishlistCount = wishlistItems?.length || 0;
 
-      toast.success("Logged out successfully");
-      navigate("/login");
-    } catch (err) {
-      toast.error(typeof err === "string" ? err : "Logout failed");
+  // Search Debouncing
+  useEffect(() => {
+    if (searchQuery.trim().length > 0) {
+      const delayDebounceFn = setTimeout(() => {
+        navigate(`/products?q=${searchQuery.trim()}`);
+      }, 600);
+      return () => clearTimeout(delayDebounceFn);
+    }
+
+    if (searchQuery.trim().length === 0 && location.search.includes("q=")) {
+      navigate("/products");
+    }
+    // eslint-disable-next-line
+  }, [searchQuery]);
+
+  // Reset UI on route change
+  useEffect(() => {
+    setOpen(false);
+    setProfilePanel(false);
+    setSearchOpen(false);
+  }, [location.pathname]);
+
+  // Scroll effect
+  useEffect(() => {
+    const handleScroll = () => setScrolled(window.scrollY > 20);
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  const handleLogout = () => {
+    dispatch(logout());
+
+    setProfilePanel(false);
+    toast.info("Logged out successfully.");
+
+    navigate("/login");
+  };
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      navigate(`/products?q=${searchQuery.trim()}`);
+      setSearchOpen(false);
     }
   };
 
+  const navLinks = [
+    { name: "Men", path: "/products?gender=Men" },
+    { name: "Women", path: "/products?gender=Women" },
+    { name: "Collection", path: "/products" },
+  ];
+
   return (
-    <header className="sticky top-0 z-50">
-      {/* Glassmorphism backdrop */}
-      <div className="absolute inset-0 bg-gradient-to-r from-gray-900/95 via-purple-900/95 to-indigo-900/95 backdrop-blur-xl border-b border-white/10"></div>
+    <>
+      <header
+        className={`fixed top-0 z-[100] transition-all duration-500 ease-in-out ${
+          scrolled
+            ? "bg-white/95 backdrop-blur-xl py-3 shadow-sm border-b border-zinc-100"
+            : "bg-white py-4 md:py-6"
+        } ${
+          user?.role === "admin"
+            ? "md:left-64 w-full md:w-[calc(100%-16rem)]"
+            : "left-0 w-full"
+        }`}
+      >
+        <div className="max-w-[1800px] mx-auto px-4 md:px-12 flex items-center justify-between">
+          {/* Left Section: Menu & Search */}
+          <div className="flex-1 flex items-center gap-4 md:gap-8">
+            <button
+              onClick={() => setOpen(true)}
+              className="group flex items-center gap-3 outline-none"
+            >
+              <div className="flex flex-col gap-1.5">
+                <span className="h-[2px] w-5 bg-black"></span>
+                <span className="h-[2px] w-3 bg-black transition-all duration-300 group-hover:w-5"></span>
+              </div>
+              <span className="hidden lg:block text-[10px] font-bold uppercase tracking-widest text-zinc-500 group-hover:text-black transition-colors">
+                Menu
+              </span>
+            </button>
 
-      <nav className="relative">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            {/* Left: Brand */}
-            <div className="flex items-center gap-8">
-              <Link to="/" className="flex items-center gap-3 group">
-                <div className="p-2 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 shadow-lg group-hover:shadow-purple-500/25 transition-all duration-300">
-                  <Crown className="w-6 h-6 text-white" />
-                </div>
-                <span className="text-2xl font-bold tracking-wider bg-gradient-to-r from-white via-purple-200 to-indigo-200 bg-clip-text text-transparent group-hover:from-purple-300 group-hover:to-indigo-300 transition-all duration-300">
-                  KRUMEKU
+            <button
+              onClick={() => setSearchOpen(true)}
+              className="p-2 hover:bg-zinc-100 rounded-full transition-colors"
+            >
+              <Search size={20} strokeWidth={1.5} />
+            </button>
+          </div>
+
+          {/* Center Section: Logo */}
+          <Link to="/" className="flex-shrink-0 relative z-10 group">
+            <h1 className="text-2xl md:text-3xl font-black tracking-tighter text-black uppercase italic leading-none group-hover:scale-105 transition-transform duration-300">
+              KRUMEKU<span className="text-red-600">.</span>
+            </h1>
+          </Link>
+
+          {/* Right Section: Icons */}
+          <div className="flex items-center justify-end gap-4 md:gap-6 flex-1">
+            <Link to="/wishlist" className="relative group hidden md:block p-2">
+              <Heart
+                size={22}
+                strokeWidth={1.5}
+                className="group-hover:fill-black transition-all duration-300"
+              />
+              {wishlistCount > 0 && (
+                <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-red-600 rounded-full border-2 border-white"></span>
+              )}
+            </Link>
+
+            <Link to="/cart" className="relative group p-2">
+              <ShoppingBag size={22} strokeWidth={1.5} />
+              {cartCount > 0 && (
+                <span className="absolute top-0 right-0 flex items-center justify-center bg-black text-white text-[9px] font-bold w-4 h-4 rounded-full border border-white">
+                  {cartCount}
                 </span>
-              </Link>
+              )}
+            </Link>
 
-              {/* Desktop Navigation Links */}
-              <div className="hidden lg:flex items-center gap-1">
+            <button
+              onClick={() => setProfilePanel(true)}
+              className="flex items-center gap-2 border border-zinc-200 hover:border-black rounded-full p-1 pr-3 transition-all duration-300 group"
+            >
+              <div className="w-8 h-8 bg-black rounded-full flex items-center justify-center text-white text-[12px] font-bold overflow-hidden">
+                {user ? (
+                  user.fullName?.charAt(0).toUpperCase()
+                ) : (
+                  <User size={16} />
+                )}
+              </div>
+              <span className="hidden md:block text-[10px] font-bold uppercase tracking-widest text-zinc-500 group-hover:text-black transition-colors">
+                {user ? "Account" : "Login"}
+              </span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Search Overlay */}
+      <div
+        className={`fixed inset-x-0 top-0 z-[150] bg-white border-b-2 border-black transition-transform duration-500 ease-in-out ${
+          searchOpen ? "translate-y-0" : "-translate-y-full"
+        }`}
+      >
+        <form
+          onSubmit={handleSearchSubmit}
+          className="max-w-[1400px] mx-auto px-6 py-8 flex items-center gap-4 md:gap-6"
+        >
+          <Search size={24} className="text-black" />
+          <input
+            type="text"
+            placeholder="Search for products..."
+            className="flex-1 bg-transparent text-xl md:text-4xl font-bold uppercase italic outline-none placeholder:text-zinc-300"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            autoFocus={searchOpen}
+          />
+          <button
+            type="button"
+            onClick={() => {
+              setSearchOpen(false);
+              setSearchQuery("");
+            }}
+            className="p-2 hover:bg-zinc-100 rounded-full transition-colors"
+          >
+            <X size={28} />
+          </button>
+        </form>
+      </div>
+
+      {/* Mobile Navigation Drawer */}
+      <div
+        className={`fixed inset-0 z-[200] transition-all duration-500 ${
+          open ? "visible pointer-events-auto" : "invisible pointer-events-none"
+        }`}
+      >
+        <div
+          className={`absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-500 ${
+            open ? "opacity-100" : "opacity-0"
+          }`}
+          onClick={() => setOpen(false)}
+        />
+
+        <div
+          className={`absolute left-0 top-0 h-full w-[85%] md:w-[450px] bg-white transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] ${
+            open ? "translate-x-0" : "-translate-x-full"
+          }`}
+        >
+          <div className="flex flex-col h-full p-6 md:p-10">
+            <button
+              onClick={() => setOpen(false)}
+              className="self-start mb-10 p-2 hover:bg-zinc-100 rounded-full transition-colors"
+            >
+              <X size={28} />
+            </button>
+
+            <nav className="flex flex-col gap-6">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">
+                Menu
+              </span>
+              {navLinks.map((link, idx) => (
                 <Link
-                  to="/"
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-white/80 hover:text-white hover:bg-white/10 transition-all duration-200 font-medium"
+                  key={idx}
+                  to={link.path}
+                  onClick={() => setOpen(false)}
+                  className="group flex items-center justify-between border-b border-zinc-100 pb-4"
                 >
-                  <Home className="w-4 h-4" />
-                  Home
+                  <span className="text-3xl md:text-5xl font-black uppercase italic tracking-tighter text-zinc-300 group-hover:text-black group-hover:pl-2 transition-all duration-500">
+                    {link.name}
+                  </span>
+                  <ArrowRight
+                    className="opacity-0 group-hover:opacity-100 -translate-x-4 group-hover:translate-x-0 transition-all duration-500"
+                    size={24}
+                  />
+                </Link>
+              ))}
+            </nav>
+
+            <div className="mt-auto space-y-6">
+              <div className="flex gap-6 border-t border-zinc-100 pt-6">
+                <Link
+                  to="/wishlist"
+                  onClick={() => setOpen(false)}
+                  className="text-[11px] font-bold uppercase tracking-widest hover:text-red-600 transition-colors"
+                >
+                  Wishlist ({wishlistCount})
                 </Link>
                 <Link
-                  to="/shop"
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-white/80 hover:text-white hover:bg-white/10 transition-all duration-200 font-medium"
+                  to="/cart"
+                  onClick={() => setOpen(false)}
+                  className="text-[11px] font-bold uppercase tracking-widest hover:text-red-600 transition-colors"
                 >
-                  <ShoppingBag className="w-4 h-4" />
-                  Shop
-                </Link>
-                <Link
-                  to="/about"
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-white/80 hover:text-white hover:bg-white/10 transition-all duration-200 font-medium"
-                >
-                  <Info className="w-4 h-4" />
-                  About
-                </Link>
-                <Link
-                  to="/contact"
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-white/80 hover:text-white hover:bg-white/10 transition-all duration-200 font-medium"
-                >
-                  <Mail className="w-4 h-4" />
-                  Contact
+                  Cart ({cartCount})
                 </Link>
               </div>
-            </div>
-
-            {/* Right: Auth Actions */}
-            <div className="hidden md:flex items-center gap-3">
-              {!user ? (
-                <div className="flex items-center gap-3">
-                  <Link
-                    to="/register"
-                    className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-semibold shadow-lg hover:shadow-purple-500/25 transform hover:-translate-y-0.5 transition-all duration-200"
-                  >
-                    Register
-                  </Link>
-                  <Link
-                    to="/login"
-                    className="px-6 py-2.5 rounded-xl border-2 border-purple-500/50 hover:border-purple-400 hover:bg-purple-500/10 text-white font-semibold backdrop-blur-sm transition-all duration-200"
-                  >
-                    Login
-                  </Link>
-                </div>
-              ) : (
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-3 px-4 py-2 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center">
-                      <User className="w-4 h-4 text-white" />
-                    </div>
-                    <span className="text-white font-medium">
-                      {user.fullName || user.name || "Harshad"}
-                    </span>
-                  </div>
-                  <button
-                    onClick={handleLogout}
-                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-semibold shadow-lg hover:shadow-red-500/25 transform hover:-translate-y-0.5 transition-all duration-200"
-                  >
-                    <LogOut className="w-4 h-4" />
-                    Logout
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Mobile Menu Button */}
-            <div className="flex md:hidden">
-              <button
-                onClick={() => setOpen(!open)}
-                className="p-2 rounded-xl text-white/80 hover:text-white hover:bg-white/10 transition-all duration-200"
-                aria-expanded={open}
-              >
-                <span className="sr-only">Open main menu</span>
-                {open ? (
-                  <X className="h-6 w-6" />
-                ) : (
-                  <Menu className="h-6 w-6" />
-                )}
-              </button>
+              <p className="text-[10px] font-medium text-zinc-400 uppercase tracking-wide leading-relaxed">
+                © 2025 KRUMEKU. <br /> Designed for the Modern Streetwear.
+              </p>
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Mobile Dropdown Menu */}
-        {open && (
-          <div className="md:hidden">
-            <div className="absolute top-full left-0 right-0 bg-gray-900/95 backdrop-blur-xl border-t border-white/10 shadow-2xl">
-              <div className="px-4 py-6 space-y-4">
-                {/* Mobile Navigation Links */}
-                <div className="space-y-2">
-                  <Link
-                    to="/"
-                    onClick={() => setOpen(false)}
-                    className="flex items-center gap-3 px-4 py-3 rounded-xl text-white/80 hover:text-white hover:bg-white/10 transition-all duration-200 font-medium"
-                  >
-                    <Home className="w-5 h-5" />
-                    Home
-                  </Link>
-                  <Link
-                    to="/shop"
-                    onClick={() => setOpen(false)}
-                    className="flex items-center gap-3 px-4 py-3 rounded-xl text-white/80 hover:text-white hover:bg-white/10 transition-all duration-200 font-medium"
-                  >
-                    <ShoppingBag className="w-5 h-5" />
-                    Shop
-                  </Link>
-                  <Link
-                    to="/about"
-                    onClick={() => setOpen(false)}
-                    className="flex items-center gap-3 px-4 py-3 rounded-xl text-white/80 hover:text-white hover:bg-white/10 transition-all duration-200 font-medium"
-                  >
-                    <Info className="w-5 h-5" />
-                    About
-                  </Link>
-                  <Link
-                    to="/contact"
-                    onClick={() => setOpen(false)}
-                    className="flex items-center gap-3 px-4 py-3 rounded-xl text-white/80 hover:text-white hover:bg-white/10 transition-all duration-200 font-medium"
-                  >
-                    <Mail className="w-5 h-5" />
-                    Contact
-                  </Link>
-                </div>
+      {/* Profile Drawer */}
+      <div
+        className={`fixed inset-0 z-[200] transition-all duration-500 ${
+          profilePanel
+            ? "visible pointer-events-auto"
+            : "invisible pointer-events-none"
+        }`}
+      >
+        <div
+          className={`absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity duration-500 ${
+            profilePanel ? "opacity-100" : "opacity-0"
+          }`}
+          onClick={() => setProfilePanel(false)}
+        />
 
-                {/* Mobile Auth Section */}
-                <div className="pt-4 border-t border-white/10">
-                  {!user ? (
-                    <div className="space-y-3">
-                      <Link
-                        to="/register"
-                        onClick={() => setOpen(false)}
-                        className="block w-full px-6 py-3 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-semibold text-center shadow-lg"
-                      >
-                        Register
-                      </Link>
-                      <Link
-                        to="/login"
-                        onClick={() => setOpen(false)}
-                        className="block w-full px-6 py-3 rounded-xl border-2 border-purple-500/50 text-white font-semibold text-center backdrop-blur-sm"
-                      >
-                        Login
-                      </Link>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center">
-                          <User className="w-4 h-4 text-white" />
-                        </div>
-                        <span className="text-white font-medium">
-                          {user.fullName || user.name || "Harshad"}
-                        </span>
-                      </div>
-                      <button
-                        onClick={() => {
-                          setOpen(false);
-                          handleLogout();
-                        }}
-                        className="flex items-center justify-center gap-2 w-full px-6 py-3 rounded-xl bg-red-600 hover:bg-red-700 text-white font-semibold shadow-lg transition-colors duration-200"
-                      >
-                        <LogOut className="w-4 h-4" />
-                        Logout
-                      </button>
-                    </div>
-                  )}
+        <div
+          className={`absolute right-0 top-0 h-full w-full md:w-[400px] bg-white transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] ${
+            profilePanel ? "translate-x-0" : "translate-x-full"
+          }`}
+        >
+          <div className="p-6 md:p-10 flex flex-col h-full">
+            <button
+              onClick={() => setProfilePanel(false)}
+              className="self-end mb-10 p-2 hover:bg-zinc-100 rounded-full transition-colors"
+            >
+              <X size={24} />
+            </button>
+
+            {!user ? (
+              // Guest View
+              <div className="flex-1 flex flex-col justify-center text-center">
+                <h2 className="text-4xl font-black uppercase italic tracking-tighter mb-8">
+                  Welcome
+                  <br />
+                  <span className="text-zinc-300">Guest</span>
+                </h2>
+                <div className="flex flex-col gap-4">
+                  <Link
+                    to="/login"
+                    onClick={() => setProfilePanel(false)}
+                    className="bg-black text-white py-4 text-[11px] font-bold uppercase tracking-widest hover:bg-zinc-800 transition-colors"
+                  >
+                    Login
+                  </Link>
+                  <Link
+                    to="/register"
+                    onClick={() => setProfilePanel(false)}
+                    className="border border-black py-4 text-[11px] font-bold uppercase tracking-widest hover:bg-black hover:text-white transition-colors"
+                  >
+                    Register
+                  </Link>
                 </div>
               </div>
-            </div>
+            ) : (
+              // Logged In View
+              <div className="flex-1 flex flex-col">
+                <div className="mb-10 flex items-center gap-4">
+                  <div className="w-14 h-14 bg-black text-white rounded-full flex items-center justify-center text-xl font-bold italic shadow-md">
+                    {user.fullName?.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1">
+                      Hello,
+                    </p>
+                    <h2 className="text-lg font-black uppercase italic leading-none line-clamp-1">
+                      {user.fullName}
+                    </h2>
+                    <p className="text-[11px] text-zinc-500 font-medium truncate max-w-[200px] mt-1">
+                      {user.email}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  {[
+                    { label: "My Orders", path: "/orders", icon: Package },
+                    {
+                      label: "Profile Settings",
+                      path: "/profile",
+                      icon: UserCircle,
+                    },
+                  ].map((item, i) => (
+                    <Link
+                      key={i}
+                      to={item.path}
+                      onClick={() => setProfilePanel(false)}
+                      className="flex items-center justify-between py-5 border-b border-zinc-100 group hover:pl-2 transition-all duration-300"
+                    >
+                      <div className="flex items-center gap-4">
+                        <item.icon
+                          size={20}
+                          strokeWidth={1.5}
+                          className="text-zinc-400 group-hover:text-black transition-colors"
+                        />
+                        <span className="text-[11px] font-bold uppercase tracking-widest text-zinc-500 group-hover:text-black transition-colors">
+                          {item.label}
+                        </span>
+                      </div>
+                      <ChevronRight
+                        size={16}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity"
+                      />
+                    </Link>
+                  ))}
+
+                  {/* Admin Link */}
+                  {user.role === "admin" && (
+                    <Link
+                      to="/admin/dashboard"
+                      onClick={() => setProfilePanel(false)}
+                      className="flex items-center justify-between py-5 border-b border-zinc-100 group hover:pl-2 transition-all duration-300"
+                    >
+                      <div className="flex items-center gap-4">
+                        <Package size={20} className="text-red-600" />
+                        <span className="text-[11px] font-bold uppercase tracking-widest text-red-600">
+                          Admin Dashboard
+                        </span>
+                      </div>
+                    </Link>
+                  )}
+                </div>
+
+                <button
+                  onClick={handleLogout}
+                  className="mt-auto w-full flex items-center justify-center gap-3 py-4 bg-zinc-50 text-red-600 text-[10px] font-bold uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all duration-300 rounded-sm"
+                >
+                  <LogOut size={16} /> Logout
+                </button>
+              </div>
+            )}
           </div>
-        )}
-      </nav>
-    </header>
+        </div>
+      </div>
+    </>
   );
 }

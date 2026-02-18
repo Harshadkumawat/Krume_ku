@@ -1,114 +1,119 @@
 const mongoose = require("mongoose");
 
-const ProductSchema = new mongoose.Schema({
-  productName: {
-    type: String,
-    required: true,
-    trim: true,
-  },
+const ProductSchema = new mongoose.Schema(
+  {
+    productName: { type: String, required: true, trim: true },
+    slug: { type: String, lowercase: true, index: true },
+    description: { type: String, trim: true },
+    fabricCare: { type: String, default: "" },
+    price: { type: Number, required: true, index: true },
+    discountPercent: { type: Number, default: 0 },
 
-  description: {
-    type: String,
-    trim: true,
-  },
+    // Calculated Fields
+    discountPrice: { type: Number },
+    gstRate: { type: Number, default: 0 },
+    gstAmount: { type: Number, default: 0 },
+    finalPriceWithTax: { type: Number },
+    discountAmount: { type: Number, default: 0 },
 
-  price: {
-    type: Number,
-    required: true,
-  },
-
-  discountPercent: {
-    type: Number,
-    default: 0,
-  },
-
-  finalPrice: {
-    type: Number,
-    required: true,
-  },
-
-  gstPercent: {
-    type: Number,
-    default: 12, 
-  },
-
-  gstAmount: {
-    type: Number,
-    required: true,
-  },
-
-  finalPriceWithTax: {
-    type: Number,
-    required: true,
-  },
-
-  sizes: [
-    {
-      label: {
-        type: String,
-        enum: ["XS", "S", "M", "L", "XL", "XXL", "Free Size"],
-        required: true,
+    sizes: [
+      {
+        label: { type: String, required: true },
+        stock: { type: Number, default: 0 },
       },
-      stock: {
-        type: Number,
-        default: 0,
+    ],
+
+    // 🔥 Correct Field Name
+    countInStock: { type: Number, default: 0 },
+
+    colors: { type: [String], required: true },
+    images: [
+      {
+        url: { type: String, required: true },
+        public_id: { type: String, required: true },
       },
+    ],
+    gender: {
+      type: String,
+      enum: ["Men", "Women", "Unisex", "Kids"],
+      required: true,
+      index: true,
     },
-  ],
-
-  colors: {
-    type: [String],
-    required: true,
-  },
-
-  images: [
-    {
-      url: {
-        type: String,
-        required: true,
-      },
-      public_id: {
-        type: String,
-        required: true,
-      },
+    category: {
+      type: String,
+      enum: [
+        "T-Shirts",
+        "Shirts",
+        "Trousers",
+        "Kurta",
+        "Jacket",
+        "Sweater",
+        "Jeans",
+        "Ethnic Wear",
+      ],
+      required: true,
+      index: true,
     },
-  ],
+    subCategory: {
+      type: String,
+      enum: [
+        "Printed",
+        "Plain",
+        "Oversized",
+        "Embroidered",
+        "Graphic",
+        "Casual",
+        "Formal",
+      ],
+      required: true,
+      index: true,
+    },
+    season: {
+      type: String,
+      enum: ["Summer", "Winter", "All Season"],
+      required: true,
+    },
 
-  gender: {
-    type: String,
-    enum: ["Men", "Women", "Unisex", "Kids"],
-    required: true,
-  },
+    inStock: { type: Boolean, default: true, index: true },
+    isFeatured: { type: Boolean, default: false },
 
-  category: {
-    type: String,
-    enum: ["T-Shirts", "Shirts", "Trousers", "Kurta", "Jacket", "Sweater", "Jeans", "Ethnic Wear"],
-    required: true,
+    user: {
+      type: mongoose.Schema.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    createdAt: { type: Date, default: Date.now, index: true },
   },
+  { timestamps: true },
+);
 
-  subCategory: {
-    type: String,
-    enum: ["Printed", "Plain", "Oversized", "Embroidered", "Graphic", "Casual", "Formal"],
-    required: true,
-  },
-
-  season: {
-    type: String,
-    enum: ["Summer", "Winter", "All Season"],
-    required: true,
-  },
-
-  inStock: {
-    type: Boolean,
-    default: true,
-  },
-
-  createdAt: {
-    type: Date,
-    default: Date.now,
-  },
+// Text Index for Search
+ProductSchema.index({
+  productName: "text",
+  description: "text",
+  category: "text",
+  subCategory: "text",
 });
 
-const Product = mongoose.model("Product", ProductSchema);
+// Auto-calculate Stock & Slug before saving
+ProductSchema.pre("save", function (next) {
+  if (this.sizes && this.sizes.length > 0) {
+    this.countInStock = this.sizes.reduce(
+      (total, item) => total + (item.stock || 0),
+      0,
+    );
+    this.inStock = this.countInStock > 0;
+  }
 
-module.exports = Product;
+  if (this.isModified("productName")) {
+    this.slug = this.productName
+      .toLowerCase()
+      .trim()
+      .replace(/[^\w\s-]/g, "")
+      .replace(/[\s_-]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+  }
+  next();
+});
+
+module.exports = mongoose.model("Product", ProductSchema);
