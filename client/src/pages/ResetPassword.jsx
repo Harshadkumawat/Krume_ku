@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { toast } from "react-toastify";
 import { Lock, Eye, EyeOff, Loader2, ShieldAlert } from "lucide-react";
-import { reset, resetPassword } from "../features/auth/authSlice";
+import { reset, resetPassword,  } from "../features/auth/authSlice";
 
 const ResetPassword = () => {
   const { token } = useParams(); 
