@@ -9,7 +9,7 @@ import { getAuth, GoogleAuthProvider } from "firebase/auth";
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
   apiKey: "AIzaSyDVVPlYuf4wN5AeI76sZz9LjkXETOXAOjM",
-  authDomain: "krumeku-auth.firebaseapp.com",
+  authDomain: "krume-ku.vercel.app",
   projectId: "krumeku-auth",
   storageBucket: "krumeku-auth.firebasestorage.app",
   messagingSenderId: "405683846920",

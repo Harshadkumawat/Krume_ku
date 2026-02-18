@@ -8,40 +8,46 @@ const { errorHandler } = require("./Middleware/errorMiddleware");
 const app = express();
 const PORT = process.env.PORT || 5050;
 
+// Database Connection
 connectDB();
-// Allowed Origins ki list
+
+// CORS Configuration
 const allowedOrigins = [
   "http://localhost:5173",
-  "https://krume-dunazr1yr-harshadkumawats-projects.vercel.app", 
   "https://krume-ku.vercel.app", 
-];
+  process.env.FRONTEND_URL,      
+].filter(Boolean); 
 
 app.use(
   cors({
     origin: function (origin, callback) {
-      
+      // allow requests with no origin (like mobile apps or curl)
       if (!origin) return callback(null, true);
-
-      if (allowedOrigins.indexOf(origin) === -1) {
-        const msg =
-          "The CORS policy for this site does not allow access from the specified Origin.";
-        return callback(new Error(msg), false);
+      
+      // Check if origin is in allowed list
+      if (allowedOrigins.includes(origin) || allowedOrigins.some(ao => origin.startsWith(ao))) {
+        return callback(null, true);
+      } else {
+        return callback(new Error("CORS Policy: This origin is not allowed!"), false);
       }
-      return callback(null, true);
     },
     credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE"],
-  }),
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
+  })
 );
 
+// Middlewares
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
+// Base Route
 app.get("/", (req, res) => {
   res.send("Welcome to Krumeku Server!");
 });
 
+// Routes
 app.use("/api/auth", require("./Routes/authRoutes"));
 app.use("/api/admin/", require("./Routes/adminRoutes"));
 app.use("/api/products", require("./Routes/productsRoutes"));
@@ -51,8 +57,9 @@ app.use("/api/cart", require("./Routes/cartRoutes"));
 app.use("/api/orders", require("./Routes/orderRoutes"));
 app.use("/api/shipping", require("./Routes/shippingRoutes"));
 
+// Error Handler
 app.use(errorHandler);
 
 app.listen(PORT, () => {
-  console.log(`Server is running on http://localhost:${PORT}`);
+  console.log(`Server is running on port: ${PORT}`);
 });

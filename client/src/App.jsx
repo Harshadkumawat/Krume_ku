@@ -95,7 +95,7 @@ const App = () => {
       <ScrollToTop />
 
       {/* Navbar (Hidden for Admin) */}
-      {user?.role !== "admin" && <Navbar />}
+      <Navbar />
 
       <div className="min-h-screen">
         <Suspense fallback={<GlobalLoader />}>
