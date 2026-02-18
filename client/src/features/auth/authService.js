@@ -1,9 +1,9 @@
 import axios from "axios";
 
-const API_URL = "http://localhost:8080";
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
 
 const api = axios.create({
-  baseURL: API_URL,
+  baseURL: BASE_URL,
   withCredentials: true,
   headers: {
     "Content-Type": "application/json",
@@ -44,7 +44,6 @@ const resetPassword = async (token, password) => {
 
 const getCurrentUser = async () => {
   const response = await api.get("/api/auth/me");
-
   return response.data;
 };
 

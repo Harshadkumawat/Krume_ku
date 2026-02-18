@@ -1,6 +1,7 @@
 import axios from "axios";
 
-const API_URL = "http://localhost:8080/api";
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+const API_URL = `${BASE_URL}/api`;
 
 const api = axios.create({
   baseURL: API_URL,
@@ -29,7 +30,7 @@ const deleteProduct = async (id) => {
 
 const getStats = async () => {
   const res = await api.get("/orders/admin/stats");
-  return res.data; // 🔥 Yahan se data return ho raha hai
+  return res.data;
 };
 
 const getAllOrders = async () => {

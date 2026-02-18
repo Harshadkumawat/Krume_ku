@@ -1,8 +1,10 @@
 import axios from "axios";
 
-// 🔥 Path consistency ke liye hamesha base URL rakhein
-const API_URL = "http://localhost:8080/api/coupons";
+// 1. Base URL decide karo
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+const API_URL = `${BASE_URL}/api/coupons`;
 
+// 2. Axios Instance Banao (Baar-baar URL likhne se bachne ke liye)
 const api = axios.create({
   baseURL: API_URL,
   withCredentials: true,
@@ -15,13 +17,12 @@ const api = axios.create({
 // 1. APPLY COUPON (User)
 // ============================================================
 const applyCoupon = async (couponData) => {
-  // couponData: { code: "HARSHAD10" }
   const response = await api.post("/apply", couponData);
-  return response.data; // Backend ab data: { appliedCoupon } bhej raha hai
+  return response.data;
 };
 
 // ============================================================
-// 2. REMOVE COUPON (User - New)
+// 2. REMOVE COUPON (User)
 // ============================================================
 const removeCoupon = async () => {
   const response = await api.post("/remove");
@@ -58,7 +59,7 @@ const updateCoupon = async (id, couponData) => {
 
 const couponService = {
   applyCoupon,
-  removeCoupon, 
+  removeCoupon,
   createCoupon,
   getAllCoupons,
   deleteCoupon,
