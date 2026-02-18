@@ -17,7 +17,7 @@ export default function AdminReturnRequests() {
   const dispatch = useDispatch();
   const { orders, isLoading } = useSelector((state) => state.order);
 
-  // ☁️ Cloudinary Configuration
+ 
   const CLOUD_NAME = "dftticvtc";
 
   // 🖼️ Image URL Helper
