@@ -15,6 +15,7 @@ import {
   Package,
   UserCircle,
   ArrowRight,
+  ShieldCheck, // Naya icon admin ke liye
 } from "lucide-react";
 
 export default function Navbar() {
@@ -49,7 +50,6 @@ export default function Navbar() {
     if (searchQuery.trim().length === 0 && location.search.includes("q=")) {
       navigate("/products");
     }
-    // eslint-disable-next-line
   }, [searchQuery]);
 
   // Reset UI on route change
@@ -68,12 +68,11 @@ export default function Navbar() {
 
   const handleLogout = () => {
     dispatch(logout());
-
     setProfilePanel(false);
     toast.info("Logged out successfully.");
-
     navigate("/login");
   };
+
   const handleSearchSubmit = (e) => {
     e.preventDefault();
     if (searchQuery.trim()) {
@@ -102,7 +101,7 @@ export default function Navbar() {
         }`}
       >
         <div className="max-w-[1800px] mx-auto px-4 md:px-12 flex items-center justify-between">
-          {/* Left Section: Menu & Search */}
+          {/* Left Section: Menu & Admin Direct Link */}
           <div className="flex-1 flex items-center gap-4 md:gap-8">
             <button
               onClick={() => setOpen(true)}
@@ -117,6 +116,22 @@ export default function Navbar() {
               </span>
             </button>
 
+            {/* 🔥 NEW: Direct Admin Link on Main Header */}
+            {user?.role === "admin" && (
+              <Link
+                to="/admin/dashboard"
+                className="hidden sm:flex items-center gap-2 bg-red-50 px-3 py-1.5 rounded-full border border-red-100 hover:bg-red-600 hover:text-white transition-all duration-300 group"
+              >
+                <ShieldCheck
+                  size={14}
+                  className="text-red-600 group-hover:text-white"
+                />
+                <span className="text-[9px] font-black uppercase tracking-tighter">
+                  Admin Panel
+                </span>
+              </Link>
+            )}
+
             <button
               onClick={() => setSearchOpen(true)}
               className="p-2 hover:bg-zinc-100 rounded-full transition-colors"
@@ -126,11 +141,13 @@ export default function Navbar() {
           </div>
 
           {/* Center Section: Logo */}
-          <Link to="/" className="flex-shrink-0 relative z-10 group">
-            <h1 className="text-2xl md:text-3xl font-black tracking-tighter text-black uppercase italic leading-none group-hover:scale-105 transition-transform duration-300">
-              KRUMEKU<span className="text-red-600">.</span>
-            </h1>
-          </Link>
+          <div className="flex justify-center">
+            <Link to="/" className="flex-shrink-0 relative z-10 group">
+              <h1 className="text-2xl md:text-3xl font-black tracking-tighter text-black uppercase italic leading-none group-hover:scale-105 transition-transform duration-300">
+                KRUMEKU<span className="text-red-600">.</span>
+              </h1>
+            </Link>
+          </div>
 
           {/* Right Section: Icons */}
           <div className="flex items-center justify-end gap-4 md:gap-6 flex-1">
@@ -172,6 +189,9 @@ export default function Navbar() {
           </div>
         </div>
       </header>
+
+      {/* --- Rest of the code (Search Overlay, Drawers) remains exactly same as your input --- */}
+      {/* ... (Yahan se niche aapka SearchOverlay, MobileDrawer aur ProfileDrawer wala code hai) ... */}
 
       {/* Search Overlay */}
       <div
@@ -307,7 +327,6 @@ export default function Navbar() {
             </button>
 
             {!user ? (
-              // Guest View
               <div className="flex-1 flex flex-col justify-center text-center">
                 <h2 className="text-4xl font-black uppercase italic tracking-tighter mb-8">
                   Welcome
@@ -332,7 +351,6 @@ export default function Navbar() {
                 </div>
               </div>
             ) : (
-              // Logged In View
               <div className="flex-1 flex flex-col">
                 <div className="mb-10 flex items-center gap-4">
                   <div className="w-14 h-14 bg-black text-white rounded-full flex items-center justify-center text-xl font-bold italic shadow-md">
@@ -383,7 +401,7 @@ export default function Navbar() {
                     </Link>
                   ))}
 
-                  {/* Admin Link */}
+                  {/* Admin Link in Drawer */}
                   {user.role === "admin" && (
                     <Link
                       to="/admin/dashboard"
