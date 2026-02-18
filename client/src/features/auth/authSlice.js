@@ -90,6 +90,19 @@ export const resetPassword = createAsyncThunk(
   },
 );
 
+export const forgotPassword = createAsyncThunk(
+  "AUTH/FORGOT_PASSWORD",
+  async (email, thunkAPI) => {
+    try {
+      return await authService.forgotPassword(email);
+    } catch (error) {
+      return thunkAPI.rejectWithValue(
+        error.response?.data?.message || "Failed to send reset email",
+      );
+    }
+  },
+);
+
 // -------------------- INITIAL STATE --------------------
 
 const initialState = {
@@ -258,6 +271,26 @@ const authSlice = createSlice({
         state.message = "Password reset successfully!";
       })
       .addCase(resetPassword.rejected, (state, action) => {
+        state.isLoading = false;
+        state.isError = true;
+        state.isSuccess = false;
+        state.message = action.payload;
+      }) // ==========================
+      // FORGOT PASSWORD CASES
+      // ==========================
+      .addCase(forgotPassword.pending, (state) => {
+        state.isLoading = true;
+        state.isSuccess = false;
+        state.isError = false;
+      })
+      .addCase(forgotPassword.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.isSuccess = true;
+        state.isError = false;
+        state.message =
+          action.payload?.message || "Reset link sent to your email!";
+      })
+      .addCase(forgotPassword.rejected, (state, action) => {
         state.isLoading = false;
         state.isError = true;
         state.isSuccess = false;
