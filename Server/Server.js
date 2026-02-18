@@ -9,10 +9,26 @@ const app = express();
 const PORT = process.env.PORT || 5050;
 
 connectDB();
+// Allowed Origins ki list
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://krume-dunazr1yr-harshadkumawats-projects.vercel.app", 
+  "https://krume-ku.vercel.app", 
+];
 
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: function (origin, callback) {
+      
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.indexOf(origin) === -1) {
+        const msg =
+          "The CORS policy for this site does not allow access from the specified Origin.";
+        return callback(new Error(msg), false);
+      }
+      return callback(null, true);
+    },
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE"],
   }),

@@ -11,7 +11,7 @@ import {
   Search,
 } from "lucide-react";
 import { toast } from "react-toastify";
-import { getAllUsers, reset } from "../../features/auth/authSlice";
+import {  getAllUsers, reset } from "../../features/auth/authSlice";
 
 const UserManagement = () => {
   const dispatch = useDispatch();

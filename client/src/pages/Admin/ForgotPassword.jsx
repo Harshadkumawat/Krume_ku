@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { Link } from "react-router-dom";
 import { toast } from "react-toastify";
 import { Mail, Loader2, ArrowLeft, ShieldCheck } from "lucide-react";
-import { forgotPassword, reset } from "../../features/auth/authSlice";
+import {  forgotPassword, reset } from "../../features/auth/authSlice";
 
 
 const ForgotPassword = () => {
