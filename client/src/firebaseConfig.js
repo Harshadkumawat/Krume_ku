@@ -1,13 +1,10 @@
-
 import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 
-
-
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: "krume-ku.vercel.app",
+  authDomain: "krumeku-auth.firebaseapp.com",
   projectId: "krumeku-auth",
   storageBucket: "krumeku-auth.firebasestorage.app",
   messagingSenderId: "405683846920",
