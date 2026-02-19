@@ -17,11 +17,13 @@ export default function OrderCard({ order, onReturnClick }) {
   };
 
   const isDelivered = order.orderStatus === "Delivered";
-  // 🔥 Date missing ho to testing ke liye 'true' return karega
+
   const isEligible =
     isDelivered &&
     (order.deliveredAt ? checkEligibility(order.deliveredAt) : true);
+
   const isReturnRequested = order.returnInfo?.isReturnRequested;
+  const returnStatus = order.returnInfo?.status; // 🔥 Naya: Return ka exact status nikal liya
 
   const getImgUrl = (imgId) => {
     if (!imgId)
@@ -104,13 +106,31 @@ export default function OrderCard({ order, onReturnClick }) {
         {/* 🛠️ ACTION BUTTONS SECTION */}
         <div className="flex items-center justify-start md:justify-end w-full md:w-auto mt-2 md:mt-0 pt-4 md:pt-0 border-t border-zinc-100 md:border-t-0 md:min-w-[180px]">
           {isReturnRequested ? (
-            <div className="text-left md:text-right w-full md:w-auto bg-orange-50 md:bg-transparent p-3 md:p-0 rounded-lg md:rounded-none border border-orange-100 md:border-none">
-              <span className="text-[8px] font-black uppercase text-zinc-400 block mb-0.5 md:mb-1">
-                Status
-              </span>
-              <span className="text-[10px] md:text-[11px] font-black uppercase italic text-orange-500">
-                Return Requested
-              </span>
+            <div className="text-left md:text-right w-full md:w-auto bg-orange-50 md:bg-transparent p-3 md:p-0 rounded-lg md:rounded-none border border-orange-100 md:border-none flex items-center justify-between md:block">
+              <div>
+                <span className="text-[8px] font-black uppercase text-zinc-400 block mb-0.5 md:mb-1">
+                  Return Status
+                </span>
+                {/* 🔥 NAYA LOGIC: Yahan returnStatus variable use ho raha hai */}
+                <span
+                  className={`text-[10px] md:text-[11px] font-black uppercase italic ${
+                    returnStatus === "Pending"
+                      ? "text-orange-500"
+                      : returnStatus === "Approved"
+                        ? "text-blue-600"
+                        : returnStatus === "Refunded"
+                          ? "text-green-600"
+                          : returnStatus === "Rejected"
+                            ? "text-red-600"
+                            : "text-zinc-600"
+                  }`}
+                >
+                  {returnStatus}
+                </span>
+              </div>
+
+              {/* Mobile par ek chhota sa arrow dikhega taaki pata chale ki click karke details dekh sakte hain */}
+              <ChevronRight size={14} className="md:hidden text-zinc-400" />
             </div>
           ) : isEligible ? (
             <button

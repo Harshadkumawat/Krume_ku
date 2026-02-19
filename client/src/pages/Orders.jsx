@@ -9,6 +9,10 @@ import {
   ArrowRight,
   X,
   AlertCircle,
+  CheckCircle,
+  Clock,
+  Banknote,
+  XCircle,
 } from "lucide-react";
 
 import { getMyOrders, returnOrder } from "../features/orders/orderSlice";
@@ -132,13 +136,12 @@ export default function Orders() {
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
               className="relative bg-white w-full sm:w-[400px] md:w-[500px] h-full shadow-2xl overflow-y-auto"
             >
-              {/* Padding adjusted for mobile screens */}
               <div className="p-6 md:p-8 lg:p-12 min-h-full flex flex-col">
                 <div className="flex justify-between items-start mb-8 md:mb-10">
                   <h2 className="text-2xl md:text-3xl font-black uppercase italic tracking-tighter leading-none mt-1">
-                    Initiate
-                    <br />
-                    Protocol
+                    {selectedOrder.returnInfo?.isReturnRequested
+                      ? "Request\nStatus"
+                      : "Initiate\nProtocol"}
                   </h2>
                   <button
                     onClick={() => setSelectedOrder(null)}
@@ -149,81 +152,159 @@ export default function Orders() {
                 </div>
 
                 <div className="flex-1 space-y-6 md:space-y-8">
-                  <div className="bg-orange-50 border border-orange-100 p-3 md:p-4 rounded-xl flex gap-3">
-                    <AlertCircle
-                      className="text-orange-600 shrink-0 mt-0.5"
-                      size={18}
-                    />
-                    <p className="text-[10px] md:text-[11px] font-bold text-orange-800 leading-relaxed uppercase tracking-tighter">
-                      Ensure artifact is unused, unwashed, and original tags
-                      attached. QC will be performed at pickup.
-                    </p>
-                  </div>
+                  {/* 🔥 NEW LOGIC: Check if Return is already requested */}
+                  {selectedOrder.returnInfo?.isReturnRequested ? (
+                    <div className="space-y-6 animate-in fade-in">
+                      {/* Status Tracker Box */}
+                      <div className="bg-zinc-50 border border-zinc-100 p-6 md:p-8 rounded-2xl md:rounded-[2rem]">
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">
+                          Current Status
+                        </p>
 
-                  <form
-                    onSubmit={handleReturnSubmit}
-                    className="space-y-6 md:space-y-8 pb-10"
-                  >
-                    <div className="space-y-2 md:space-y-3">
-                      <label className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-zinc-400">
-                        Request Type
-                      </label>
-                      <div className="grid grid-cols-2 gap-3 md:gap-4">
-                        <button
-                          type="button"
-                          onClick={() => setReturnType("refund")}
-                          className={`py-3 md:py-4 rounded-xl border-2 text-[10px] md:text-[11px] font-black uppercase tracking-widest transition-all ${returnType === "refund" ? "border-black bg-black text-white" : "border-zinc-100 text-zinc-400 hover:border-black"}`}
-                        >
-                          Refund
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setReturnType("exchange")}
-                          className={`py-3 md:py-4 rounded-xl border-2 text-[10px] md:text-[11px] font-black uppercase tracking-widest transition-all ${returnType === "exchange" ? "border-black bg-black text-white" : "border-zinc-100 text-zinc-400 hover:border-black"}`}
-                        >
-                          Exchange
-                        </button>
+                        <div className="flex items-center gap-4">
+                          {selectedOrder.returnInfo.status === "Pending" && (
+                            <div className="w-12 h-12 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center shrink-0">
+                              <Clock size={24} />
+                            </div>
+                          )}
+                          {selectedOrder.returnInfo.status === "Approved" && (
+                            <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center shrink-0">
+                              <CheckCircle size={24} />
+                            </div>
+                          )}
+                          {selectedOrder.returnInfo.status === "Refunded" && (
+                            <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center shrink-0">
+                              <Banknote size={24} />
+                            </div>
+                          )}
+                          {selectedOrder.returnInfo.status === "Rejected" && (
+                            <div className="w-12 h-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center shrink-0">
+                              <XCircle size={24} />
+                            </div>
+                          )}
+
+                          <div>
+                            <h3 className="text-xl md:text-2xl font-black uppercase italic tracking-tighter">
+                              {selectedOrder.returnInfo.status}
+                            </h3>
+                            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1">
+                              Type: {selectedOrder.returnInfo.type}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Admin Comment Section */}
+                        {selectedOrder.returnInfo.adminComment && (
+                          <div className="mt-6 p-4 bg-white border border-gray-200 rounded-xl">
+                            <span className="text-[9px] font-black uppercase tracking-widest text-gray-400 block mb-1">
+                              Update from Support:
+                            </span>
+                            <p className="text-[11px] font-bold text-gray-800 uppercase tracking-tight italic">
+                              "{selectedOrder.returnInfo.adminComment}"
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Original Request Details */}
+                      <div className="px-2">
+                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2">
+                          Original Request Details
+                        </p>
+                        <p className="text-[11px] font-bold uppercase tracking-tight text-gray-800">
+                          Reason: {selectedOrder.returnInfo.reason}
+                        </p>
+                        {selectedOrder.returnInfo.comments && (
+                          <p className="text-[11px] font-medium text-gray-500 uppercase tracking-tight mt-1">
+                            Note: {selectedOrder.returnInfo.comments}
+                          </p>
+                        )}
                       </div>
                     </div>
+                  ) : (
+                    // 🔥 ORIGINAL FORM (Only shows if no return is requested)
+                    <>
+                      <div className="bg-orange-50 border border-orange-100 p-3 md:p-4 rounded-xl flex gap-3">
+                        <AlertCircle
+                          className="text-orange-600 shrink-0 mt-0.5"
+                          size={18}
+                        />
+                        <p className="text-[10px] md:text-[11px] font-bold text-orange-800 leading-relaxed uppercase tracking-tighter">
+                          Ensure artifact is unused, unwashed, and original tags
+                          attached. QC will be performed at pickup.
+                        </p>
+                      </div>
 
-                    <div className="space-y-2 md:space-y-3">
-                      <label className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-zinc-400">
-                        Reason
-                      </label>
-                      <select
-                        required
-                        value={returnReason}
-                        onChange={(e) => setReturnReason(e.target.value)}
-                        className="w-full p-3 md:p-4 bg-zinc-50 border border-zinc-200 rounded-xl outline-none text-[11px] md:text-xs font-bold uppercase focus:border-black transition-all appearance-none cursor-pointer"
+                      <form
+                        onSubmit={handleReturnSubmit}
+                        className="space-y-6 md:space-y-8 pb-10"
                       >
-                        <option value="">Select Protocol</option>
-                        <option value="size">Size Fit Issue</option>
-                        <option value="quality">Fabric Defect / Damage</option>
-                        <option value="wrong">Wrong Artifact Received</option>
-                        <option value="mind">Change of Mind</option>
-                      </select>
-                    </div>
+                        <div className="space-y-2 md:space-y-3">
+                          <label className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                            Request Type
+                          </label>
+                          <div className="grid grid-cols-2 gap-3 md:gap-4">
+                            <button
+                              type="button"
+                              onClick={() => setReturnType("refund")}
+                              className={`py-3 md:py-4 rounded-xl border-2 text-[10px] md:text-[11px] font-black uppercase tracking-widest transition-all ${returnType === "refund" ? "border-black bg-black text-white" : "border-zinc-100 text-zinc-400 hover:border-black"}`}
+                            >
+                              Refund
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setReturnType("exchange")}
+                              className={`py-3 md:py-4 rounded-xl border-2 text-[10px] md:text-[11px] font-black uppercase tracking-widest transition-all ${returnType === "exchange" ? "border-black bg-black text-white" : "border-zinc-100 text-zinc-400 hover:border-black"}`}
+                            >
+                              Exchange
+                            </button>
+                          </div>
+                        </div>
 
-                    <div className="space-y-2 md:space-y-3">
-                      <label className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-zinc-400">
-                        Remarks
-                      </label>
-                      <textarea
-                        rows="3"
-                        value={comments}
-                        onChange={(e) => setComments(e.target.value)}
-                        placeholder="DESCRIBE THE ISSUE..."
-                        className="w-full p-3 md:p-4 bg-zinc-50 border border-zinc-200 rounded-xl outline-none text-[11px] md:text-xs font-medium focus:border-black transition-all resize-none uppercase"
-                      />
-                    </div>
+                        <div className="space-y-2 md:space-y-3">
+                          <label className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                            Reason
+                          </label>
+                          <select
+                            required
+                            value={returnReason}
+                            onChange={(e) => setReturnReason(e.target.value)}
+                            className="w-full p-3 md:p-4 bg-zinc-50 border border-zinc-200 rounded-xl outline-none text-[11px] md:text-xs font-bold uppercase focus:border-black transition-all appearance-none cursor-pointer"
+                          >
+                            <option value="">Select Protocol</option>
+                            <option value="size">Size Fit Issue</option>
+                            <option value="quality">
+                              Fabric Defect / Damage
+                            </option>
+                            <option value="wrong">
+                              Wrong Artifact Received
+                            </option>
+                            <option value="mind">Change of Mind</option>
+                          </select>
+                        </div>
 
-                    <button
-                      type="submit"
-                      className="w-full py-4 md:py-5 bg-black text-white text-[10px] md:text-[11px] font-black uppercase tracking-[0.2em] rounded-xl hover:bg-zinc-800 transition-all shadow-xl active:scale-95"
-                    >
-                      Confirm Request
-                    </button>
-                  </form>
+                        <div className="space-y-2 md:space-y-3">
+                          <label className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                            Remarks
+                          </label>
+                          <textarea
+                            rows="3"
+                            value={comments}
+                            onChange={(e) => setComments(e.target.value)}
+                            placeholder="DESCRIBE THE ISSUE..."
+                            className="w-full p-3 md:p-4 bg-zinc-50 border border-zinc-200 rounded-xl outline-none text-[11px] md:text-xs font-medium focus:border-black transition-all resize-none uppercase"
+                          />
+                        </div>
+
+                        <button
+                          type="submit"
+                          className="w-full py-4 md:py-5 bg-black text-white text-[10px] md:text-[11px] font-black uppercase tracking-[0.2em] rounded-xl hover:bg-zinc-800 transition-all shadow-xl active:scale-95"
+                        >
+                          Confirm Request
+                        </button>
+                      </form>
+                    </>
+                  )}
                 </div>
               </div>
             </motion.div>

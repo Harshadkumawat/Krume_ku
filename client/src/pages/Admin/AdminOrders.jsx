@@ -115,7 +115,7 @@ const AdminOrders = () => {
         </div>
       </div>
 
-      {/* 2. ORDERS LISTING (Hybrid Layout) */}
+      {/* 2. ORDERS LISTING */}
       {!filteredOrders || filteredOrders.length === 0 ? (
         <div className="text-center py-20 bg-white rounded-[2rem] border border-gray-100">
           <Package className="mx-auto text-gray-100 mb-4" size={60} />
@@ -150,10 +150,15 @@ const AdminOrders = () => {
               <tbody className="divide-y divide-gray-50">
                 {filteredOrders.map((order) => {
                   const isCancelled = order.orderStatus === "Cancelled";
+                  const isRefunded =
+                    order.returnInfo?.status === "Refunded" ||
+                    order.orderStatus === "Refunded" ||
+                    order.orderStatus === "Returned";
+
                   return (
                     <tr
                       key={order._id}
-                      className={`group hover:bg-gray-50/50 transition-all ${isCancelled ? "opacity-60 bg-red-50/10" : ""}`}
+                      className={`group hover:bg-gray-50/50 transition-all ${isCancelled ? "opacity-60 bg-red-50/10" : isRefunded ? "opacity-60 bg-purple-50/10" : ""}`}
                     >
                       <td className="p-6">
                         <span className="font-mono text-[10px] font-black text-gray-400 bg-gray-100 px-2 py-1 rounded">
@@ -192,6 +197,10 @@ const AdminOrders = () => {
                             className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[9px] font-black uppercase border ${getStatusStyle("Cancelled")}`}
                           >
                             <XCircle size={12} /> Cancelled
+                          </div>
+                        ) : isRefunded ? (
+                          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[9px] font-black uppercase border bg-purple-50 text-purple-600 border-purple-200">
+                            <CheckCircle size={12} /> Refunded
                           </div>
                         ) : (
                           <div className="relative inline-block group/select">
@@ -236,79 +245,97 @@ const AdminOrders = () => {
             </table>
           </div>
 
-          {/* 📱 MOBILE VIEW: CARDS (No horizontal scroll) */}
+          {/* 📱 MOBILE VIEW: CARDS */}
           <div className="md:hidden flex flex-col gap-4">
-            {filteredOrders.map((order) => (
-              <div
-                key={order._id}
-                className="bg-white p-5 rounded-[1.5rem] border border-gray-100 shadow-sm flex flex-col gap-4"
-              >
-                <div className="flex justify-between items-center border-b border-gray-50 pb-3">
-                  <span className="font-mono text-[10px] font-black text-gray-400 bg-gray-50 px-2 py-1 rounded">
-                    #{order._id.substring(order._id.length - 8).toUpperCase()}
-                  </span>
-                  <p className="text-sm font-black italic">
-                    ₹{order.totalPrice.toLocaleString("en-IN")}
-                  </p>
-                </div>
+            {filteredOrders.map((order) => {
+              const isCancelled = order.orderStatus === "Cancelled";
+              const isRefunded =
+                order.returnInfo?.status === "Refunded" ||
+                order.orderStatus === "Refunded" ||
+                order.orderStatus === "Returned";
 
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-black text-white flex items-center justify-center font-black text-sm shadow-md flex-shrink-0">
-                    {order.user?.fullName?.[0] || "U"}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-black text-xs uppercase italic text-gray-900 truncate">
-                      {order.user?.fullName || "Guest User"}
-                    </p>
-                    <p className="text-[10px] text-gray-400 font-bold lowercase truncate">
-                      {order.user?.email}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-3 pt-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[9px] font-black uppercase text-gray-400 tracking-widest">
-                      Update Status:
+              return (
+                <div
+                  key={order._id}
+                  className="bg-white p-5 rounded-[1.5rem] border border-gray-100 shadow-sm flex flex-col gap-4"
+                >
+                  <div className="flex justify-between items-center border-b border-gray-50 pb-3">
+                    <span className="font-mono text-[10px] font-black text-gray-400 bg-gray-50 px-2 py-1 rounded">
+                      #{order._id.substring(order._id.length - 8).toUpperCase()}
                     </span>
-                    <div className="relative">
-                      <select
-                        value={order.orderStatus}
-                        disabled={order.orderStatus === "Cancelled"}
-                        onChange={(e) =>
-                          handleStatusChange(order._id, e.target.value)
-                        }
-                        className={`appearance-none pl-3 pr-8 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest border outline-none w-32 ${getStatusStyle(order.orderStatus)}`}
-                      >
-                        <option value="Processing">Processing</option>
-                        <option value="Shipped">Shipped</option>
-                        <option value="Delivered">Delivered</option>
-                        <option value="Cancelled">Cancelled</option>
-                      </select>
-                      <Clock
-                        className="absolute right-2.5 top-1/2 -translate-y-1/2 opacity-40"
-                        size={10}
-                      />
+                    <p className="text-sm font-black italic">
+                      ₹{order.totalPrice.toLocaleString("en-IN")}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-black text-white flex items-center justify-center font-black text-sm shadow-md flex-shrink-0">
+                      {order.user?.fullName?.[0] || "U"}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-black text-xs uppercase italic text-gray-900 truncate">
+                        {order.user?.fullName || "Guest User"}
+                      </p>
+                      <p className="text-[10px] text-gray-400 font-bold lowercase truncate">
+                        {order.user?.email}
+                      </p>
                     </div>
                   </div>
 
-                  <div className="flex gap-2 border-t border-gray-50 pt-4 mt-1">
-                    <button
-                      onClick={() => setSelectedOrder(order)}
-                      className="flex-1 py-3 bg-gray-100 rounded-xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest active:scale-95"
-                    >
-                      <Eye size={14} /> View Details
-                    </button>
-                    <button
-                      onClick={() => handleDelete(order._id)}
-                      className="w-12 py-3 bg-red-50 text-red-600 rounded-xl flex items-center justify-center active:scale-95"
-                    >
-                      <Trash2 size={14} />
-                    </button>
+                  <div className="flex flex-col gap-3 pt-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[9px] font-black uppercase text-gray-400 tracking-widest">
+                        Update Status:
+                      </span>
+                      <div className="relative">
+                        {isRefunded ? (
+                          <span className="px-3 py-1.5 rounded-lg bg-purple-50 text-purple-600 border border-purple-200 text-[9px] font-black uppercase tracking-widest">
+                            Refunded
+                          </span>
+                        ) : isCancelled ? (
+                          <span className="px-3 py-1.5 rounded-lg bg-red-50 text-red-600 border border-red-100 text-[9px] font-black uppercase tracking-widest">
+                            Cancelled
+                          </span>
+                        ) : (
+                          <>
+                            <select
+                              value={order.orderStatus}
+                              onChange={(e) =>
+                                handleStatusChange(order._id, e.target.value)
+                              }
+                              className={`appearance-none pl-3 pr-8 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest border outline-none w-32 ${getStatusStyle(order.orderStatus)}`}
+                            >
+                              <option value="Processing">Processing</option>
+                              <option value="Shipped">Shipped</option>
+                              <option value="Delivered">Delivered</option>
+                            </select>
+                            <Clock
+                              className="absolute right-2.5 top-1/2 -translate-y-1/2 opacity-40"
+                              size={10}
+                            />
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2 border-t border-gray-50 pt-4 mt-1">
+                      <button
+                        onClick={() => setSelectedOrder(order)}
+                        className="flex-1 py-3 bg-gray-100 rounded-xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest active:scale-95"
+                      >
+                        <Eye size={14} /> View Details
+                      </button>
+                      <button
+                        onClick={() => handleDelete(order._id)}
+                        className="w-12 py-3 bg-red-50 text-red-600 rounded-xl flex items-center justify-center active:scale-95"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </>
       )}
@@ -321,7 +348,6 @@ const AdminOrders = () => {
             onClick={() => setSelectedOrder(null)}
           />
           <div className="bg-white w-full max-w-4xl max-h-[92vh] overflow-y-auto rounded-[1.5rem] md:rounded-[3rem] shadow-2xl relative z-10 animate-in zoom-in-95 duration-200 no-scrollbar">
-            {/* Modal Header */}
             <div className="sticky top-0 bg-white/90 backdrop-blur-xl border-b border-gray-100 p-6 md:p-8 flex justify-between items-center z-20">
               <div>
                 <h3 className="text-xl md:text-2xl font-black uppercase italic tracking-tighter">

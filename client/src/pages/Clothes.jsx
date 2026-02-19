@@ -57,8 +57,10 @@ const Clothes = () => {
     const cats = new Set(),
       sizeSet = new Set(),
       colorSet = new Set();
+
     allProducts.forEach((p) => {
       if (p.category) cats.add(p.category);
+
       p.sizes?.forEach((s) =>
         sizeSet.add(
           String(s?.label || s)
@@ -66,8 +68,16 @@ const Clothes = () => {
             .trim(),
         ),
       );
-      p.colors?.forEach((c) => colorSet.add(c?.name || c));
+
+      // 🔥 COLOR DUPLICATE FIX: Sabhi colors ko uppercase karke add karega
+      p.colors?.forEach((c) => {
+        const colorVal = String(c?.name || c)
+          .toUpperCase()
+          .trim();
+        if (colorVal) colorSet.add(colorVal);
+      });
     });
+
     const sizeOrder = ["XXS", "XS", "S", "M", "L", "XL", "XXL", "XXXL"];
     return {
       uniqueCats: Array.from(cats).sort(),
@@ -82,6 +92,7 @@ const Clothes = () => {
     let data = [...allProducts];
     if (selectedCats.length > 0)
       data = data.filter((p) => selectedCats.includes(p.category));
+
     if (selectedSizes.length > 0)
       data = data.filter((p) =>
         p.sizes?.some((s) =>
@@ -92,9 +103,17 @@ const Clothes = () => {
           ),
         ),
       );
+
+    // 🔥 COLOR FILTER FIX: Search karte waqt bhi case match karwayega
     if (selectedColors.length > 0)
       data = data.filter((p) =>
-        p.colors?.some((c) => selectedColors.includes(c?.name || c)),
+        p.colors?.some((c) =>
+          selectedColors.includes(
+            String(c?.name || c)
+              .toUpperCase()
+              .trim(),
+          ),
+        ),
       );
 
     if (sortBy === "low-high") data.sort((a, b) => a.price - b.price);

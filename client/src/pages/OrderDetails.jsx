@@ -17,6 +17,7 @@ import {
   CheckCircle2,
   Clock,
   RotateCcw,
+  Banknote,
 } from "lucide-react";
 
 export default function OrderDetails() {
@@ -104,14 +105,121 @@ export default function OrderDetails() {
       case "Return Approved":
         return "bg-green-600 text-white";
       case "Returned":
+      case "Refunded":
         return "bg-zinc-500 text-white";
       default:
         return "bg-zinc-100 text-zinc-800";
     }
   };
 
+  // 🔥 DYNAMIC PROGRESS TRACKER LOGIC
+  let progressWidth = "0%";
+  let progressColor = "bg-black";
+  let trackerSteps = [];
+
+  if (isReturnRequested) {
+    // RETURN TRACKER
+    const typeLabel =
+      order.returnInfo?.type === "Exchange" ? "Exchanged" : "Refunded";
+
+    if (returnStatus === "Rejected") {
+      progressWidth = "50%";
+      progressColor = "bg-red-500";
+      trackerSteps = [
+        {
+          label: "Requested",
+          icon: RotateCcw,
+          color: "bg-orange-500 border-orange-500 text-white",
+          textColor: "text-orange-500",
+        },
+        {
+          label: "Rejected",
+          icon: XCircle,
+          color: "bg-red-500 border-red-500 text-white scale-110 shadow-md",
+          textColor: "text-red-500",
+        },
+        {
+          label: typeLabel,
+          icon: Banknote,
+          color: "bg-white border-zinc-200 text-zinc-300",
+          textColor: "text-zinc-400",
+        },
+      ];
+    } else {
+      const isAppr = returnStatus === "Approved" || returnStatus === "Refunded";
+      const isRef = returnStatus === "Refunded";
+      const isPend = returnStatus === "Pending";
+
+      progressWidth = isRef ? "100%" : isAppr ? "50%" : "0%";
+      progressColor = isRef
+        ? "bg-green-500"
+        : isAppr
+          ? "bg-blue-500"
+          : "bg-orange-500";
+
+      trackerSteps = [
+        {
+          label: "Requested",
+          icon: RotateCcw,
+          color: `bg-orange-500 border-orange-500 text-white ${isPend ? "scale-110 shadow-md" : ""}`,
+          textColor: "text-orange-500",
+        },
+        {
+          label: "Approved",
+          icon: CheckCircle2,
+          color: isAppr
+            ? `bg-blue-500 border-blue-500 text-white ${returnStatus === "Approved" ? "scale-110 shadow-md" : ""}`
+            : "bg-white border-zinc-200 text-zinc-300",
+          textColor: isAppr ? "text-blue-500" : "text-zinc-400",
+        },
+        {
+          label: typeLabel,
+          icon: Banknote,
+          color: isRef
+            ? "bg-green-500 border-green-500 text-white scale-110 shadow-md"
+            : "bg-white border-zinc-200 text-zinc-300",
+          textColor: isRef ? "text-green-500" : "text-zinc-400",
+        },
+      ];
+    }
+  } else {
+    // NORMAL ORDER TRACKER
+    const isShip =
+      order.orderStatus === "Shipped" || order.orderStatus === "Delivered";
+    const isDel = order.orderStatus === "Delivered";
+    const isConf = order.orderStatus === "Processing";
+
+    progressWidth = isDel ? "100%" : isShip ? "50%" : "0%";
+    progressColor = "bg-black";
+
+    trackerSteps = [
+      {
+        label: "Confirmed",
+        icon: Clock,
+        color: `bg-black border-black text-white ${isConf ? "scale-110 shadow-md" : ""}`,
+        textColor: "text-black",
+      },
+      {
+        label: "Shipped",
+        icon: Truck,
+        color: isShip
+          ? `bg-black border-black text-white ${order.orderStatus === "Shipped" ? "scale-110 shadow-md" : ""}`
+          : "bg-white border-zinc-200 text-zinc-300",
+        textColor: isShip ? "text-black" : "text-zinc-400",
+      },
+      {
+        label: "Delivered",
+        icon: CheckCircle2,
+        color: isDel
+          ? "bg-black border-black text-white scale-110 shadow-md"
+          : "bg-white border-zinc-200 text-zinc-300",
+        textColor: isDel ? "text-black" : "text-zinc-400",
+      },
+    ];
+  }
+
   return (
-    <div className="min-h-screen bg-white pt-8 md:pt-16 pb-20 selection:bg-black selection:text-white">
+    <div className="min-h-screen bg-white pt-8 md:pt-16 pb-20 selection:bg-black selection:text-white overflow-x-hidden">
       <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8">
         {/* BACK BUTTON */}
         <button
@@ -157,18 +265,6 @@ export default function OrderDetails() {
               </button>
             )}
 
-            {/* Admin Approved Note */}
-            {returnStatus === "Approved" && (
-              <div className="flex flex-col items-start md:items-end bg-green-50 p-3 rounded-lg border border-green-100 w-full md:w-auto">
-                <span className="text-[10px] md:text-[11px] font-black text-green-700 uppercase italic">
-                  Return Approved
-                </span>
-                <span className="text-[9px] font-bold text-green-600 uppercase tracking-tighter mt-1">
-                  Pickup boy will arrive soon.
-                </span>
-              </div>
-            )}
-
             {order.orderStatus === "Processing" && (
               <button
                 onClick={handleCancel}
@@ -180,46 +276,33 @@ export default function OrderDetails() {
           </div>
         </div>
 
-        {/* PROGRESS TRACKER (Scrollable on mobile) */}
+        {/* 🔥 DYNAMIC PROGRESS TRACKER */}
         <div className="mb-12 md:mb-16 bg-zinc-50 p-6 md:p-10 rounded-xl border border-zinc-100 overflow-x-auto scrollbar-hide">
           <div className="flex justify-between items-center relative min-w-[500px] max-w-3xl mx-auto px-4 md:px-0">
             {/* Background Line */}
             <div className="absolute top-1/2 left-0 w-full h-[2px] bg-zinc-200 -translate-y-1/2 z-0"></div>
-            {/* Active Line */}
+
+            {/* Active Progress Line */}
             <div
-              className="absolute top-1/2 left-0 h-[2px] bg-black -translate-y-1/2 transition-all duration-1000 z-0"
-              style={{
-                width:
-                  order.orderStatus === "Delivered"
-                    ? "100%"
-                    : order.orderStatus === "Shipped"
-                      ? "50%"
-                      : "0%",
-              }}
+              className={`absolute top-1/2 left-0 h-[2px] ${progressColor} -translate-y-1/2 transition-all duration-1000 z-0`}
+              style={{ width: progressWidth }}
             ></div>
 
-            {[
-              { label: "Confirmed", status: "Processing", icon: Clock },
-              { label: "Shipped", status: "Shipped", icon: Truck },
-              { label: "Delivered", status: "Delivered", icon: CheckCircle2 },
-            ].map((step, idx) => {
+            {/* Render Steps */}
+            {trackerSteps.map((step, idx) => {
               const Icon = step.icon;
-              const isActive =
-                order.orderStatus === step.status ||
-                (step.label === "Confirmed" &&
-                  order.orderStatus !== "Cancelled");
               return (
                 <div
                   key={idx}
                   className="relative z-10 flex flex-col items-center gap-3 md:gap-4 bg-zinc-50 px-2"
                 >
                   <div
-                    className={`p-2.5 md:p-3 rounded-full border-2 transition-all duration-500 ${isActive ? "bg-black text-white border-black scale-110 shadow-md" : "bg-white text-zinc-300 border-zinc-200"}`}
+                    className={`p-2.5 md:p-3 rounded-full border-2 transition-all duration-500 ${step.color}`}
                   >
                     <Icon size={18} className="w-4 h-4 md:w-5 md:h-5" />
                   </div>
                   <span
-                    className={`text-[9px] md:text-[10px] font-black uppercase tracking-widest italic ${isActive ? "text-black" : "text-zinc-400"}`}
+                    className={`text-[9px] md:text-[10px] font-black uppercase tracking-widest italic transition-all duration-500 ${step.textColor}`}
                   >
                     {step.label}
                   </span>
@@ -254,7 +337,7 @@ export default function OrderDetails() {
                   <div className="flex-1 flex flex-col justify-center md:justify-between py-1 min-w-0">
                     <div>
                       <h4 className="text-sm md:text-xl font-black uppercase italic leading-tight truncate">
-                        {item.productName || item.name || "Premium T-Shirt"}
+                        {item.productName || item.name || "Premium Piece"}
                       </h4>
                       <div className="flex flex-wrap gap-2 mt-2 md:mt-3">
                         <span className="text-[9px] font-bold text-zinc-500 bg-zinc-100 px-2 py-1 rounded-md uppercase tracking-wider">
@@ -274,7 +357,7 @@ export default function OrderDetails() {
             </div>
           </div>
 
-          {/* RIGHT: ADDRESS & SUMMARY */}
+          {/* RIGHT: ADDRESS, SUMMARY & RETURN STATUS */}
           <div className="lg:col-span-4 space-y-8 md:space-y-10">
             {/* Delivery Address */}
             <div className="bg-white border border-zinc-200 p-6 md:p-8 rounded-2xl shadow-sm">
@@ -316,7 +399,6 @@ export default function OrderDetails() {
                   </span>
                 </div>
 
-                {/* Agar shipping cost hai toh yahan add kar sakte hain */}
                 {order.shippingPrice > 0 && (
                   <div className="flex justify-between text-[11px] font-bold uppercase text-zinc-500">
                     <span>Delivery</span>
@@ -345,11 +427,62 @@ export default function OrderDetails() {
                 </div>
               </div>
 
+              {/* 🔥 RETURN STATUS BOX */}
               {isReturnRequested && (
-                <div className="mt-6 pt-5 border-t border-zinc-200 bg-orange-50/50 -mx-6 md:-mx-8 -mb-6 md:-mb-8 p-6 md:p-8 rounded-b-2xl">
-                  <p className="text-[9px] font-black text-orange-600 uppercase tracking-widest flex items-center gap-2">
-                    <RotateCcw size={12} /> Return Status: {returnStatus}
+                <div
+                  className={`mt-8 pt-6 border-t border-zinc-200 -mx-6 md:-mx-8 -mb-6 md:-mb-8 p-6 md:p-8 rounded-b-2xl ${
+                    returnStatus === "Pending"
+                      ? "bg-orange-50"
+                      : returnStatus === "Approved"
+                        ? "bg-blue-50"
+                        : returnStatus === "Refunded"
+                          ? "bg-green-50"
+                          : "bg-red-50"
+                  }`}
+                >
+                  <div className="flex items-center gap-3 mb-2">
+                    {returnStatus === "Pending" && (
+                      <Clock size={18} className="text-orange-600" />
+                    )}
+                    {returnStatus === "Approved" && (
+                      <CheckCircle2 size={18} className="text-blue-600" />
+                    )}
+                    {returnStatus === "Refunded" && (
+                      <Banknote size={18} className="text-green-600" />
+                    )}
+                    {returnStatus === "Rejected" && (
+                      <XCircle size={18} className="text-red-600" />
+                    )}
+
+                    <h4
+                      className={`text-sm font-black uppercase italic ${
+                        returnStatus === "Pending"
+                          ? "text-orange-600"
+                          : returnStatus === "Approved"
+                            ? "text-blue-600"
+                            : returnStatus === "Refunded"
+                              ? "text-green-600"
+                              : "text-red-600"
+                      }`}
+                    >
+                      {returnStatus}
+                    </h4>
+                  </div>
+
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-3">
+                    Type: {order.returnInfo.type}
                   </p>
+
+                  {order.returnInfo.adminComment && (
+                    <div className="bg-white p-3 rounded-xl border border-white/40 mt-3 shadow-sm">
+                      <span className="text-[8px] font-black uppercase tracking-widest text-zinc-400 block mb-1">
+                        Update from Support:
+                      </span>
+                      <p className="text-[10px] font-bold text-zinc-800 uppercase tracking-tight italic">
+                        "{order.returnInfo.adminComment}"
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

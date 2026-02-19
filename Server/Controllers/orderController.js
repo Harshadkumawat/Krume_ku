@@ -116,11 +116,17 @@ const addOrderItems = asyncHandler(async (req, res) => {
 
   const createdOrder = await order.save();
 
-  // 2. Reduce Stock
+  // 2. Reduce Stock (Main & Size specific)
   for (const item of orderItems) {
-    await Product.findByIdAndUpdate(item.product, {
-      $inc: { countInStock: -item.quantity },
-    });
+    const product = await Product.findById(item.product);
+    if (product) {
+      product.countInStock -= item.quantity;
+      const sizeIndex = product.sizes.findIndex((s) => s.label === item.size);
+      if (sizeIndex !== -1) {
+        product.sizes[sizeIndex].stock -= item.quantity;
+      }
+      await product.save();
+    }
   }
 
   // 3. Update Coupon Usage
@@ -135,7 +141,7 @@ const addOrderItems = asyncHandler(async (req, res) => {
   res.status(201).json(createdOrder);
 
   // ---------------------------------------------------------
-  // ⚡ BACKGROUND TASKS (Ab ye user ko block nahi karenge)
+  // ⚡ BACKGROUND TASKS
   // ---------------------------------------------------------
 
   // 4. Shiprocket Sync (Background)
@@ -265,10 +271,10 @@ const handleReturnStatus = asyncHandler(async (req, res) => {
           pickup_state: order.shippingAddress.state || "",
           pickup_country: "India",
           pickup_pincode: order.shippingAddress.postalCode,
-          pickup_email: "admin@krumeku.com", // Valid Email required usually
+          pickup_email: "admin@krumeku.com",
           pickup_phone: order.shippingAddress.phone,
           order_items: order.orderItems.map((item) => ({
-            name: item.productName || item.name, // 🔥 BUG FIX: item.name undefined ho sakta hai
+            name: item.productName || item.name,
             sku: item.product.toString(),
             units: item.quantity,
             selling_price: item.price,
@@ -307,11 +313,17 @@ const handleReturnStatus = asyncHandler(async (req, res) => {
     order.orderStatus = "Returned";
     order.isPaid = false;
 
-    // Restock (Stock wapas add karna)
+    // 🔥 FIX: Proper Restock (Size wise)
     for (const item of order.orderItems) {
-      await Product.findByIdAndUpdate(item.product, {
-        $inc: { countInStock: item.quantity },
-      });
+      const product = await Product.findById(item.product);
+      if (product) {
+        product.countInStock += item.quantity;
+        const sizeIndex = product.sizes.findIndex((s) => s.label === item.size);
+        if (sizeIndex !== -1) {
+          product.sizes[sizeIndex].stock += item.quantity;
+        }
+        await product.save();
+      }
     }
   } else if (status === "Rejected") {
     order.orderStatus = "Delivered";
@@ -382,11 +394,17 @@ const cancelOrder = asyncHandler(async (req, res) => {
     throw new Error("Cannot cancel shipped/delivered orders");
   }
 
-  // Restock
+  // 🔥 FIX: Proper Restock (Size wise) on Cancel
   for (const item of order.orderItems) {
-    await Product.findByIdAndUpdate(item.product, {
-      $inc: { countInStock: item.quantity },
-    });
+    const product = await Product.findById(item.product);
+    if (product) {
+      product.countInStock += item.quantity;
+      const sizeIndex = product.sizes.findIndex((s) => s.label === item.size);
+      if (sizeIndex !== -1) {
+        product.sizes[sizeIndex].stock += item.quantity;
+      }
+      await product.save();
+    }
   }
 
   // Shiprocket Cancel
