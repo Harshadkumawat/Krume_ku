@@ -140,6 +140,7 @@ export default function ProductForm() {
   const removeSize = (i) =>
     setForm((f) => ({ ...f, sizes: f.sizes.filter((_, idx) => idx !== i) }));
 
+  // 🔥 Colors Logic
   const addColor = () => {
     const c = colorInput.trim();
     if (!c || form.colors.includes(c)) return;
@@ -239,6 +240,7 @@ export default function ProductForm() {
         >
           {/* LEFT SIDE: MAIN INFO */}
           <div className="lg:col-span-8 space-y-6">
+            {/* BASIC INFO */}
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-6 md:p-8 shadow-xl">
               <SectionHeader title="Basic Information" icon={Layers} />
               <div className="space-y-6">
@@ -341,7 +343,6 @@ export default function ProductForm() {
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-6 md:p-8 shadow-xl">
               <SectionHeader title="Product Images" icon={ImageIcon} />
 
-              {/* Existing Images */}
               {isEditMode && form.existingImages.length > 0 && (
                 <div className="grid grid-cols-3 sm:grid-cols-5 gap-3 mb-6">
                   {form.existingImages.map((img) => (
@@ -365,7 +366,6 @@ export default function ProductForm() {
                 </div>
               )}
 
-              {/* Upload New */}
               <div className="relative border-2 border-dashed border-neutral-800 rounded-2xl p-8 flex flex-col items-center justify-center text-center hover:border-indigo-500/50 transition-all cursor-pointer group">
                 <input
                   type="file"
@@ -404,10 +404,50 @@ export default function ProductForm() {
               )}
             </div>
 
-            {/* SIZE & STOCK */}
+            {/* 🔥 MATRIX: COLORS & SIZES */}
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-6 md:p-8 shadow-xl">
-              <div className="flex justify-between items-center mb-6">
-                <SectionHeader title="Inventory Matrix" icon={Package} />
+              <SectionHeader title="Inventory Matrix" icon={Package} />
+
+              {/* Color Configuration Restored */}
+              <div className="mb-8 pb-8 border-b border-neutral-800">
+                <label className="input-label mb-3">Color Configuration</label>
+                <div className="flex gap-3 mb-4">
+                  <input
+                    className="input-field"
+                    placeholder="Enter Color (e.g. Black)"
+                    value={colorInput}
+                    onChange={(e) => setColorInput(e.target.value)}
+                    onKeyDown={(e) =>
+                      e.key === "Enter" && (e.preventDefault(), addColor())
+                    }
+                  />
+                  <button
+                    type="button"
+                    onClick={addColor}
+                    className="px-6 py-3 bg-indigo-600 text-[10px] font-black uppercase rounded-xl text-white shadow-xl hover:bg-indigo-500 active:scale-95 transition-all"
+                  >
+                    Add
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {form.colors.map((c) => (
+                    <span
+                      key={c}
+                      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black text-neutral-300 text-[10px] font-bold uppercase border border-neutral-800 shadow-sm group"
+                    >
+                      {c}
+                      <X
+                        className="w-3 h-3 cursor-pointer group-hover:text-red-500 transition-colors"
+                        onClick={() => removeColor(c)}
+                      />
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Sizes Table */}
+              <div className="flex justify-between items-center mb-4">
+                <label className="input-label mb-0">Size & Stock</label>
                 <button
                   type="button"
                   onClick={addSize}
