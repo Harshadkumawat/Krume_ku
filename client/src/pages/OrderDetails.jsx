@@ -54,30 +54,30 @@ export default function OrderDetails() {
   }, [id, dispatch]);
 
   const handleCancel = () => {
-    if (window.confirm("Are you sure you want to cancel this acquisition?")) {
+    if (window.confirm("Are you sure you want to cancel this order?")) {
       dispatch(cancelOrderUser(id));
     }
   };
 
   if (isLoading)
     return (
-      <div className="h-screen flex items-center justify-center bg-white">
+      <div className="min-h-screen flex items-center justify-center bg-white">
         <Loader2 className="animate-spin text-black w-10 h-10" />
       </div>
     );
 
   if (isError || id === "super" || !order)
     return (
-      <div className="h-screen flex flex-col items-center justify-center bg-white p-6 text-center">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-white p-6 text-center">
         <AlertCircle className="text-red-500 mb-4" size={40} />
-        <p className="font-black uppercase italic tracking-widest">
-          {message || "Archive Not Found"}
+        <p className="font-black uppercase italic tracking-widest text-lg">
+          {message || "Order Not Found"}
         </p>
         <button
           onClick={() => navigate("/orders")}
-          className="mt-4 underline text-[10px] font-black uppercase"
+          className="mt-6 border-b-2 border-black pb-1 text-xs font-black uppercase tracking-widest hover:text-gray-500 transition-colors"
         >
-          Return to History
+          Return to My Orders
         </button>
       </div>
     );
@@ -106,41 +106,43 @@ export default function OrderDetails() {
       case "Returned":
         return "bg-zinc-500 text-white";
       default:
-        return "bg-zinc-100 text-zinc-600";
+        return "bg-zinc-100 text-zinc-800";
     }
   };
 
   return (
-    <div className="min-h-screen bg-white pt-10 md:pt-16 pb-20 selection:bg-black selection:text-white">
-      <div className="max-w-[1200px] mx-auto px-6">
+    <div className="min-h-screen bg-white pt-8 md:pt-16 pb-20 selection:bg-black selection:text-white">
+      <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8">
         {/* BACK BUTTON */}
         <button
           onClick={() => navigate(-1)}
-          className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.3em] mb-10 hover:gap-4 transition-all"
+          className="flex items-center gap-2 text-[10px] md:text-[11px] font-black uppercase tracking-[0.2em] md:tracking-[0.3em] mb-8 md:mb-10 hover:gap-3 transition-all text-zinc-500 hover:text-black"
         >
-          <ArrowLeft size={16} /> Back to Archive
+          <ArrowLeft size={16} /> Back to My Orders
         </button>
 
         {/* HEADER */}
-        <div className="flex flex-col md:flex-row justify-between items-start border-b-2 border-black pb-10 mb-12">
-          <div>
-            <h1 className="text-4xl md:text-7xl font-black uppercase italic tracking-tighter leading-none">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-end border-b-2 border-black/10 pb-8 md:pb-10 mb-8 md:mb-12">
+          <div className="w-full md:w-auto">
+            <h1 className="text-3xl sm:text-5xl md:text-7xl font-black uppercase italic tracking-tighter leading-none break-all md:break-normal">
               Order{" "}
               <span className="text-gray-300">#{order._id?.slice(-6)}</span>
             </h1>
-            <p className="text-[10px] font-black uppercase tracking-[0.4em] text-gray-400 mt-4">
-              Authenticated on{" "}
-              {new Date(order.createdAt).toLocaleDateString("en-IN", {
-                day: "2-digit",
-                month: "short",
-                year: "numeric",
-              })}
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 mt-3 md:mt-4">
+              Placed on{" "}
+              <span className="text-black">
+                {new Date(order.createdAt).toLocaleDateString("en-IN", {
+                  day: "2-digit",
+                  month: "short",
+                  year: "numeric",
+                })}
+              </span>
             </p>
           </div>
 
-          <div className="flex flex-col items-end gap-4 mt-6 md:mt-0">
+          <div className="flex flex-col items-start md:items-end gap-3 md:gap-4 mt-6 md:mt-0 w-full md:w-auto">
             <div
-              className={`px-6 py-2 text-[10px] font-black uppercase tracking-widest italic shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] ${getStatusColor(order.orderStatus)}`}
+              className={`px-4 md:px-6 py-2 md:py-2.5 text-[10px] md:text-[11px] font-black uppercase tracking-widest italic rounded-md shadow-sm ${getStatusColor(order.orderStatus)}`}
             >
               {order.orderStatus}
             </div>
@@ -149,7 +151,7 @@ export default function OrderDetails() {
             {isEligibleForReturn && (
               <button
                 onClick={() => navigate("/orders")}
-                className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest bg-zinc-100 px-4 py-2 hover:bg-black hover:text-white transition-all italic border border-black/5"
+                className="flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest bg-zinc-100 px-4 py-3 md:py-2.5 hover:bg-black hover:text-white transition-all italic border border-black/5 rounded-md w-full md:w-auto"
               >
                 <RotateCcw size={14} /> Request Return
               </button>
@@ -157,12 +159,12 @@ export default function OrderDetails() {
 
             {/* Admin Approved Note */}
             {returnStatus === "Approved" && (
-              <div className="flex flex-col items-end">
-                <span className="text-[10px] font-black text-green-600 uppercase italic">
+              <div className="flex flex-col items-start md:items-end bg-green-50 p-3 rounded-lg border border-green-100 w-full md:w-auto">
+                <span className="text-[10px] md:text-[11px] font-black text-green-700 uppercase italic">
                   Return Approved
                 </span>
-                <span className="text-[8px] font-bold text-zinc-400 uppercase tracking-tighter">
-                  Reverse pickup initiated
+                <span className="text-[9px] font-bold text-green-600 uppercase tracking-tighter mt-1">
+                  Pickup boy will arrive soon.
                 </span>
               </div>
             )}
@@ -170,20 +172,22 @@ export default function OrderDetails() {
             {order.orderStatus === "Processing" && (
               <button
                 onClick={handleCancel}
-                className="flex items-center gap-2 text-[9px] font-black uppercase text-red-600 hover:underline"
+                className="flex items-center justify-center gap-2 text-[10px] font-black uppercase text-red-600 hover:text-red-800 hover:underline bg-red-50 hover:bg-red-100 px-4 py-3 md:py-2 rounded-md transition-colors w-full md:w-auto"
               >
-                <XCircle size={14} /> Cancel Acquisition
+                <XCircle size={14} /> Cancel Order
               </button>
             )}
           </div>
         </div>
 
-        {/* PROGRESS TRACKER */}
-        <div className="mb-20 bg-zinc-50 p-10 rounded-sm border border-zinc-100 overflow-x-auto">
-          <div className="flex justify-between items-center relative min-w-[400px] max-w-2xl mx-auto">
-            <div className="absolute top-1/2 left-0 w-full h-[1px] bg-zinc-200 -translate-y-1/2 z-0"></div>
+        {/* PROGRESS TRACKER (Scrollable on mobile) */}
+        <div className="mb-12 md:mb-16 bg-zinc-50 p-6 md:p-10 rounded-xl border border-zinc-100 overflow-x-auto scrollbar-hide">
+          <div className="flex justify-between items-center relative min-w-[500px] max-w-3xl mx-auto px-4 md:px-0">
+            {/* Background Line */}
+            <div className="absolute top-1/2 left-0 w-full h-[2px] bg-zinc-200 -translate-y-1/2 z-0"></div>
+            {/* Active Line */}
             <div
-              className="absolute top-1/2 left-0 h-[1.5px] bg-black -translate-y-1/2 transition-all duration-1000 z-0"
+              className="absolute top-1/2 left-0 h-[2px] bg-black -translate-y-1/2 transition-all duration-1000 z-0"
               style={{
                 width:
                   order.orderStatus === "Delivered"
@@ -193,6 +197,7 @@ export default function OrderDetails() {
                       : "0%",
               }}
             ></div>
+
             {[
               { label: "Confirmed", status: "Processing", icon: Clock },
               { label: "Shipped", status: "Shipped", icon: Truck },
@@ -206,15 +211,15 @@ export default function OrderDetails() {
               return (
                 <div
                   key={idx}
-                  className="relative z-10 flex flex-col items-center gap-4 bg-zinc-50 px-2"
+                  className="relative z-10 flex flex-col items-center gap-3 md:gap-4 bg-zinc-50 px-2"
                 >
                   <div
-                    className={`p-2 rounded-full border-2 transition-all duration-500 ${isActive ? "bg-black text-white border-black scale-110" : "bg-white text-zinc-300 border-zinc-200"}`}
+                    className={`p-2.5 md:p-3 rounded-full border-2 transition-all duration-500 ${isActive ? "bg-black text-white border-black scale-110 shadow-md" : "bg-white text-zinc-300 border-zinc-200"}`}
                   >
-                    <Icon size={16} />
+                    <Icon size={18} className="w-4 h-4 md:w-5 md:h-5" />
                   </div>
                   <span
-                    className={`text-[9px] font-black uppercase tracking-widest italic ${isActive ? "text-black" : "text-zinc-300"}`}
+                    className={`text-[9px] md:text-[10px] font-black uppercase tracking-widest italic ${isActive ? "text-black" : "text-zinc-400"}`}
                   >
                     {step.label}
                   </span>
@@ -225,79 +230,125 @@ export default function OrderDetails() {
         </div>
 
         {/* DETAILS GRID */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
-          <div className="lg:col-span-8 space-y-8">
-            <h3 className="text-[10px] font-black uppercase tracking-[0.3em] border-b pb-4 flex items-center gap-2 text-zinc-400">
-              <Package size={16} /> Acquired Pieces ({order.orderItems?.length})
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 md:gap-16">
+          {/* LEFT: ORDER ITEMS */}
+          <div className="lg:col-span-8 space-y-6 md:space-y-8">
+            <h3 className="text-[11px] font-black uppercase tracking-[0.2em] border-b border-zinc-200 pb-3 flex items-center gap-2 text-zinc-500">
+              <Package size={16} /> Order Items ({order.orderItems?.length})
             </h3>
-            {order.orderItems?.map((item, index) => (
-              <div
-                key={index}
-                className="flex gap-6 py-4 border-b border-zinc-50 group"
-              >
-                <div className="w-24 h-32 bg-zinc-50 overflow-hidden flex-shrink-0 border border-zinc-100 rounded-lg">
-                  <img
-                    src={getImgUrl(item.image)}
-                    className="w-full h-full object-cover transition-all duration-500"
-                    alt="Artifact"
-                  />
-                </div>
-                <div className="flex-1 flex flex-col justify-between py-1">
-                  <div>
-                    <h4 className="text-xl font-black uppercase italic leading-none">
-                      {item.productName || item.name || "Premium Piece"}
-                    </h4>
-                    <p className="text-[10px] font-bold text-zinc-400 mt-3 uppercase tracking-[0.1em]">
-                      Size: {item.size} | Qty: {item.quantity}
+
+            <div className="space-y-4">
+              {order.orderItems?.map((item, index) => (
+                <div
+                  key={index}
+                  className="flex flex-row gap-4 md:gap-6 py-4 border-b border-zinc-100 group"
+                >
+                  <div className="w-20 h-28 md:w-24 md:h-32 bg-zinc-50 overflow-hidden flex-shrink-0 border border-zinc-100 rounded-xl">
+                    <img
+                      src={getImgUrl(item.image)}
+                      className="w-full h-full object-cover transition-all duration-500 group-hover:scale-105"
+                      alt="Product"
+                    />
+                  </div>
+
+                  <div className="flex-1 flex flex-col justify-center md:justify-between py-1 min-w-0">
+                    <div>
+                      <h4 className="text-sm md:text-xl font-black uppercase italic leading-tight truncate">
+                        {item.productName || item.name || "Premium T-Shirt"}
+                      </h4>
+                      <div className="flex flex-wrap gap-2 mt-2 md:mt-3">
+                        <span className="text-[9px] font-bold text-zinc-500 bg-zinc-100 px-2 py-1 rounded-md uppercase tracking-wider">
+                          Size: {item.size}
+                        </span>
+                        <span className="text-[9px] font-bold text-zinc-500 bg-zinc-100 px-2 py-1 rounded-md uppercase tracking-wider">
+                          Qty: {item.quantity}
+                        </span>
+                      </div>
+                    </div>
+                    <p className="font-black text-sm md:text-base italic mt-3 md:mt-0">
+                      ₹{item.price?.toLocaleString("en-IN")}
                     </p>
                   </div>
-                  <p className="font-black text-sm italic">
-                    ₹{item.price?.toLocaleString()}
-                  </p>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
 
-          <div className="lg:col-span-4 space-y-12">
-            <div className="space-y-4">
-              <h3 className="text-[10px] font-black uppercase tracking-[0.3em] flex items-center gap-2 text-zinc-400">
-                <MapPin size={16} /> Destination
+          {/* RIGHT: ADDRESS & SUMMARY */}
+          <div className="lg:col-span-4 space-y-8 md:space-y-10">
+            {/* Delivery Address */}
+            <div className="bg-white border border-zinc-200 p-6 md:p-8 rounded-2xl shadow-sm">
+              <h3 className="text-[11px] font-black uppercase tracking-[0.2em] flex items-center gap-2 text-zinc-500 border-b border-zinc-100 pb-4 mb-4">
+                <MapPin size={16} /> Delivery Address
               </h3>
-              <div className="text-[11px] font-bold text-zinc-500 leading-relaxed uppercase">
-                <p className="text-black mb-1 font-black">
+              <div className="text-[11px] md:text-xs font-bold text-zinc-500 leading-relaxed uppercase space-y-1">
+                <p className="text-black mb-2 font-black text-sm">
                   {order.shippingAddress?.fullName || user?.fullName}
                 </p>
+                <p>{order.shippingAddress?.address}</p>
                 <p>
-                  {order.shippingAddress?.address},{" "}
-                  {order.shippingAddress?.city}
+                  {order.shippingAddress?.city}, {order.shippingAddress?.state}
                 </p>
                 <p>
-                  {order.shippingAddress?.state} -{" "}
-                  {order.shippingAddress?.postalCode}
+                  Pincode:{" "}
+                  <span className="text-black">
+                    {order.shippingAddress?.postalCode}
+                  </span>
                 </p>
-                <p className="mt-2 text-black">
+                <p className="mt-4 pt-4 border-t border-zinc-100 text-black flex items-center gap-2">
+                  <span className="text-zinc-400">Phone:</span> +91{" "}
                   {order.shippingAddress?.phone}
                 </p>
               </div>
             </div>
 
-            <div className="bg-zinc-50 p-8 space-y-4 border border-black/5 shadow-sm">
-              <h3 className="text-[10px] font-black uppercase tracking-[0.3em] border-b border-black/10 pb-4 flex items-center gap-2">
-                <ReceiptText size={16} /> Summary
+            {/* Order Summary */}
+            <div className="bg-zinc-50 border border-zinc-200 p-6 md:p-8 rounded-2xl shadow-sm">
+              <h3 className="text-[11px] font-black uppercase tracking-[0.2em] border-b border-zinc-200 pb-4 mb-5 flex items-center gap-2 text-zinc-500">
+                <ReceiptText size={16} /> Order Summary
               </h3>
-              <div className="flex justify-between text-[11px] font-bold uppercase">
-                <span className="text-zinc-400">Subtotal</span>
-                <span>₹{order.itemsPrice?.toLocaleString()}</span>
+
+              <div className="space-y-4">
+                <div className="flex justify-between text-[11px] font-bold uppercase text-zinc-500">
+                  <span>Subtotal</span>
+                  <span className="text-black">
+                    ₹{order.itemsPrice?.toLocaleString("en-IN")}
+                  </span>
+                </div>
+
+                {/* Agar shipping cost hai toh yahan add kar sakte hain */}
+                {order.shippingPrice > 0 && (
+                  <div className="flex justify-between text-[11px] font-bold uppercase text-zinc-500">
+                    <span>Delivery</span>
+                    <span className="text-black">
+                      ₹{order.shippingPrice?.toLocaleString("en-IN")}
+                    </span>
+                  </div>
+                )}
+
+                {order.discountPrice > 0 && (
+                  <div className="flex justify-between text-[11px] font-bold uppercase text-green-600">
+                    <span>Discount</span>
+                    <span>
+                      - ₹{order.discountPrice?.toLocaleString("en-IN")}
+                    </span>
+                  </div>
+                )}
+
+                <div className="flex justify-between items-center border-t border-zinc-200 pt-5 mt-2">
+                  <span className="text-[11px] font-black uppercase tracking-widest text-black">
+                    Total Paid
+                  </span>
+                  <span className="text-2xl font-black italic text-black">
+                    ₹{order.totalPrice?.toLocaleString("en-IN")}
+                  </span>
+                </div>
               </div>
-              <div className="flex justify-between text-[11px] font-bold uppercase border-t border-black/5 pt-4 text-xl font-black italic">
-                <span>Total</span>
-                <span>₹{order.totalPrice?.toLocaleString()}</span>
-              </div>
+
               {isReturnRequested && (
-                <div className="mt-6 pt-6 border-t border-zinc-200">
-                  <p className="text-[8px] font-black text-zinc-400 uppercase tracking-widest">
-                    Return Status: {returnStatus}
+                <div className="mt-6 pt-5 border-t border-zinc-200 bg-orange-50/50 -mx-6 md:-mx-8 -mb-6 md:-mb-8 p-6 md:p-8 rounded-b-2xl">
+                  <p className="text-[9px] font-black text-orange-600 uppercase tracking-widest flex items-center gap-2">
+                    <RotateCcw size={12} /> Return Status: {returnStatus}
                   </p>
                 </div>
               )}

@@ -10,11 +10,11 @@ import PageTransition from "../components/PageTransition";
 
 // Skeleton Component
 const ProductSkeleton = () => (
-  <div className="flex flex-col gap-4 animate-pulse">
-    <div className="aspect-[3/4] bg-gray-100 w-full rounded-[2rem]" />
-    <div className="space-y-3 px-4">
-      <div className="h-3 bg-gray-100 w-3/4 rounded-full" />
-      <div className="h-3 bg-gray-100 w-1/4 rounded-full" />
+  <div className="flex flex-col gap-3 animate-pulse">
+    <div className="aspect-[3/4] bg-gray-100 w-full rounded-2xl md:rounded-[2rem]" />
+    <div className="space-y-2 px-2">
+      <div className="h-2.5 bg-gray-100 w-3/4 rounded-full" />
+      <div className="h-2.5 bg-gray-100 w-1/4 rounded-full" />
     </div>
   </div>
 );
@@ -133,8 +133,9 @@ const Clothes = () => {
   return (
     <PageTransition>
       <div className="min-h-screen bg-white selection:bg-black selection:text-white">
-        <div className="bg-gray-50 border-b border-gray-100 overflow-x-auto no-scrollbar">
-          <div className="max-w-[1600px] mx-auto px-6 md:px-12 flex gap-10">
+        {/* 🏷️ Gender Tabs (Sticky on Mobile) */}
+        <div className="bg-gray-50 border-b border-gray-100 sticky top-0 z-40 overflow-x-auto no-scrollbar">
+          <div className="max-w-[1600px] mx-auto px-4 md:px-12 flex gap-6 md:gap-10">
             {["All", "Men", "Women"].map((g) => (
               <button
                 key={g}
@@ -143,27 +144,28 @@ const Clothes = () => {
                   else searchParams.set("gender", g);
                   setSearchParams(searchParams);
                 }}
-                className={`py-6 text-[11px] font-black uppercase tracking-[0.4em] transition-all relative shrink-0 ${
+                className={`py-4 md:py-6 text-[10px] md:text-[11px] font-black uppercase tracking-[0.3em] md:tracking-[0.4em] transition-all relative shrink-0 ${
                   genderParam === g || (!genderParam && g === "All")
                     ? "text-black"
-                    : "text-gray-300 hover:text-black"
+                    : "text-gray-300"
                 }`}
               >
                 {g}
                 {(genderParam === g || (!genderParam && g === "All")) && (
-                  <span className="absolute bottom-0 left-0 w-full h-[3px] bg-black"></span>
+                  <span className="absolute bottom-0 left-0 w-full h-[2px] md:h-[3px] bg-black"></span>
                 )}
               </button>
             ))}
           </div>
         </div>
 
-        <div className="py-12 border-b border-gray-100 bg-white">
-          <div className="max-w-[1600px] mx-auto px-6 md:px-12">
+        {/* 🏢 Header Section */}
+        <div className="py-8 md:py-16 border-b border-gray-100 bg-white">
+          <div className="max-w-[1600px] mx-auto px-4 md:px-12">
             {queryParam && (
-              <div className="mb-6 flex items-center gap-3 text-indigo-600 animate-in fade-in slide-in-from-left duration-500">
-                <Search size={16} />
-                <span className="text-[10px] font-black uppercase tracking-[0.2em]">
+              <div className="mb-6 flex items-center gap-3 text-indigo-600 animate-in fade-in">
+                <Search size={14} />
+                <span className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em]">
                   Results for: "{queryParam}"
                 </span>
                 <button
@@ -171,43 +173,44 @@ const Clothes = () => {
                     searchParams.delete("q");
                     setSearchParams(searchParams);
                   }}
-                  className="ml-2 text-gray-400 hover:text-black"
+                  className="text-gray-400 hover:text-black"
                 >
                   <X size={14} />
                 </button>
               </div>
             )}
 
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-8">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 md:gap-8">
               <div className="space-y-2">
-                <h1 className="text-6xl md:text-8xl font-black uppercase tracking-tighter italic leading-[0.8]">
-                  {queryParam ? "SEARCH" : genderParam || "Archive"}
+                <h1 className="text-5xl md:text-8xl font-black uppercase tracking-tighter italic leading-[0.85] md:leading-[0.8]">
+                  {queryParam ? "SEARCH" : genderParam || "SHOP"}
                   <br />
-                  <span className="text-gray-200 text-4xl md:text-6xl uppercase">
+                  <span className="text-gray-200 text-3xl md:text-6xl uppercase">
                     {queryParam ? "FOUND" : "COLLECTION"}
                   </span>
                 </h1>
-                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                <p className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest text-gray-400 mt-2">
                   {isLoading
                     ? "Synchronizing..."
-                    : `Cataloging ${filteredProducts.length} Pieces`}
+                    : `${filteredProducts.length} Pieces Available`}
                 </p>
               </div>
 
-              <div className="flex items-center gap-4 w-full md:w-auto">
-                <div className="relative flex-1 md:min-w-[240px]">
+              {/* Sorting Tool */}
+              <div className="w-full md:w-auto">
+                <div className="relative group">
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value)}
-                    className="w-full bg-black text-white py-4 px-6 text-[10px] font-black uppercase tracking-widest appearance-none outline-none cursor-pointer"
+                    className="w-full md:min-w-[200px] bg-black text-white py-3.5 px-6 text-[10px] font-black uppercase tracking-widest appearance-none outline-none cursor-pointer rounded-lg md:rounded-none"
                   >
-                    <option value="newest">Latest Drop</option>
-                    <option value="low-high">Price: ASC</option>
-                    <option value="high-low">Price: DESC</option>
+                    <option value="newest">New Arrivals</option>
+                    <option value="low-high">Price: Low to High</option>
+                    <option value="high-low">Price: High to Low</option>
                   </select>
                   <ChevronDown
                     size={14}
-                    className="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none text-white"
+                    className="absolute right-5 top-1/2 -translate-y-1/2 text-white pointer-events-none"
                   />
                 </div>
               </div>
@@ -215,29 +218,35 @@ const Clothes = () => {
           </div>
         </div>
 
-        <div className="max-w-[1600px] mx-auto px-6 md:px-12 py-16 flex flex-col lg:flex-row gap-16">
+        {/* 🛒 Main Content Area */}
+        <div className="max-w-[1600px] mx-auto px-4 md:px-12 py-10 md:py-16 flex flex-col lg:flex-row gap-10 md:gap-16">
+          {/* Desktop Filter Sidebar */}
           <aside className="hidden lg:block w-64 shrink-0 sticky top-32 h-fit">
             <div className="border-l-2 border-black pl-8">
+              <h3 className="text-[10px] font-black uppercase tracking-[0.3em] mb-8 text-gray-400">
+                Refine Search
+              </h3>
               <FilterSidebar {...filterProps} />
             </div>
           </aside>
 
           <main className="flex-1">
             {isError && (
-              <div className="p-10 border-2 border-black mb-12 flex items-center justify-between">
-                <span className="text-xs font-black uppercase tracking-widest text-red-600">
+              <div className="p-6 md:p-10 border-2 border-black mb-12 flex items-center justify-between bg-red-50">
+                <span className="text-[10px] font-black uppercase tracking-widest text-red-600">
                   {message}
                 </span>
                 <button
                   onClick={() => window.location.reload()}
-                  className="underline font-black text-xs uppercase"
+                  className="underline font-black text-[10px] uppercase"
                 >
                   Retry
                 </button>
               </div>
             )}
 
-            <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-20">
+            {/* Product Grid - 2 cols on mobile, 3 on large */}
+            <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-x-4 md:gap-x-8 gap-y-12 md:gap-y-20">
               {isLoading
                 ? [...Array(8)].map((_, i) => <ProductSkeleton key={i} />)
                 : filteredProducts.map((p) => (
@@ -245,56 +254,70 @@ const Clothes = () => {
                   ))}
             </div>
 
+            {/* Empty State */}
             {!isLoading && filteredProducts.length === 0 && (
-              <div className="flex flex-col items-center justify-center py-40 border-2 border-dashed border-gray-200 rounded-[2rem]">
-                <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mb-6">
-                  <Search size={30} className="text-gray-200" />
+              <div className="flex flex-col items-center justify-center py-24 md:py-40 border-2 border-dashed border-gray-100 rounded-3xl md:rounded-[2.5rem] px-6 text-center">
+                <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-6">
+                  <Search size={24} className="text-gray-200" />
                 </div>
                 <h3 className="text-xl font-black uppercase italic mb-2">
-                  Zero Artifacts Found
+                  Zero Results Found
                 </h3>
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-8 text-center px-6">
-                  No matches found for your criteria.
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-8 max-w-[250px]">
+                  No items match your current selection.
                 </p>
                 <button
                   onClick={filterProps.onClear}
-                  className="bg-black text-white px-10 py-4 text-[10px] font-black uppercase tracking-[0.2em] hover:bg-zinc-800 transition-all shadow-xl"
+                  className="bg-black text-white px-8 py-4 text-[10px] font-black uppercase tracking-[0.2em] rounded-xl hover:bg-zinc-800 transition-all shadow-xl active:scale-95"
                 >
-                  Reset Database
+                  Reset All Filters
                 </button>
               </div>
             )}
           </main>
         </div>
 
-        <div className="lg:hidden fixed bottom-8 left-1/2 -translate-x-1/2 z-50 w-[90%] max-w-sm">
+        {/* 📱 Mobile Filter Trigger (Bottom Floating) */}
+        <div className="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-[50] w-[90%] max-w-xs">
           <button
             onClick={() => setMobileFilterOpen(true)}
-            className="w-full bg-black text-white py-5 shadow-2xl flex items-center justify-center gap-4 text-[10px] font-black uppercase tracking-[0.3em] italic"
+            className="w-full bg-black text-white py-4 shadow-[0_20px_50px_rgba(0,0,0,0.3)] flex items-center justify-center gap-3 text-[10px] font-black uppercase tracking-[0.2em] rounded-full active:scale-95 transition-all"
           >
-            <SlidersHorizontal size={14} /> Refine Selection
+            <SlidersHorizontal size={14} /> Filter & Sort
           </button>
         </div>
 
+        {/* 📱 Mobile Filter Drawer */}
         {isMobileFilterOpen && (
           <div className="fixed inset-0 z-[100] flex justify-end">
             <div
-              className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-in fade-in"
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in"
               onClick={() => setMobileFilterOpen(false)}
             />
-            <div className="relative bg-white w-full md:w-[450px] h-full p-10 overflow-y-auto shadow-2xl animate-in slide-in-from-right duration-500">
-              <div className="flex justify-between items-center mb-16">
-                <h3 className="text-3xl font-black uppercase italic tracking-tighter leading-none text-black">
-                  Filter
+            <div className="relative bg-white w-[85%] max-w-[400px] h-full p-8 overflow-y-auto shadow-2xl animate-in slide-in-from-right duration-300 rounded-l-[2rem]">
+              <div className="flex justify-between items-center mb-10 border-b border-gray-50 pb-6">
+                <h3 className="text-2xl font-black uppercase italic tracking-tighter text-black">
+                  Refine
                 </h3>
                 <button
                   onClick={() => setMobileFilterOpen(false)}
-                  className="p-2 hover:bg-gray-100 rounded-full"
+                  className="p-2 bg-gray-50 rounded-full"
                 >
-                  <X size={28} />
+                  <X size={20} />
                 </button>
               </div>
               <FilterSidebar {...filterProps} />
+
+              {/* Mobile Clear Button inside drawer */}
+              <button
+                onClick={() => {
+                  filterProps.onClear();
+                  setMobileFilterOpen(false);
+                }}
+                className="w-full mt-10 py-4 border-2 border-black text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-black hover:text-white transition-all"
+              >
+                Clear All
+              </button>
             </div>
           </div>
         )}

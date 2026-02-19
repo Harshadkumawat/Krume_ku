@@ -122,15 +122,15 @@ export const orderSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      /* --- 1. CREATE ORDER --- */
+      /* --- 1. CREATE ORDER (Isi me isSuccess TRUE chahiye) --- */
       .addCase(createOrder.pending, (state) => {
         state.isLoading = true;
-        state.isSuccess = false;
+        state.isSuccess = false; // Reset old success
         state.isError = false;
       })
       .addCase(createOrder.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.isSuccess = true;
+        state.isSuccess = true; // ✅ Sirf yahan TRUE hona chahiye redirect ke liye
         state.isError = false;
         const newOrder = action.payload?.data || action.payload;
         state.order = newOrder;
@@ -147,15 +147,14 @@ export const orderSlice = createSlice({
         state.message = action.payload;
       })
 
-      /* --- 2. GET MY ORDERS --- */
+      /* --- 2. GET MY ORDERS (isSuccess MAT lagana) --- */
       .addCase(getMyOrders.pending, (state) => {
         state.isLoading = true;
-        state.isSuccess = false;
         state.isError = false;
       })
       .addCase(getMyOrders.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.isSuccess = true;
+        // ❌ state.isSuccess = true;  <-- YE LINE HATA DI (Bug Fix)
         state.isError = false;
 
         const incomingOrders =
@@ -163,25 +162,22 @@ export const orderSlice = createSlice({
           action.payload?.orders ||
           action.payload ||
           [];
-
         state.orders = incomingOrders;
       })
       .addCase(getMyOrders.rejected, (state, action) => {
         state.isLoading = false;
         state.isError = true;
-        state.isSuccess = false;
         state.message = action.payload;
       })
 
       /* --- 3. GET ALL ORDERS (ADMIN) --- */
       .addCase(getAllOrders.pending, (state) => {
         state.isLoading = true;
-        state.isSuccess = false;
         state.isError = false;
       })
       .addCase(getAllOrders.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.isSuccess = true;
+        // ❌ state.isSuccess = true; <-- YE BHI HATA DI
         state.orders = action.payload.data || action.payload || [];
       })
       .addCase(getAllOrders.rejected, (state, action) => {
@@ -197,7 +193,7 @@ export const orderSlice = createSlice({
       })
       .addCase(getOrderDetails.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.isSuccess = true;
+        // ❌ state.isSuccess = true; <-- YE BHI HATA DI
         state.order = action.payload?.data || action.payload;
       })
       .addCase(getOrderDetails.rejected, (state, action) => {
@@ -212,6 +208,8 @@ export const orderSlice = createSlice({
       })
       .addCase(cancelOrderUser.fulfilled, (state, action) => {
         state.isLoading = false;
+        // Cancel hone par success true rakh sakte hain taaki UI update ho
+        // Lekin redirect na ho, isliye dhyan rakhna
         state.isSuccess = true;
         const updatedOrder = action.payload?.data || action.payload;
 

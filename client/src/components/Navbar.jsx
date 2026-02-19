@@ -15,7 +15,7 @@ import {
   Package,
   UserCircle,
   ArrowRight,
-  ShieldCheck, // Naya icon admin ke liye
+  ShieldCheck, 
 } from "lucide-react";
 
 export default function Navbar() {
@@ -52,7 +52,7 @@ export default function Navbar() {
     }
   }, [searchQuery]);
 
-  // Reset UI on route change
+ 
   useEffect(() => {
     setOpen(false);
     setProfilePanel(false);
@@ -92,7 +92,7 @@ export default function Navbar() {
       <header
         className={`fixed top-0 z-[100] transition-all duration-500 ease-in-out ${
           scrolled
-            ? "bg-white/95 backdrop-blur-xl py-3 shadow-sm border-b border-zinc-100"
+            ? "bg-white/95 backdrop-blur-xl py-2 shadow-sm border-b border-zinc-100"
             : "bg-white py-4 md:py-6"
         } ${
           user?.role === "admin"

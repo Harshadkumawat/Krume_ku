@@ -76,13 +76,7 @@ const App = () => {
 
   // 2. Fetch Data on Login (With Safety Checks)
   useEffect(() => {
-    // Sirf tab call karo jab:
-    // - User login ho
-    // - User admin na ho
-    // - App ready ho chuki ho
     if (isAppReady && user && user.role !== "admin") {
-      // Check lagao taaki har render pe call na ho
-      // (Agar cartItems pehle se hain to dobara fetch mat karo)
       dispatch(getCart());
       dispatch(fetchWishlist());
     }

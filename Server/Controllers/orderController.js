@@ -131,36 +131,47 @@ const addOrderItems = asyncHandler(async (req, res) => {
     );
   }
 
-  // 4. Shiprocket Sync (Safe Mode)
-  try {
-    const token = await getShiprocketToken();
-    if (token) {
-      const shiprocketRes = await syncOrderToShiprocket(createdOrder, token);
-      if (shiprocketRes) {
-        createdOrder.shiprocketOrderId = shiprocketRes.order_id;
-        createdOrder.shiprocketShipmentId = shiprocketRes.shipment_id;
-        await createdOrder.save();
-        console.log("✅ Shiprocket Order Created ID:", shiprocketRes.order_id);
-      }
-    }
-  } catch (error) {
-    console.error("⚠️ Shiprocket Sync Skipped/Failed:", error.message);
-    
-  }
-
-  // 5. Send Email
-  try {
-    const orderDetails = {
-      orderId: createdOrder._id.toString(),
-      totalAmount: createdOrder.totalPrice,
-      address: `${shippingAddress.address || shippingAddress.street}, ${shippingAddress.city}`,
-    };
-    await sendOrderEmail(req.user.email, orderDetails);
-  } catch (error) {
-    console.error("⚠️ Email Error:", error.message);
-  }
-
+  // 🔥 FAST WORK FIX: Pehle Response bhejo, User ko wait mat karao
   res.status(201).json(createdOrder);
+
+  // ---------------------------------------------------------
+  // ⚡ BACKGROUND TASKS (Ab ye user ko block nahi karenge)
+  // ---------------------------------------------------------
+
+  // 4. Shiprocket Sync (Background)
+  (async () => {
+    try {
+      const token = await getShiprocketToken();
+      if (token) {
+        const shiprocketRes = await syncOrderToShiprocket(createdOrder, token);
+        if (shiprocketRes) {
+          createdOrder.shiprocketOrderId = shiprocketRes.order_id;
+          createdOrder.shiprocketShipmentId = shiprocketRes.shipment_id;
+          await createdOrder.save();
+          console.log(
+            "✅ Shiprocket Order Created ID:",
+            shiprocketRes.order_id,
+          );
+        }
+      }
+    } catch (error) {
+      console.error("⚠️ Shiprocket Sync Skipped/Failed:", error.message);
+    }
+  })();
+
+  // 5. Send Email (Background)
+  (async () => {
+    try {
+      const orderDetails = {
+        orderId: createdOrder._id.toString(),
+        totalAmount: createdOrder.totalPrice,
+        address: `${shippingAddress.address || shippingAddress.street}, ${shippingAddress.city}`,
+      };
+      await sendOrderEmail(req.user.email, orderDetails);
+    } catch (error) {
+      console.error("⚠️ Email Error:", error.message);
+    }
+  })();
 });
 
 // ------------------------------------------------------------------
@@ -200,7 +211,6 @@ const requestReturn = asyncHandler(async (req, res) => {
     throw new Error("Return request already submitted");
   }
 
-  
   let formattedType = "Refund";
   if (type) {
     formattedType = type.charAt(0).toUpperCase() + type.slice(1).toLowerCase();
@@ -211,7 +221,7 @@ const requestReturn = asyncHandler(async (req, res) => {
     isReturnRequested: true,
     reason,
     comments,
-    type: formattedType, 
+    type: formattedType,
     requestedAt: Date.now(),
     status: "Pending",
   };
@@ -231,8 +241,6 @@ const handleReturnStatus = asyncHandler(async (req, res) => {
     res.status(404);
     throw new Error("Order not found");
   }
-
-  
 
   order.returnInfo.status = status;
   if (adminComment) order.returnInfo.adminComment = adminComment;
@@ -260,7 +268,7 @@ const handleReturnStatus = asyncHandler(async (req, res) => {
           pickup_email: "admin@krumeku.com", // Valid Email required usually
           pickup_phone: order.shippingAddress.phone,
           order_items: order.orderItems.map((item) => ({
-            name: item.name,
+            name: item.productName || item.name, // 🔥 BUG FIX: item.name undefined ho sakta hai
             sku: item.product.toString(),
             units: item.quantity,
             selling_price: item.price,
@@ -285,7 +293,6 @@ const handleReturnStatus = asyncHandler(async (req, res) => {
         );
         order.returnInfo.shiprocketReturnId = response.data.return_order_id;
       } catch (error) {
-        
         console.error(
           "❌ Shiprocket Return API Failed:",
           error.response?.data || error.message,
@@ -300,7 +307,7 @@ const handleReturnStatus = asyncHandler(async (req, res) => {
     order.orderStatus = "Returned";
     order.isPaid = false;
 
-    // Restock
+    // Restock (Stock wapas add karna)
     for (const item of order.orderItems) {
       await Product.findByIdAndUpdate(item.product, {
         $inc: { countInStock: item.quantity },

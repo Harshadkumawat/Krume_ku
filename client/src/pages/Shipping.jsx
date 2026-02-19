@@ -7,7 +7,6 @@ import {
   Phone,
   ArrowRight,
   Landmark,
-  Globe,
   CheckCircle2,
   ChevronLeft,
 } from "lucide-react";
@@ -17,16 +16,39 @@ export default function Shipping() {
   const { shippingAddress } = cart;
 
   const indianStates = [
+    "Andhra Pradesh",
+    "Arunachal Pradesh",
+    "Assam",
+    "Bihar",
+    "Chhattisgarh",
+    "Goa",
+    "Gujarat",
+    "Haryana",
+    "Himachal Pradesh",
+    "Jharkhand",
+    "Karnataka",
+    "Kerala",
     "Madhya Pradesh",
     "Maharashtra",
-    "Delhi",
-    "Uttar Pradesh",
-    "Gujarat",
-    "Rajasthan",
-    "Karnataka",
-    "Telangana",
+    "Manipur",
+    "Meghalaya",
+    "Mizoram",
+    "Nagaland",
+    "Odisha",
     "Punjab",
-    "Haryana",
+    "Rajasthan",
+    "Sikkim",
+    "Tamil Nadu",
+    "Telangana",
+    "Tripura",
+    "Uttar Pradesh",
+    "Uttarakhand",
+    "West Bengal",
+    "Delhi",
+    "Chandigarh",
+    "Ladakh",
+    "Jammu & Kashmir",
+    "Puducherry",
     "Other",
   ];
 
@@ -34,7 +56,7 @@ export default function Shipping() {
   const [landmark, setLandmark] = useState(shippingAddress.landmark || "");
   const [city, setCity] = useState(shippingAddress.city || "");
   const [pincode, setPincode] = useState(shippingAddress.pincode || "");
-  const [state, setState] = useState(shippingAddress.state || "Madhya Pradesh");
+  const [state, setState] = useState(shippingAddress.state || "Maharashtra");
   const [phone, setPhone] = useState(shippingAddress.phone || "");
 
   const dispatch = useDispatch();
@@ -42,6 +64,11 @@ export default function Shipping() {
 
   const submitHandler = (e) => {
     e.preventDefault();
+    // Indian Phone Validation
+    if (phone.length < 10) {
+      return alert("Please enter a valid 10-digit mobile number.");
+    }
+
     dispatch(
       saveShippingAddress({
         address,
@@ -57,165 +84,150 @@ export default function Shipping() {
   };
 
   return (
-    <div className="min-h-screen bg-white md:bg-[#FAFAFA] text-black font-sans selection:bg-black selection:text-white">
-      {/* --- MOBILE HEADER (Visible only on mobile) --- */}
+    <div className="min-h-screen bg-white md:bg-[#FAFAFA] text-black font-sans pb-24 md:pb-0">
+      {/* Mobile Header */}
       <div className="md:hidden flex items-center px-4 py-4 border-b border-gray-100 sticky top-0 bg-white z-50">
         <button onClick={() => navigate(-1)} className="p-2 -ml-2">
           <ChevronLeft size={24} />
         </button>
-        <h2 className="text-sm font-black uppercase tracking-widest ml-2 italic">
+        <h2 className="text-sm font-bold uppercase tracking-widest ml-2">
           Shipping Details
         </h2>
       </div>
 
       <div className="max-w-[1440px] mx-auto px-4 md:px-6 lg:px-12 py-6 md:py-12">
         <div className="max-w-xl mx-auto">
-          {/* --- STEPPER (Hidden on very small screens, visible on md+) --- */}
-          <div className="hidden md:flex justify-between items-center mb-16">
+          {/* Desktop Stepper */}
+          <div className="hidden md:flex justify-between items-center mb-12">
             <div className="flex flex-col items-center gap-2">
-              <CheckCircle2 size={16} className="text-zinc-300" />
-              <span className="text-[8px] font-black uppercase tracking-widest text-zinc-400">
+              <CheckCircle2 size={20} className="text-black" />
+              <span className="text-[10px] font-bold uppercase tracking-widest">
                 Cart
               </span>
             </div>
-            <div className="h-[1px] flex-1 bg-zinc-200 mx-4"></div>
+            <div className="h-[2px] flex-1 bg-black mx-4"></div>
             <div className="flex flex-col items-center gap-2">
-              <div className="w-4 h-4 rounded-full bg-black flex items-center justify-center">
-                <div className="w-1 h-1 bg-white rounded-full"></div>
+              <div className="w-5 h-5 rounded-full bg-black flex items-center justify-center text-white text-[10px]">
+                2
               </div>
-              <span className="text-[8px] font-black uppercase tracking-[0.2em] text-black italic">
+              <span className="text-[10px] font-bold uppercase tracking-widest">
                 Shipping
               </span>
             </div>
-            <div className="h-[1px] flex-1 bg-zinc-100 mx-4"></div>
+            <div className="h-[2px] flex-1 bg-gray-200 mx-4"></div>
             <div className="flex flex-col items-center gap-2">
-              <div className="w-4 h-4 rounded-full border border-zinc-200"></div>
-              <span className="text-[8px] font-black uppercase tracking-widest text-zinc-300">
+              <div className="w-5 h-5 rounded-full border-2 border-gray-200"></div>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
                 Payment
               </span>
             </div>
           </div>
 
-          {/* --- MAIN FORM CONTAINER --- */}
-          <div className="md:bg-white md:border md:border-zinc-100 md:rounded-[2.5rem] md:p-12 md:shadow-[0_40px_100px_-20px_rgba(0,0,0,0.04)]">
-            <header className="mb-8 md:mb-10 hidden md:block">
-              <h1 className="text-4xl font-black uppercase italic tracking-tighter leading-none mb-2">
-                Deployment <br /> <span className="text-zinc-300">Address</span>
-              </h1>
-              <div className="flex items-center gap-2 opacity-40">
-                <Globe size={10} />
-                <span className="text-[9px] font-bold uppercase tracking-widest">
-                  India Central Registry
-                </span>
-              </div>
-            </header>
+          <div className="md:bg-white md:border md:border-zinc-100 md:rounded-3xl md:p-10 md:shadow-lg">
+            <h1 className="text-2xl md:text-3xl font-black uppercase italic mb-8 hidden md:block">
+              Delivery Address
+            </h1>
 
-            <form
-              onSubmit={submitHandler}
-              className="space-y-6 md:space-y-7 pb-24 md:pb-0"
-            >
-              {/* Phone (Priority field for quick checkout) */}
-              <div className="space-y-1.5">
-                <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400 ml-1">
-                  Contact Protocol (+91)
+            <form onSubmit={submitHandler} className="space-y-5">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-gray-500 ml-1">
+                  Mobile Number (+91)
                 </label>
-                <div className="relative group">
+                <div className="relative">
                   <Phone
-                    className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 group-focus-within:text-black transition-colors"
+                    className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
                     size={16}
                   />
                   <input
                     type="tel"
                     required
                     maxLength={10}
-                    placeholder="MOBILE NUMBER"
+                    placeholder="10-digit number"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className="w-full h-14 md:h-16 pl-12 pr-4 bg-zinc-50 md:bg-zinc-50/50 border border-zinc-100 rounded-xl md:rounded-2xl text-[11px] font-bold uppercase italic focus:bg-white focus:border-black transition-all outline-none"
+                    onChange={(e) =>
+                      setPhone(e.target.value.replace(/\D/g, ""))
+                    }
+                    className="w-full h-12 md:h-14 pl-12 pr-4 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:border-black focus:bg-white outline-none transition-all"
                   />
                 </div>
               </div>
 
-              {/* Address */}
-              <div className="space-y-1.5">
-                <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400 ml-1">
-                  Address Detail
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-gray-500 ml-1">
+                  Flat / House No / Building
                 </label>
-                <div className="relative group">
+                <div className="relative">
                   <MapPin
-                    className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 group-focus-within:text-black transition-colors"
+                    className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
                     size={16}
                   />
                   <input
                     type="text"
                     required
-                    placeholder="FLAT, HOUSE NO, BUILDING"
+                    placeholder="Address"
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
-                    className="w-full h-14 md:h-16 pl-12 pr-4 bg-zinc-50 border border-zinc-100 rounded-xl md:rounded-2xl text-[11px] font-bold uppercase italic focus:bg-white focus:border-black transition-all outline-none"
+                    className="w-full h-12 md:h-14 pl-12 pr-4 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:border-black focus:bg-white outline-none transition-all"
                   />
                 </div>
               </div>
 
-              {/* Landmark */}
-              <div className="space-y-1.5">
-                <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400 ml-1">
-                  Landmark
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-gray-500 ml-1">
+                  Landmark (Optional)
                 </label>
-                <div className="relative group">
+                <div className="relative">
                   <Landmark
-                    className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 group-focus-within:text-black transition-colors"
+                    className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
                     size={16}
                   />
                   <input
                     type="text"
-                    placeholder="NEARBY FAMOUS SPOT"
+                    placeholder="Near Famous Place"
                     value={landmark}
                     onChange={(e) => setLandmark(e.target.value)}
-                    className="w-full h-14 md:h-16 pl-12 pr-4 bg-zinc-50 border border-zinc-100 rounded-xl md:rounded-2xl text-[11px] font-bold uppercase italic focus:bg-white focus:border-black transition-all outline-none"
+                    className="w-full h-12 md:h-14 pl-12 pr-4 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:border-black focus:bg-white outline-none transition-all"
                   />
                 </div>
               </div>
 
-              {/* City & Pincode */}
-              <div className="grid grid-cols-2 gap-3 md:gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400 ml-1">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-gray-500 ml-1">
                     City
                   </label>
                   <input
                     type="text"
                     required
-                    placeholder="CITY"
+                    placeholder="City"
                     value={city}
                     onChange={(e) => setCity(e.target.value)}
-                    className="w-full h-14 md:h-16 px-5 bg-zinc-50 border border-zinc-100 rounded-xl md:rounded-2xl text-[11px] font-bold uppercase italic focus:bg-white focus:border-black transition-all outline-none"
+                    className="w-full h-12 md:h-14 px-4 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:border-black focus:bg-white outline-none transition-all"
                   />
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400 ml-1">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-gray-500 ml-1">
                     Pincode
                   </label>
                   <input
                     type="number"
                     required
-                    placeholder="PINCODE"
+                    placeholder="Pincode"
                     value={pincode}
                     onChange={(e) => setPincode(e.target.value)}
-                    className="w-full h-14 md:h-16 px-5 bg-zinc-50 border border-zinc-100 rounded-xl md:rounded-2xl text-[11px] font-bold uppercase italic focus:bg-white focus:border-black transition-all outline-none"
+                    className="w-full h-12 md:h-14 px-4 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:border-black focus:bg-white outline-none transition-all"
                   />
                 </div>
               </div>
 
-              {/* State */}
-              <div className="space-y-1.5">
-                <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400 ml-1">
-                  State Registry
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-gray-500 ml-1">
+                  State
                 </label>
                 <select
                   value={state}
                   onChange={(e) => setState(e.target.value)}
-                  className="w-full h-14 md:h-16 px-5 bg-zinc-50 border border-zinc-100 rounded-xl md:rounded-2xl text-[11px] font-bold uppercase italic focus:bg-white focus:border-black outline-none appearance-none cursor-pointer"
+                  className="w-full h-12 md:h-14 px-4 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:border-black focus:bg-white outline-none cursor-pointer"
                 >
                   {indianStates.map((st) => (
                     <option key={st} value={st}>
@@ -225,25 +237,23 @@ export default function Shipping() {
                 </select>
               </div>
 
-              {/* --- DESKTOP BUTTON --- */}
               <button
                 type="submit"
-                className="hidden md:flex w-full bg-black text-white h-16 md:h-20 rounded-2xl font-black uppercase tracking-[0.3em] text-[11px] items-center justify-center gap-4 hover:bg-zinc-800 transition-all active:scale-95 shadow-xl mt-6"
+                className="hidden md:flex w-full bg-black text-white h-16 rounded-xl font-bold uppercase tracking-widest text-xs items-center justify-center gap-3 hover:bg-zinc-800 transition-all shadow-lg mt-4"
               >
-                Verify & Continue <ArrowRight size={18} />
+                Proceed to Payment <ArrowRight size={18} />
               </button>
             </form>
           </div>
         </div>
       </div>
 
-      {/* --- MOBILE FIXED FOOTER BUTTON --- */}
-      <div className="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-gray-100 p-4 z-50 shadow-[0_-10px_20px_rgba(0,0,0,0.05)]">
+      <div className="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-gray-100 p-4 z-50 shadow-[0_-5px_15px_rgba(0,0,0,0.05)]">
         <button
           onClick={submitHandler}
-          className="w-full bg-black text-white h-14 rounded-xl font-black uppercase tracking-[0.2em] text-[10px] flex items-center justify-center gap-3 active:scale-95 transition-all"
+          className="w-full bg-black text-white h-14 rounded-xl font-bold uppercase tracking-widest text-xs flex items-center justify-center gap-2 active:scale-95 transition-all"
         >
-          Confirm Delivery Details <ArrowRight size={16} />
+          Proceed to Payment <ArrowRight size={16} />
         </button>
       </div>
     </div>
