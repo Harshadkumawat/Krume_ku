@@ -3,7 +3,7 @@ name: Krumeku Auto-Deploy Pipeline
 on:
   push:
     branches:
-      - main  # Agar aapki branch 'master' hai toh isko master kar dena
+      - main # Agar aapki branch 'master' hai toh isko master kar dena
 
 jobs:
   build-and-push:
@@ -41,16 +41,16 @@ jobs:
           script: |
             # 1. GitHub Secret se .env file generate karo server par
             echo "${{ secrets.ENV_FILE }}" > /home/ubuntu/.env
-            
-            # 2. Nayi image download karo Docker Hub se
-            docker pull ${{ secrets.DOCKER_USERNAME }}/krumeku-backend:latest
-            
+
+            # 2. Nayi image download karo Docker Hub se (Yahan sudo lagaya hai)
+            sudo docker pull ${{ secrets.DOCKER_USERNAME }}/krumeku-backend:latest
+
             # 3. Purane container ko roko aur hatao
-            docker stop krumeku-api || true
-            docker rm krumeku-api || true
-            
+            sudo docker stop krumeku-api || true
+            sudo docker rm krumeku-api || true
+
             # 4. Naya container start karo (Port 8080 par aur .env file ke sath)
-            docker run -d -p 8080:8080 --env-file /home/ubuntu/.env --name krumeku-api ${{ secrets.DOCKER_USERNAME }}/krumeku-backend:latest
-            
+            sudo docker run -d -p 8080:8080 --env-file /home/ubuntu/.env --name krumeku-api ${{ secrets.DOCKER_USERNAME }}/krumeku-backend:latest
+
             # 5. Purani useless images hatao
-            docker image prune -f
+            sudo docker image prune -f
