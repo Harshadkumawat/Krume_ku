@@ -69,4 +69,4 @@ const checkPincode = asyncHandler(async (req, res) => {
   }
 });
 
-module.exports = { checkPincode };
+module.exports = { checkPincode, getShiprocketToken };

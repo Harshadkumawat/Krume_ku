@@ -4,7 +4,6 @@ import { useDispatch } from "react-redux";
 import { Heart } from "lucide-react";
 import { addToWishlist } from "../../features/wishlist/wishlistSlice";
 
-
 const CLOUD = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || "dftticvtc";
 
 const cldSrc = (img, width = 600) => {
@@ -34,7 +33,7 @@ export default function ProductCard({
     category,
     price,
     discountPercent,
-    finalPriceWithTax,
+    pricing,
     inStock,
     countInStock,
     images,
@@ -42,13 +41,12 @@ export default function ProductCard({
     slug,
   } = product;
 
- 
-
   // 🔥 AVAILABILITY LOGIC
   const isAvailable = inStock === true || (countInStock || 0) > 0;
 
   const displayImage = cldSrc(images?.[0], 500);
-  const hoverImage = cldSrc(images?.[1], 500) || displayImage;
+
+  const hoverImage = images?.[1] ? cldSrc(images[1], 500) : displayImage;
 
   const handleWishlistClick = (e) => {
     e.stopPropagation();
@@ -144,11 +142,12 @@ export default function ProductCard({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="text-[13px] font-black italic tracking-tighter text-black">
-              ₹{finalPriceWithTax?.toLocaleString("en-IN") || price}
+              ₹ {(pricing?.finalPriceWithTax || price)?.toLocaleString("en-IN")}
             </span>
+
             {discountPercent > 0 && (
               <span className="text-[10px] text-zinc-300 line-through font-medium italic">
-                ₹{price}
+                ₹{price?.toLocaleString("en-IN")}
               </span>
             )}
           </div>

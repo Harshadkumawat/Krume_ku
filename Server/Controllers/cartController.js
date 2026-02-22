@@ -40,13 +40,16 @@ exports.addToCart = asyncHandler(async (req, res) => {
     throw new Error("Product not found");
   }
 
-  
   if (product.inStock < quantity) {
     res.status(400);
     throw new Error(`Only ${product.inStock} left`);
   }
 
-  let cart = await Cart.findOne({ user: userId }).populate("items.product");
+  // 🔥 UPDATE: populate me fields specify kiye
+  let cart = await Cart.findOne({ user: userId }).populate(
+    "items.product",
+    "productName price images category sizes",
+  );
 
   if (!cart) {
     cart = await Cart.create({
@@ -77,9 +80,13 @@ exports.addToCart = asyncHandler(async (req, res) => {
 // ------------------------------------------------------------------
 exports.getCart = asyncHandler(async (req, res) => {
   const userId = req.user._id;
-  // 🔥 appliedCoupon ko populate karna zaroori hai calculation ke liye
+
+  // 🔥 UPDATE: populate me sizes add kiya
   const cart = await Cart.findOne({ user: userId })
-    .populate("items.product")
+    .populate(
+      "items.product",
+      "productName price images category sizes pricing finalPriceWithTax",
+    )
     .populate("appliedCoupon");
 
   if (!cart) {
@@ -125,11 +132,15 @@ exports.getCart = asyncHandler(async (req, res) => {
 // 3. UPDATE QUANTITY
 // ------------------------------------------------------------------
 exports.updateCartItem = asyncHandler(async (req, res) => {
-  const { itemId, action } = req.body;
+  const { itemId, action, size } = req.body; // 🔥 size add kiya
   const userId = req.user._id;
 
+  // 🔥 UPDATE: populate
   const cart = await Cart.findOne({ user: userId })
-    .populate("items.product")
+    .populate(
+      "items.product",
+      "productName price images category sizes pricing finalPriceWithTax",
+    )
     .populate("appliedCoupon");
   if (!cart) return res.status(404).json({ message: "Cart not found" });
 
@@ -143,17 +154,19 @@ exports.updateCartItem = asyncHandler(async (req, res) => {
     cart.items[itemIndex].quantity += 1;
   } else if (action === "dec" && cart.items[itemIndex].quantity > 1) {
     cart.items[itemIndex].quantity -= 1;
+  } else if (action === "updateSize" && size) {
+    // 🔥 Naya logic Size ke liye
+    cart.items[itemIndex].size = size;
   }
 
   const wasRemoved = await revalidateCoupon(cart);
   await cart.save();
 
-  // 🔥 Update ke baad naya bill with coupon logic bhejo
   const billDetails = calculateBill(cart.items, cart.appliedCoupon);
 
   res.status(200).json({
     success: true,
-    message: wasRemoved ? "Quantity updated & Coupon removed" : "Cart updated",
+    message: wasRemoved ? "Cart updated & Coupon removed" : "Cart updated",
     data: { billDetails },
     couponRemoved: wasRemoved,
   });
@@ -166,8 +179,12 @@ exports.removeFromCart = asyncHandler(async (req, res) => {
   const { itemId } = req.params;
   const userId = req.user._id;
 
+  // 🔥 UPDATE: populate
   const cart = await Cart.findOne({ user: userId })
-    .populate("items.product")
+    .populate(
+      "items.product",
+      "productName price images category sizes pricing finalPriceWithTax",
+    )
     .populate("appliedCoupon");
   if (!cart) return res.status(404).json({ message: "Cart not found" });
 
@@ -185,8 +202,6 @@ exports.removeFromCart = asyncHandler(async (req, res) => {
     couponRemoved: wasRemoved,
   });
 });
-
-// Clear cart same rahega...
 
 // ------------------------------------------------------------------
 // 5. CLEAR CART (Order place hone ke baad)

@@ -27,6 +27,7 @@ export default function Cart() {
   const { cartItems, billDetails, isLoading, couponRemoved } = useSelector(
     (state) => state.cart,
   );
+
   const { appliedCoupon, isError, message } = useSelector(
     (state) => state.coupon,
   );
@@ -46,6 +47,11 @@ export default function Cart() {
   const handleQuantity = (itemId, currentQty, action) => {
     if (action === "dec" && currentQty <= 1) return;
     dispatch(updateCartItem({ itemId, action }));
+  };
+
+  // 🔥 NAYA FUNCTION: Size Update karne ke liye
+  const handleSizeChange = (itemId, newSize) => {
+    dispatch(updateCartItem({ itemId, action: "updateSize", size: newSize }));
   };
 
   const onCheckout = () => {
@@ -104,6 +110,7 @@ export default function Cart() {
                     item={item}
                     handleQuantity={handleQuantity}
                     onRemove={(id) => dispatch(removeCartItem(id))}
+                    handleSizeChange={handleSizeChange} // 🔥 YAHAN ADD KIYA HAI
                   />
                 </div>
               ))}

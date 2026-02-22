@@ -25,6 +25,7 @@ const getAdminDashboardStats = asyncHandler(async (req, res) => {
     matchDate = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000);
   }
 
+  // ✅ Chart: Includes all valid orders (COD + Online)
   const salesData = await Order.aggregate([
     {
       $match: {
@@ -42,10 +43,10 @@ const getAdminDashboardStats = asyncHandler(async (req, res) => {
     { $sort: { _id: 1 } },
   ]);
 
+  // ✅ Total Revenue Box: Includes all valid orders (COD + Online)
   const totalSales = await Order.aggregate([
     {
       $match: {
-        isPaid: true,
         orderStatus: { $nin: ["Cancelled", "Returned"] },
       },
     },
@@ -94,6 +95,9 @@ const addOrderItems = asyncHandler(async (req, res) => {
     shippingPrice,
     totalPrice,
     couponCode,
+    isPaid, // ✅ Frontend se aaya naya data
+    paidAt, // ✅ Frontend se aaya naya data
+    paymentResult, // ✅ Frontend se aaya naya data
   } = req.body;
 
   if (orderItems && orderItems.length === 0) {
@@ -112,18 +116,26 @@ const addOrderItems = asyncHandler(async (req, res) => {
     shippingPrice,
     totalPrice,
     couponCode,
+    isPaid: isPaid || false, // ✅ Database me save ho jayega
+    paidAt: paidAt || null,
+    paymentResult: paymentResult || {},
   });
 
   const createdOrder = await order.save();
 
-  // 2. Reduce Stock (Main & Size specific)
+  // 2. Reduce Stock (Main & Size specific) with Negative Value Protection
   for (const item of orderItems) {
     const product = await Product.findById(item.product);
     if (product) {
-      product.countInStock -= item.quantity;
+      // ✅ Math.max ensures stock never goes below 0
+      product.countInStock = Math.max(0, product.countInStock - item.quantity);
+
       const sizeIndex = product.sizes.findIndex((s) => s.label === item.size);
       if (sizeIndex !== -1) {
-        product.sizes[sizeIndex].stock -= item.quantity;
+        product.sizes[sizeIndex].stock = Math.max(
+          0,
+          product.sizes[sizeIndex].stock - item.quantity,
+        );
       }
       await product.save();
     }
@@ -149,7 +161,12 @@ const addOrderItems = asyncHandler(async (req, res) => {
     try {
       const token = await getShiprocketToken();
       if (token) {
-        const shiprocketRes = await syncOrderToShiprocket(createdOrder, token);
+        const shiprocketRes = await syncOrderToShiprocket(
+          createdOrder,
+          token,
+          req.user.email,
+          req.user.fullName,
+        );
         if (shiprocketRes) {
           createdOrder.shiprocketOrderId = shiprocketRes.order_id;
           createdOrder.shiprocketShipmentId = shiprocketRes.shipment_id;
@@ -165,13 +182,20 @@ const addOrderItems = asyncHandler(async (req, res) => {
     }
   })();
 
-  // 5. Send Email (Background)
+  // 5. Send Email
   (async () => {
     try {
       const orderDetails = {
         orderId: createdOrder._id.toString(),
         totalAmount: createdOrder.totalPrice,
-        address: `${shippingAddress.address || shippingAddress.street}, ${shippingAddress.city}`,
+        address: `${createdOrder.shippingAddress.address}, ${createdOrder.shippingAddress.city} - ${createdOrder.shippingAddress.postalCode}`,
+        items: createdOrder.orderItems.map((item) => ({
+          name: item.productName,
+          quantity: item.quantity,
+          price: item.price,
+          image: item.image,
+          size: item.size || "N/A",
+        })),
       };
       await sendOrderEmail(req.user.email, orderDetails);
     } catch (error) {
@@ -311,9 +335,9 @@ const handleReturnStatus = asyncHandler(async (req, res) => {
     }
   } else if (status === "Refunded") {
     order.orderStatus = "Returned";
-    order.isPaid = false;
+    order.isPaid = false; // Refund ho gaya
 
-    // 🔥 FIX: Proper Restock (Size wise)
+    // 🔥 FIX: Proper Restock
     for (const item of order.orderItems) {
       const product = await Product.findById(item.product);
       if (product) {
@@ -353,6 +377,7 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
 
   order.orderStatus = newStatus;
 
+  // ✅ COD Orders ko automatically "Paid" mark kar do jab Delivery ho jaye
   if (newStatus === "Delivered") {
     order.deliveredAt = Date.now();
     order.isDelivered = true;
@@ -394,7 +419,7 @@ const cancelOrder = asyncHandler(async (req, res) => {
     throw new Error("Cannot cancel shipped/delivered orders");
   }
 
-  // 🔥 FIX: Proper Restock (Size wise) on Cancel
+  // 🔥 FIX: Proper Restock on Cancel
   for (const item of order.orderItems) {
     const product = await Product.findById(item.product);
     if (product) {
@@ -423,7 +448,9 @@ const cancelOrder = asyncHandler(async (req, res) => {
 
   order.orderStatus = "Cancelled";
   await order.save();
-  res.status(200).json({ success: true, message: "Order cancelled" });
+  res
+    .status(200)
+    .json({ success: true, message: "Order cancelled successfully" });
 });
 
 // 🔥 ADMIN: GET ALL ORDERS
@@ -432,7 +459,6 @@ const getAllOrders = asyncHandler(async (req, res) => {
     .populate("user", "fullName email")
     .sort({ createdAt: -1 });
 
-  // Frontend Redux expects: action.payload.data
   res.status(200).json({ success: true, count: orders.length, data: orders });
 });
 

@@ -86,6 +86,8 @@ const Footer = () => {
                 { name: "Exchange & Returns", path: "/orders" },
                 { name: "Size Guide", path: "/products" },
                 { name: "Contact Us", path: "/profile" },
+                // 🔥 NAYA LINK YAHAN ADD KIYA HAI
+                { name: "Policies & Legal", path: "/policies" },
               ].map((item) => (
                 <li key={item.name}>
                   <Link
@@ -137,9 +139,19 @@ const Footer = () => {
 
         {/* FOOTER BOTTOM */}
         <div className="pt-8 border-t border-zinc-100 flex flex-col md:flex-row items-center justify-between gap-6">
-          <p className="text-[9px] font-black uppercase text-zinc-300 tracking-[0.2em] text-center">
-            © {new Date().getFullYear()} KRUMEKU Archive. All Rights Reserved.
-          </p>
+          {/* 🔥 SABSE NICHE COPYRIGHT KE SATH BHI LINK ADD KIYA HAI */}
+          <div className="flex flex-col md:flex-row items-center gap-3 md:gap-6">
+            <p className="text-[9px] font-black uppercase text-zinc-300 tracking-[0.2em] text-center">
+              © {new Date().getFullYear()} KRUMEKU Archive. All Rights Reserved.
+            </p>
+            <span className="hidden md:block text-zinc-200">|</span>
+            <Link
+              to="/policies"
+              className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-400 hover:text-black transition-colors"
+            >
+              Policies & Legal
+            </Link>
+          </div>
 
           <div className="flex items-center gap-6 opacity-30 hover:opacity-100 transition-opacity duration-700">
             <div className="flex items-center gap-2">

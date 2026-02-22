@@ -70,6 +70,7 @@ app.use("/api/coupons", require("./Routes/couponRoutes"));
 app.use("/api/cart", require("./Routes/cartRoutes"));
 app.use("/api/orders", require("./Routes/orderRoutes"));
 app.use("/api/shipping", require("./Routes/shippingRoutes"));
+app.use("/api/payment", require("./Routes/paymentRoutes"));
 
 // Error Handler
 app.use(errorHandler);

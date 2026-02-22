@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { createOrder, resetOrderState } from "../features/orders/orderSlice";
 import { clearCart } from "../features/cart/cartSlice";
+
 import {
   Loader2,
   MapPin,
@@ -13,10 +14,11 @@ import {
   ShieldCheck,
   Zap,
   TicketPercent,
-  Lock,
+  CheckCircle2,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import SmartImage from "../components/SmartImage";
+import { paymentService } from "../features/payment/paymentService";
 
 export default function PlaceOrder() {
   const dispatch = useDispatch();
@@ -26,16 +28,20 @@ export default function PlaceOrder() {
   const { isSuccess, isLoading, isError, message } = useSelector(
     (state) => state.order,
   );
+  const { user } = useSelector((state) => state.auth);
   const { billDetails, shippingAddress, cartItems } = cart;
 
   const [selectedPayment, setSelectedPayment] = useState("COD");
 
-  
+  const subtotalWithTax =
+    (billDetails?.cartTotalExclTax || 0) +
+    (billDetails?.gstAmount || 0) -
+    (billDetails?.discountAmount || 0);
+
   useEffect(() => {
     dispatch(resetOrderState());
   }, [dispatch]);
 
-  
   useEffect(() => {
     if (!shippingAddress.address) {
       navigate("/shipping");
@@ -44,9 +50,7 @@ export default function PlaceOrder() {
     }
   }, [shippingAddress, cartItems, navigate]);
 
-  const placeOrderHandler = () => {
-    if (isLoading) return;
-
+  const dispatchCreateOrder = (paymentInfo = null) => {
     const formattedOrderItems = cartItems.map((item) => ({
       product: item.product?._id || item.product,
       productName: item.product?.productName || item.productName,
@@ -55,7 +59,9 @@ export default function PlaceOrder() {
         item.product?.images?.[0] ||
         item.image,
       price:
-        item.product?.discountPrice || item.product?.price || item.price || 0,
+        item.product?.pricing?.finalPriceWithTax ||
+        item.finalPriceWithTax ||
+        item.price,
       quantity: item.quantity,
       size: item.size || "M",
       color: item.color || "Standard",
@@ -78,16 +84,88 @@ export default function PlaceOrder() {
         taxPrice: billDetails?.gstAmount || 0,
         discountPrice: billDetails?.discountAmount || 0,
         totalPrice: billDetails?.finalTotal || 0,
+        isPaid: paymentInfo ? true : false,
+        paidAt: paymentInfo ? new Date() : null,
+        paymentResult: paymentInfo,
       }),
     );
+  };
+
+  const loadRazorpay = async () => {
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.onerror = () => toast.error("Razorpay SDK failed to load.");
+    document.body.appendChild(script);
+
+    script.onload = async () => {
+      try {
+        const orderData = await paymentService.createRazorpayOrder({
+          amount: billDetails?.finalTotal || 0,
+        });
+
+        const options = {
+          key: import.meta.env.VITE_RAZORPAY_KEY_ID,
+          amount: orderData.order.amount,
+          currency: orderData.order.currency,
+          name: "Krumeku",
+          description: "Premium T-Shirts",
+          order_id: orderData.order.id,
+          handler: async function (response) {
+            try {
+              const verifyRes = await paymentService.verifyPayment({
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+              });
+
+              if (verifyRes.success) {
+                const paymentInfo = {
+                  id: response.razorpay_payment_id,
+                  status: "success",
+                  update_time: new Date().toISOString(),
+                };
+                dispatchCreateOrder(paymentInfo);
+              }
+            } catch (error) {
+              toast.error("Payment Verification Failed!");
+            }
+          },
+          prefill: {
+            name: "Krumeku Customer",
+            contact: shippingAddress.phone,
+          },
+          theme: {
+            color: "#000000",
+          },
+        };
+
+        const rzp = new window.Razorpay(options);
+        rzp.open();
+      } catch (error) {
+        console.log("RAZORPAY ERROR:", error.response?.data || error.message);
+        toast.error(
+          error.response?.data?.message || "Failed to initiate payment.",
+        );
+      }
+    };
+  };
+
+  const placeOrderHandler = () => {
+    if (isLoading) return;
+
+    if (selectedPayment === "Online") {
+      loadRazorpay();
+    } else {
+      dispatchCreateOrder();
+    }
   };
 
   useEffect(() => {
     if (isSuccess) {
       toast.success(
         selectedPayment === "COD"
-          ? "Order Placed Successfully! "
-          : "Payment Processed!",
+          ? "Order Placed! Jai Mata Di! 🚩"
+          : "Payment Successful!",
       );
       dispatch(clearCart());
       dispatch(resetOrderState());
@@ -101,166 +179,192 @@ export default function PlaceOrder() {
 
   return (
     <div className="bg-[#fafafa] min-h-screen pt-24 pb-20 font-sans">
-      <div className="max-w-[1400px] mx-auto px-4 md:px-6 lg:px-12">
-        {/* Stepper */}
-        <div className="flex items-center gap-4 mb-8">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-black">
-            Payment
+      <div className="max-w-[1400px] mx-auto px-4 md:px-8">
+        <div className="flex items-center gap-3 mb-8 opacity-60">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">
+            Address
           </span>
-          <div className="w-10 h-[2px] bg-black"></div>
-          <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
-            Confirmation
+          <div className="w-6 h-[1px] bg-zinc-300"></div>
+          <span className="text-[10px] font-bold uppercase tracking-widest text-black">
+            Payment & Review
           </span>
         </div>
 
         <h1 className="text-4xl md:text-6xl font-black uppercase italic tracking-tighter mb-10">
-          Secure <span className="text-transparent stroke-black">Checkout</span>
+          Finalize <span className="text-transparent stroke-black">Order</span>
         </h1>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
-          {/* LEFT SIDE: Details */}
-          <div className="lg:col-span-8 space-y-8">
-            {/* Address Summary */}
-            <section className="bg-white p-6 md:p-8 rounded-2xl border border-gray-100 shadow-sm">
-              <h2 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-4 flex items-center gap-2">
-                <MapPin size={14} /> Shipping To
-              </h2>
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="text-lg font-bold uppercase">
-                    {shippingAddress.address}
-                  </p>
-                  <p className="text-sm text-gray-500 font-medium mt-1">
-                    {shippingAddress.city}, {shippingAddress.state} -{" "}
-                    {shippingAddress.pincode}
-                  </p>
-                  <p className="text-xs font-bold mt-2 text-black">
-                    +91 {shippingAddress.phone}
-                  </p>
-                </div>
+          <div className="lg:col-span-8 space-y-6">
+            <section className="bg-white p-6 rounded-2xl border border-zinc-100 shadow-sm">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-[10px] font-black uppercase tracking-widest text-zinc-400 flex items-center gap-2">
+                  <MapPin size={14} /> Deliver To
+                </h2>
                 <Link
                   to="/shipping"
-                  className="text-[10px] font-black border-b border-black pb-1 hover:text-red-600 hover:border-red-600 transition-colors"
+                  className="text-[10px] font-bold text-zinc-400 border-b border-zinc-200 hover:text-black transition-colors"
                 >
-                  CHANGE
+                  EDIT
                 </Link>
               </div>
+              <p className="text-base font-bold uppercase">
+                {shippingAddress.address}
+              </p>
+              <p className="text-sm text-zinc-500 font-medium">
+                {shippingAddress.city}, {shippingAddress.state} -{" "}
+                {shippingAddress.pincode}
+              </p>
+              <p className="text-xs font-bold mt-2">
+                +91 {shippingAddress.phone}
+              </p>
             </section>
 
-            {/* Payment Method */}
-            <section className="bg-white p-6 md:p-8 rounded-2xl border border-gray-100 shadow-sm">
-              <h2 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-4 flex items-center gap-2">
-                <CreditCard size={14} /> Payment Method
+            <section className="bg-white p-6 rounded-2xl border border-zinc-100 shadow-sm">
+              <h2 className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-6 flex items-center gap-2">
+                <CreditCard size={14} /> Choose Payment
               </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div
-                  onClick={() => setSelectedPayment("Online")}
-                  className={`cursor-pointer p-5 border-2 rounded-xl transition-all ${selectedPayment === "Online" ? "border-black bg-black text-white" : "border-gray-200 hover:border-gray-400"}`}
-                >
-                  <div className="flex items-center gap-3 mb-2">
-                    <Zap
-                      size={20}
-                      className={
-                        selectedPayment === "Online"
-                          ? "text-yellow-400"
-                          : "text-black"
-                      }
-                    />
-                    <span className="font-bold uppercase text-sm italic">
-                      Pay Online
-                    </span>
-                  </div>
-                  <p
-                    className={`text-[10px] font-medium tracking-wide ${selectedPayment === "Online" ? "text-gray-300" : "text-gray-500"}`}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {[
+                  {
+                    id: "Online",
+                    label: "Pay Online",
+                    sub: "UPI, Cards, Wallet",
+                    icon: Zap,
+                    color: "text-amber-500",
+                  },
+                  {
+                    id: "COD",
+                    label: "Cash On Delivery",
+                    sub: "Pay at your door",
+                    icon: Banknote,
+                    color: "text-emerald-500",
+                  },
+                ].map((method) => (
+                  <div
+                    key={method.id}
+                    onClick={() => setSelectedPayment(method.id)}
+                    className={`relative cursor-pointer p-5 border-2 rounded-xl transition-all ${selectedPayment === method.id ? "border-black bg-zinc-900 text-white shadow-lg" : "border-zinc-100 hover:border-zinc-300 bg-zinc-50/50"}`}
                   >
-                    UPI, Cards, NetBanking
-                  </p>
-                </div>
-
-                <div
-                  onClick={() => setSelectedPayment("COD")}
-                  className={`cursor-pointer p-5 border-2 rounded-xl transition-all ${selectedPayment === "COD" ? "border-black bg-black text-white" : "border-gray-200 hover:border-gray-400"}`}
-                >
-                  <div className="flex items-center gap-3 mb-2">
-                    <Banknote
-                      size={20}
-                      className={
-                        selectedPayment === "COD"
-                          ? "text-green-400"
-                          : "text-black"
-                      }
-                    />
-                    <span className="font-bold uppercase text-sm italic">
-                      Cash on Delivery
-                    </span>
-                  </div>
-                  <p
-                    className={`text-[10px] font-medium tracking-wide ${selectedPayment === "COD" ? "text-gray-300" : "text-gray-500"}`}
-                  >
-                    Pay at your doorstep
-                  </p>
-                </div>
-              </div>
-            </section>
-
-            {/* Cart Items */}
-            <section className="bg-white p-6 md:p-8 rounded-2xl border border-gray-100 shadow-sm">
-              <h2 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-6 flex items-center gap-2">
-                <Package size={14} /> Order Items ({cartItems.length})
-              </h2>
-              <div className="space-y-6">
-                {cartItems.map((item, index) => (
-                  <div key={index} className="flex gap-4 items-center">
-                    <div className="w-16 h-20 bg-gray-100 rounded-md overflow-hidden">
-                      <SmartImage
-                        src={item.product?.images?.[0] || item.image}
-                        className="w-full h-full object-cover"
+                    <div className="flex items-center gap-3 mb-1">
+                      <method.icon
+                        size={20}
+                        className={
+                          selectedPayment === method.id
+                            ? method.color
+                            : "text-zinc-400"
+                        }
                       />
+                      <span className="font-bold uppercase text-sm italic">
+                        {method.label}
+                      </span>
                     </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-bold uppercase">
-                        {item.product?.productName || item.productName}
-                      </p>
-                      <p className="text-[10px] text-gray-500 font-bold mt-1">
-                        Size: {item.size} | Qty: {item.quantity}
-                      </p>
-                    </div>
-                    <p className="font-bold text-sm">
-                      ₹
-                      {(
-                        (item.product?.discountPrice || item.price) *
-                        item.quantity
-                      ).toLocaleString()}
+                    <p
+                      className={`text-[10px] font-medium ${selectedPayment === method.id ? "text-zinc-400" : "text-zinc-500"}`}
+                    >
+                      {method.sub}
                     </p>
+                    {selectedPayment === method.id && (
+                      <CheckCircle2
+                        size={16}
+                        className="absolute top-4 right-4 text-white"
+                      />
+                    )}
                   </div>
                 ))}
               </div>
             </section>
+
+            <section className="bg-white p-6 rounded-2xl border border-zinc-100 shadow-sm">
+              <h2 className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-6 flex items-center gap-2">
+                <Package size={14} /> Review Items
+              </h2>
+              <div className="divide-y divide-zinc-50">
+                {cartItems.map((item, index) => {
+                  const displayPrice =
+                    item.finalPriceWithTax ||
+                    item.product?.pricing?.finalPriceWithTax ||
+                    item.price;
+
+                  return (
+                    <div
+                      key={index}
+                      className="flex gap-4 py-4 first:pt-0 last:pb-0"
+                    >
+                      <div className="w-14 h-18 bg-zinc-50 rounded-lg overflow-hidden border border-zinc-100 shrink-0">
+                        <SmartImage
+                          src={item.product?.images?.[0] || item.image}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-xs font-bold uppercase line-clamp-1">
+                          {item.product?.productName || item.productName}
+                        </p>
+                        <p className="text-[10px] text-zinc-400 font-bold mt-1 uppercase">
+                          Size: {item.size} • Qty: {item.quantity}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-bold text-sm text-zinc-900">
+                          ₹
+                          {(displayPrice * item.quantity).toLocaleString(
+                            "en-IN",
+                          )}
+                        </p>
+                        <p className="text-[8px] text-zinc-400 font-medium">
+                          Incl. Tax
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
           </div>
 
-          {/* RIGHT SIDE: Summary Sticky */}
           <div className="lg:col-span-4 lg:sticky lg:top-28">
-            <div className="bg-white p-6 md:p-8 rounded-2xl border border-gray-100 shadow-xl">
-              <h2 className="text-lg font-black uppercase italic mb-6">
-                Order Summary
+            <div className="bg-white p-6 rounded-3xl border border-zinc-100 shadow-2xl">
+              <h2 className="text-xs font-black uppercase tracking-[0.2em] text-zinc-400 mb-6">
+                Price Breakdown
               </h2>
 
-              <div className="space-y-4 text-xs font-bold uppercase tracking-wider text-gray-600">
-                <div className="flex justify-between">
-                  <span>Subtotal</span>
-                  <span>
-                    ₹{billDetails?.cartTotalExclTax?.toLocaleString()}
+              <div className="space-y-4 text-[13px] font-medium text-zinc-600">
+                <div className="flex justify-between italic">
+                  <span>Total MRP</span>
+                  <span className="text-black">
+                    ₹{billDetails?.cartTotalExclTax?.toLocaleString("en-IN")}
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span>GST / Tax</span>
-                  <span>₹{billDetails?.gstAmount?.toLocaleString()}</span>
+                <div className="flex justify-between italic">
+                  <span>GST / Taxes (+)</span>
+                  <span className="text-black">
+                    ₹{billDetails?.gstAmount?.toLocaleString("en-IN")}
+                  </span>
                 </div>
-                <div className="flex justify-between">
-                  <span>Delivery Charges</span>
+                {billDetails?.discountAmount > 0 && (
+                  <div className="flex justify-between text-emerald-600 font-bold italic">
+                    <span className="flex items-center gap-1">
+                      <TicketPercent size={14} /> Discount (-)
+                    </span>
+                    <span>
+                      - ₹{billDetails?.discountAmount?.toLocaleString("en-IN")}
+                    </span>
+                  </div>
+                )}
+
+                <div className="flex justify-between pt-3 border-t border-zinc-50 text-black font-black italic uppercase text-[11px]">
+                  <span>Subtotal (incl. GST)</span>
+                  <span>₹{subtotalWithTax.toLocaleString("en-IN")}</span>
+                </div>
+
+                <div className="flex justify-between italic">
+                  <span>Delivery Charges (+)</span>
                   <span
                     className={
-                      billDetails?.shipping === 0 ? "text-green-600" : ""
+                      billDetails?.shipping === 0
+                        ? "text-emerald-600 font-bold"
+                        : "text-black"
                     }
                   >
                     {billDetails?.shipping === 0
@@ -268,48 +372,41 @@ export default function PlaceOrder() {
                       : `₹${billDetails?.shipping}`}
                   </span>
                 </div>
-                {billDetails?.discountAmount > 0 && (
-                  <div className="flex justify-between text-green-600">
-                    <span className="flex items-center gap-1">
-                      <TicketPercent size={14} /> Discount
-                    </span>
-                    <span>
-                      - ₹{billDetails?.discountAmount?.toLocaleString()}
-                    </span>
-                  </div>
-                )}
               </div>
 
-              <div className="h-[1px] bg-gray-200 my-6"></div>
+              <div className="h-[2px] bg-zinc-900 my-6"></div>
 
               <div className="flex justify-between items-end mb-8">
-                <span className="text-xs font-black uppercase text-black">
-                  Grand Total
+                <span className="text-[10px] font-black uppercase text-zinc-400">
+                  Total Amount
                 </span>
-                <span className="text-3xl font-black italic">
-                  ₹{billDetails?.finalTotal?.toLocaleString()}
+                <span className="text-3xl font-black italic leading-none">
+                  ₹{billDetails?.finalTotal?.toLocaleString("en-IN")}
                 </span>
               </div>
 
               <button
                 onClick={placeOrderHandler}
                 disabled={isLoading}
-                className="w-full py-4 bg-black text-white rounded-xl font-bold uppercase tracking-widest text-xs hover:bg-zinc-800 transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed shadow-lg"
+                className="w-full h-14 bg-zinc-900 text-white rounded-xl font-bold uppercase tracking-widest text-xs hover:bg-black transition-all flex items-center justify-center gap-3 disabled:opacity-50 shadow-xl shadow-zinc-200"
               >
                 {isLoading ? (
                   <Loader2 className="animate-spin" />
                 ) : (
                   <>
                     {selectedPayment === "COD"
-                      ? "Place COD Order"
-                      : "Proceed to Pay"}{" "}
-                    <ArrowRight size={16} />
+                      ? "Confirm COD Order"
+                      : "Pay & Place Order"}{" "}
+                    <ArrowRight size={18} />
                   </>
                 )}
               </button>
 
-              <div className="mt-4 flex justify-center items-center gap-2 text-[9px] font-bold text-gray-400 uppercase tracking-widest">
-                <Lock size={10} /> 100% Secure Transaction
+              <div className="mt-6 flex flex-col items-center gap-3">
+                <div className="flex items-center gap-1.5 text-[9px] font-bold text-zinc-400 uppercase tracking-widest">
+                  <ShieldCheck size={12} className="text-emerald-500" /> Secure
+                  SSL Encryption
+                </div>
               </div>
             </div>
           </div>

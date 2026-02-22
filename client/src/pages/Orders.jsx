@@ -15,12 +15,16 @@ import {
   XCircle,
 } from "lucide-react";
 
-import { getMyOrders, returnOrder } from "../features/orders/orderSlice";
+import {
+  cancelOrderUser,
+  getMyOrders,
+  returnOrder,
+  
+} from "../features/orders/orderSlice";
 import OrderCard from "../components/order/OrderCard";
 
 export default function Orders() {
   const dispatch = useDispatch();
-  // 🔥 Orders data nikalte waqt empty array fallback zaroori hai
   const { orders = [], isLoading } = useSelector((state) => state.order);
 
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -55,6 +59,18 @@ export default function Orders() {
       .catch((err) => toast.error(err));
   };
 
+  const handleCancelOrder = (orderId) => {
+    if (window.confirm("Are you sure you want to cancel this order?")) {
+      dispatch(cancelOrderUser(orderId))
+        .unwrap()
+        .then(() => {
+          toast.success("Order cancelled successfully");
+          dispatch(getMyOrders());
+        })
+        .catch((err) => toast.error(err));
+    }
+  };
+
   if (isLoading)
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
@@ -65,7 +81,6 @@ export default function Orders() {
   return (
     <div className="min-h-screen bg-white pt-8 md:pt-16 pb-20 selection:bg-black selection:text-white overflow-x-hidden">
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-12">
-        {/* HEADER */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10 md:mb-16 border-b border-black/5 pb-8 md:pb-10">
           <div>
             <h1 className="text-5xl sm:text-7xl lg:text-9xl font-black uppercase tracking-tighter italic leading-[0.85] md:leading-[0.8]">
@@ -87,7 +102,6 @@ export default function Orders() {
           </div>
         </div>
 
-        {/* ORDERS LIST */}
         {!orders || orders.length === 0 ? (
           <div className="py-16 md:py-20 text-center border-2 border-dashed border-gray-100 rounded-[1.5rem] md:rounded-[2rem] mx-2 md:mx-0">
             <PackageSearch
@@ -111,13 +125,13 @@ export default function Orders() {
                 key={order._id}
                 order={order}
                 onReturnClick={(ord) => setSelectedOrder(ord)}
+                onCancelClick={handleCancelOrder}
               />
             ))}
           </div>
         )}
       </div>
 
-      {/* RETURN / EXCHANGE DRAWER */}
       <AnimatePresence>
         {selectedOrder && (
           <div className="fixed inset-0 z-[100] flex justify-end">
@@ -152,10 +166,8 @@ export default function Orders() {
                 </div>
 
                 <div className="flex-1 space-y-6 md:space-y-8">
-                  {/* 🔥 NEW LOGIC: Check if Return is already requested */}
                   {selectedOrder.returnInfo?.isReturnRequested ? (
                     <div className="space-y-6 animate-in fade-in">
-                      {/* Status Tracker Box */}
                       <div className="bg-zinc-50 border border-zinc-100 p-6 md:p-8 rounded-2xl md:rounded-[2rem]">
                         <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">
                           Current Status
@@ -193,7 +205,6 @@ export default function Orders() {
                           </div>
                         </div>
 
-                        {/* Admin Comment Section */}
                         {selectedOrder.returnInfo.adminComment && (
                           <div className="mt-6 p-4 bg-white border border-gray-200 rounded-xl">
                             <span className="text-[9px] font-black uppercase tracking-widest text-gray-400 block mb-1">
@@ -206,7 +217,6 @@ export default function Orders() {
                         )}
                       </div>
 
-                      {/* Original Request Details */}
                       <div className="px-2">
                         <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2">
                           Original Request Details
@@ -222,7 +232,6 @@ export default function Orders() {
                       </div>
                     </div>
                   ) : (
-                    // 🔥 ORIGINAL FORM (Only shows if no return is requested)
                     <>
                       <div className="bg-orange-50 border border-orange-100 p-3 md:p-4 rounded-xl flex gap-3">
                         <AlertCircle

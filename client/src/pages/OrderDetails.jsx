@@ -18,6 +18,9 @@ import {
   Clock,
   RotateCcw,
   Banknote,
+  Printer,
+  MessageCircleQuestion,
+  ExternalLink,
 } from "lucide-react";
 
 export default function OrderDetails() {
@@ -30,7 +33,6 @@ export default function OrderDetails() {
   );
   const { user } = useSelector((state) => state.auth);
 
-  // 🛡️ Eligibility Logic (7 Din ka check)
   const checkEligibility = (deliveryDate) => {
     if (!deliveryDate) return false;
     const delivered = new Date(deliveryDate);
@@ -40,7 +42,6 @@ export default function OrderDetails() {
     return diffDays <= 7;
   };
 
-  // ☁️ Cloudinary Image Helper
   const getImgUrl = (imgId) => {
     if (!imgId)
       return "https://placehold.co/400x600/000000/FFFFFF?text=No+Image";
@@ -58,6 +59,10 @@ export default function OrderDetails() {
     if (window.confirm("Are you sure you want to cancel this order?")) {
       dispatch(cancelOrderUser(id));
     }
+  };
+
+  const handlePrint = () => {
+    window.print();
   };
 
   if (isLoading)
@@ -83,12 +88,10 @@ export default function OrderDetails() {
       </div>
     );
 
-  // Status & Eligibility Constants
   const isDelivered = order.orderStatus === "Delivered";
   const isReturnRequested = order.returnInfo?.isReturnRequested;
   const returnStatus = order.returnInfo?.status || "None";
 
-  // Return Eligible tabhi hoga jab status Delivered ho aur return request na hui ho
   const isEligibleForReturn =
     isDelivered &&
     !isReturnRequested &&
@@ -112,13 +115,11 @@ export default function OrderDetails() {
     }
   };
 
-  // 🔥 DYNAMIC PROGRESS TRACKER LOGIC
   let progressWidth = "0%";
   let progressColor = "bg-black";
   let trackerSteps = [];
 
   if (isReturnRequested) {
-    // RETURN TRACKER
     const typeLabel =
       order.returnInfo?.type === "Exchange" ? "Exchanged" : "Refunded";
 
@@ -183,7 +184,6 @@ export default function OrderDetails() {
       ];
     }
   } else {
-    // NORMAL ORDER TRACKER
     const isShip =
       order.orderStatus === "Shipped" || order.orderStatus === "Delivered";
     const isDel = order.orderStatus === "Delivered";
@@ -221,41 +221,54 @@ export default function OrderDetails() {
   return (
     <div className="min-h-screen bg-white pt-8 md:pt-16 pb-20 selection:bg-black selection:text-white overflow-x-hidden">
       <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8">
-        {/* BACK BUTTON */}
-        <button
-          onClick={() => navigate(-1)}
-          className="flex items-center gap-2 text-[10px] md:text-[11px] font-black uppercase tracking-[0.2em] md:tracking-[0.3em] mb-8 md:mb-10 hover:gap-3 transition-all text-zinc-500 hover:text-black"
-        >
-          <ArrowLeft size={16} /> Back to My Orders
-        </button>
+        <div className="flex justify-between items-center mb-8 md:mb-10">
+          <button
+            onClick={() => navigate(-1)}
+            className="flex items-center gap-2 text-[10px] md:text-[11px] font-black uppercase tracking-[0.2em] md:tracking-[0.3em] hover:gap-3 transition-all text-zinc-500 hover:text-black print:hidden"
+          >
+            <ArrowLeft size={16} /> Back to My Orders
+          </button>
 
-        {/* HEADER */}
+          <button
+            onClick={handlePrint}
+            className="flex items-center gap-2 text-[10px] md:text-[11px] font-black uppercase tracking-[0.2em] bg-zinc-50 hover:bg-zinc-100 px-4 py-2 rounded-full transition-all text-black print:hidden"
+          >
+            <Printer size={14} /> Print Invoice
+          </button>
+        </div>
+
         <div className="flex flex-col md:flex-row justify-between items-start md:items-end border-b-2 border-black/10 pb-8 md:pb-10 mb-8 md:mb-12">
           <div className="w-full md:w-auto">
             <h1 className="text-3xl sm:text-5xl md:text-7xl font-black uppercase italic tracking-tighter leading-none break-all md:break-normal">
               Order{" "}
               <span className="text-gray-300">#{order._id?.slice(-6)}</span>
             </h1>
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 mt-3 md:mt-4">
-              Placed on{" "}
-              <span className="text-black">
-                {new Date(order.createdAt).toLocaleDateString("en-IN", {
-                  day: "2-digit",
-                  month: "short",
-                  year: "numeric",
-                })}
-              </span>
-            </p>
+            <div className="flex flex-wrap items-center gap-4 mt-3 md:mt-4">
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">
+                Placed on{" "}
+                <span className="text-black">
+                  {new Date(order.createdAt).toLocaleDateString("en-IN", {
+                    day: "2-digit",
+                    month: "short",
+                    year: "numeric",
+                  })}
+                </span>
+              </p>
+              {order.isPaid && (
+                <span className="bg-green-100 text-green-700 text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded">
+                  Payment Confirmed
+                </span>
+              )}
+            </div>
           </div>
 
-          <div className="flex flex-col items-start md:items-end gap-3 md:gap-4 mt-6 md:mt-0 w-full md:w-auto">
+          <div className="flex flex-col items-start md:items-end gap-3 md:gap-4 mt-6 md:mt-0 w-full md:w-auto print:hidden">
             <div
               className={`px-4 md:px-6 py-2 md:py-2.5 text-[10px] md:text-[11px] font-black uppercase tracking-widest italic rounded-md shadow-sm ${getStatusColor(order.orderStatus)}`}
             >
               {order.orderStatus}
             </div>
 
-            {/* Return Action Button */}
             {isEligibleForReturn && (
               <button
                 onClick={() => navigate("/orders")}
@@ -276,19 +289,14 @@ export default function OrderDetails() {
           </div>
         </div>
 
-        {/* 🔥 DYNAMIC PROGRESS TRACKER */}
-        <div className="mb-12 md:mb-16 bg-zinc-50 p-6 md:p-10 rounded-xl border border-zinc-100 overflow-x-auto scrollbar-hide">
+        <div className="mb-12 md:mb-16 bg-zinc-50 p-6 md:p-10 rounded-xl border border-zinc-100 overflow-x-auto scrollbar-hide print:hidden">
           <div className="flex justify-between items-center relative min-w-[500px] max-w-3xl mx-auto px-4 md:px-0">
-            {/* Background Line */}
             <div className="absolute top-1/2 left-0 w-full h-[2px] bg-zinc-200 -translate-y-1/2 z-0"></div>
-
-            {/* Active Progress Line */}
             <div
               className={`absolute top-1/2 left-0 h-[2px] ${progressColor} -translate-y-1/2 transition-all duration-1000 z-0`}
               style={{ width: progressWidth }}
             ></div>
 
-            {/* Render Steps */}
             {trackerSteps.map((step, idx) => {
               const Icon = step.icon;
               return (
@@ -312,54 +320,102 @@ export default function OrderDetails() {
           </div>
         </div>
 
-        {/* DETAILS GRID */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 md:gap-16">
-          {/* LEFT: ORDER ITEMS */}
-          <div className="lg:col-span-8 space-y-6 md:space-y-8">
-            <h3 className="text-[11px] font-black uppercase tracking-[0.2em] border-b border-zinc-200 pb-3 flex items-center gap-2 text-zinc-500">
-              <Package size={16} /> Order Items ({order.orderItems?.length})
-            </h3>
+          {/* LEFT SIDE: Items & Support */}
+          <div className="lg:col-span-8 space-y-8">
+            <div className="bg-white">
+              <h3 className="text-[11px] font-black uppercase tracking-[0.2em] border-b border-zinc-200 pb-3 flex items-center gap-2 text-zinc-500">
+                <Package size={16} /> Order Items ({order.orderItems?.length})
+              </h3>
 
-            <div className="space-y-4">
-              {order.orderItems?.map((item, index) => (
-                <div
-                  key={index}
-                  className="flex flex-row gap-4 md:gap-6 py-4 border-b border-zinc-100 group"
-                >
-                  <div className="w-20 h-28 md:w-24 md:h-32 bg-zinc-50 overflow-hidden flex-shrink-0 border border-zinc-100 rounded-xl">
-                    <img
-                      src={getImgUrl(item.image)}
-                      className="w-full h-full object-cover transition-all duration-500 group-hover:scale-105"
-                      alt="Product"
-                    />
-                  </div>
+              <div className="space-y-0">
+                {order.orderItems?.map((item, index) => (
+                  <div
+                    key={index}
+                    className="flex flex-row gap-4 md:gap-6 py-6 border-b border-zinc-100 group"
+                  >
+                    <div className="w-24 h-32 md:w-28 md:h-40 bg-zinc-50 overflow-hidden flex-shrink-0 border border-zinc-100 rounded-xl">
+                      <img
+                        src={getImgUrl(item.image)}
+                        className="w-full h-full object-cover transition-all duration-500 group-hover:scale-105"
+                        alt="Product"
+                      />
+                    </div>
 
-                  <div className="flex-1 flex flex-col justify-center md:justify-between py-1 min-w-0">
-                    <div>
-                      <h4 className="text-sm md:text-xl font-black uppercase italic leading-tight truncate">
+                    <div className="flex-1 flex flex-col justify-center py-1 min-w-0">
+                      <h4 className="text-base md:text-xl font-black uppercase italic leading-tight truncate">
                         {item.productName || item.name || "Premium Piece"}
                       </h4>
-                      <div className="flex flex-wrap gap-2 mt-2 md:mt-3">
-                        <span className="text-[9px] font-bold text-zinc-500 bg-zinc-100 px-2 py-1 rounded-md uppercase tracking-wider">
+                      <p className="text-[10px] md:text-xs font-medium text-zinc-500 mt-1 uppercase tracking-wider">
+                        Color: {item.color || "Standard"}
+                      </p>
+
+                      <div className="flex flex-wrap gap-2 mt-3 md:mt-4">
+                        <span className="text-[9px] font-black text-black bg-zinc-100 px-3 py-1.5 rounded uppercase tracking-widest border border-zinc-200">
                           Size: {item.size}
                         </span>
-                        <span className="text-[9px] font-bold text-zinc-500 bg-zinc-100 px-2 py-1 rounded-md uppercase tracking-wider">
+                        <span className="text-[9px] font-black text-black bg-zinc-100 px-3 py-1.5 rounded uppercase tracking-widest border border-zinc-200">
                           Qty: {item.quantity}
                         </span>
                       </div>
+
+                      <p className="font-black text-lg md:text-xl italic mt-4">
+                        ₹{item.price?.toLocaleString("en-IN")}
+                      </p>
                     </div>
-                    <p className="font-black text-sm md:text-base italic mt-3 md:mt-0">
-                      ₹{item.price?.toLocaleString("en-IN")}
-                    </p>
                   </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 🔥 NEW NEED HELP SECTION */}
+            <div className="bg-zinc-900 text-white rounded-2xl p-6 md:p-8 print:hidden flex flex-col sm:flex-row items-center justify-between gap-6">
+              <div className="flex items-start gap-4">
+                <div className="bg-zinc-800 p-3 rounded-full">
+                  <MessageCircleQuestion size={24} className="text-zinc-300" />
                 </div>
-              ))}
+                <div>
+                  <h4 className="text-sm font-black uppercase tracking-widest italic mb-1">
+                    Need Help With This Order?
+                  </h4>
+                  <p className="text-[10px] text-zinc-400 font-medium uppercase tracking-wider">
+                    Contact us for any questions or issues.
+                  </p>
+                </div>
+              </div>
+              <a
+                href="mailto:support@krumeku.com"
+                className="w-full sm:w-auto text-center bg-white text-black text-[10px] font-black uppercase tracking-[0.2em] py-3 px-6 rounded-lg hover:bg-zinc-200 transition-colors"
+              >
+                Email Support
+              </a>
             </div>
           </div>
 
-          {/* RIGHT: ADDRESS, SUMMARY & RETURN STATUS */}
-          <div className="lg:col-span-4 space-y-8 md:space-y-10">
-            {/* Delivery Address */}
+          {/* RIGHT SIDE: Address & Summary */}
+          <div className="lg:col-span-4 space-y-6 md:space-y-8">
+            {/* 🔥 NEW TRACKING SECTION (Shows only if shipped) */}
+            {(order.orderStatus === "Shipped" ||
+              order.orderStatus === "Delivered") &&
+              order.shiprocketOrderId && (
+                <div className="bg-blue-50 border border-blue-100 p-6 rounded-2xl print:hidden">
+                  <h3 className="text-[11px] font-black uppercase tracking-[0.2em] flex items-center gap-2 text-blue-800 mb-3">
+                    <Truck size={16} /> Tracking Detail
+                  </h3>
+                  <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-4">
+                    Track your shipment directly via courier partner.
+                  </p>
+                  <a
+                    href={`https://shiprocket.co/tracking/${order.shiprocketOrderId}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex justify-center items-center gap-2 w-full py-3 bg-blue-600 text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-xl hover:bg-blue-700 transition-colors shadow-lg shadow-blue-200"
+                  >
+                    Track Order <ExternalLink size={14} />
+                  </a>
+                </div>
+              )}
+
             <div className="bg-white border border-zinc-200 p-6 md:p-8 rounded-2xl shadow-sm">
               <h3 className="text-[11px] font-black uppercase tracking-[0.2em] flex items-center gap-2 text-zinc-500 border-b border-zinc-100 pb-4 mb-4">
                 <MapPin size={16} /> Delivery Address
@@ -385,7 +441,6 @@ export default function OrderDetails() {
               </div>
             </div>
 
-            {/* Order Summary */}
             <div className="bg-zinc-50 border border-zinc-200 p-6 md:p-8 rounded-2xl shadow-sm">
               <h3 className="text-[11px] font-black uppercase tracking-[0.2em] border-b border-zinc-200 pb-4 mb-5 flex items-center gap-2 text-zinc-500">
                 <ReceiptText size={16} /> Order Summary
@@ -393,33 +448,66 @@ export default function OrderDetails() {
 
               <div className="space-y-4">
                 <div className="flex justify-between text-[11px] font-bold uppercase text-zinc-500">
-                  <span>Subtotal</span>
+                  <span>Payment Mode</span>
+                  <span className="text-black">{order.paymentMethod}</span>
+                </div>
+
+                <div className="flex justify-between text-[11px] font-bold uppercase text-zinc-500">
+                  <span>Payment Status</span>
+                  <span
+                    className={
+                      order.isPaid ? "text-green-600" : "text-orange-600"
+                    }
+                  >
+                    {order.isPaid ? "Paid" : "Pending"}
+                  </span>
+                </div>
+
+                <div className="h-[1px] bg-zinc-200 my-2"></div>
+
+                <div className="flex justify-between text-[11px] font-bold uppercase text-zinc-500">
+                  <span>Total MRP</span>
                   <span className="text-black">
                     ₹{order.itemsPrice?.toLocaleString("en-IN")}
                   </span>
                 </div>
 
-                {order.shippingPrice > 0 && (
+                {order.taxPrice > 0 && (
                   <div className="flex justify-between text-[11px] font-bold uppercase text-zinc-500">
-                    <span>Delivery</span>
+                    <span>GST / Taxes (+)</span>
                     <span className="text-black">
-                      ₹{order.shippingPrice?.toLocaleString("en-IN")}
+                      ₹{order.taxPrice?.toLocaleString("en-IN")}
                     </span>
                   </div>
                 )}
 
                 {order.discountPrice > 0 && (
                   <div className="flex justify-between text-[11px] font-bold uppercase text-green-600">
-                    <span>Discount</span>
+                    <span>Discount (-)</span>
                     <span>
                       - ₹{order.discountPrice?.toLocaleString("en-IN")}
                     </span>
                   </div>
                 )}
 
+                <div className="flex justify-between text-[11px] font-bold uppercase text-zinc-500">
+                  <span>Delivery Charges (+)</span>
+                  <span
+                    className={
+                      order.shippingPrice === 0
+                        ? "text-green-600 font-black"
+                        : "text-black"
+                    }
+                  >
+                    {order.shippingPrice === 0
+                      ? "FREE"
+                      : `₹${order.shippingPrice?.toLocaleString("en-IN")}`}
+                  </span>
+                </div>
+
                 <div className="flex justify-between items-center border-t border-zinc-200 pt-5 mt-2">
                   <span className="text-[11px] font-black uppercase tracking-widest text-black">
-                    Total Paid
+                    Final Total
                   </span>
                   <span className="text-2xl font-black italic text-black">
                     ₹{order.totalPrice?.toLocaleString("en-IN")}
@@ -427,7 +515,6 @@ export default function OrderDetails() {
                 </div>
               </div>
 
-              {/* 🔥 RETURN STATUS BOX */}
               {isReturnRequested && (
                 <div
                   className={`mt-8 pt-6 border-t border-zinc-200 -mx-6 md:-mx-8 -mb-6 md:-mb-8 p-6 md:p-8 rounded-b-2xl ${
@@ -453,7 +540,6 @@ export default function OrderDetails() {
                     {returnStatus === "Rejected" && (
                       <XCircle size={18} className="text-red-600" />
                     )}
-
                     <h4
                       className={`text-sm font-black uppercase italic ${
                         returnStatus === "Pending"
@@ -468,11 +554,9 @@ export default function OrderDetails() {
                       {returnStatus}
                     </h4>
                   </div>
-
                   <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-3">
                     Type: {order.returnInfo.type}
                   </p>
-
                   {order.returnInfo.adminComment && (
                     <div className="bg-white p-3 rounded-xl border border-white/40 mt-3 shadow-sm">
                       <span className="text-[8px] font-black uppercase tracking-widest text-zinc-400 block mb-1">

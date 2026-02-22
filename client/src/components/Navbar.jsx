@@ -15,7 +15,7 @@ import {
   Package,
   UserCircle,
   ArrowRight,
-  ShieldCheck, 
+  ShieldCheck,
 } from "lucide-react";
 
 export default function Navbar() {
@@ -38,7 +38,6 @@ export default function Navbar() {
   const cartCount = cartItems?.length || 0;
   const wishlistCount = wishlistItems?.length || 0;
 
-  // Search Debouncing
   useEffect(() => {
     if (searchQuery.trim().length > 0) {
       const delayDebounceFn = setTimeout(() => {
@@ -50,16 +49,14 @@ export default function Navbar() {
     if (searchQuery.trim().length === 0 && location.search.includes("q=")) {
       navigate("/products");
     }
-  }, [searchQuery]);
+  }, [searchQuery, navigate, location.search]);
 
- 
   useEffect(() => {
     setOpen(false);
     setProfilePanel(false);
     setSearchOpen(false);
   }, [location.pathname]);
 
-  // Scroll effect
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener("scroll", handleScroll);
@@ -93,79 +90,74 @@ export default function Navbar() {
         className={`fixed top-0 z-[100] transition-all duration-500 ease-in-out ${
           scrolled
             ? "bg-white/95 backdrop-blur-xl py-2 shadow-sm border-b border-zinc-100"
-            : "bg-white py-4 md:py-6"
-        } ${
-          user?.role === "admin"
-            ? "md:left-64 w-full md:w-[calc(100%-16rem)]"
-            : "left-0 w-full"
-        }`}
+            : "bg-white py-3 md:py-4"
+        } ${user?.role === "admin" ? "md:left-64 w-full md:w-[calc(100%-16rem)]" : "left-0 w-full"}`}
       >
-        <div className="max-w-[1800px] mx-auto px-4 md:px-12 flex items-center justify-between">
-          {/* Left Section: Menu & Admin Direct Link */}
-          <div className="flex-1 flex items-center gap-4 md:gap-8">
+        <div className="max-w-[1800px] mx-auto px-4 md:px-8 flex items-center justify-between">
+          <div className="flex-1 flex items-center gap-4 md:gap-6">
             <button
               onClick={() => setOpen(true)}
-              className="group flex items-center gap-3 outline-none"
+              className="group flex items-center gap-2 outline-none"
             >
               <div className="flex flex-col gap-1.5">
                 <span className="h-[2px] w-5 bg-black"></span>
                 <span className="h-[2px] w-3 bg-black transition-all duration-300 group-hover:w-5"></span>
               </div>
-              <span className="hidden lg:block text-[10px] font-bold uppercase tracking-widest text-zinc-500 group-hover:text-black transition-colors">
+              <span className="hidden lg:block text-[10px] font-bold uppercase tracking-widest text-zinc-500 group-hover:text-black transition-colors mt-0.5">
                 Menu
               </span>
             </button>
 
-            {/* 🔥 NEW: Direct Admin Link on Main Header */}
             {user?.role === "admin" && (
               <Link
                 to="/admin/dashboard"
-                className="hidden sm:flex items-center gap-2 bg-red-50 px-3 py-1.5 rounded-full border border-red-100 hover:bg-red-600 hover:text-white transition-all duration-300 group"
+                className="hidden sm:flex items-center gap-1.5 bg-red-50 px-3 py-1.5 rounded-full border border-red-100 hover:bg-red-600 hover:text-white transition-all duration-300 group"
               >
                 <ShieldCheck
                   size={14}
                   className="text-red-600 group-hover:text-white"
                 />
                 <span className="text-[9px] font-black uppercase tracking-tighter">
-                  Admin Panel
+                  Admin
                 </span>
               </Link>
             )}
 
             <button
               onClick={() => setSearchOpen(true)}
-              className="p-2 hover:bg-zinc-100 rounded-full transition-colors"
+              className="p-1.5 hover:bg-zinc-100 rounded-full transition-colors"
             >
-              <Search size={20} strokeWidth={1.5} />
+              <Search size={18} strokeWidth={1.5} />
             </button>
           </div>
 
-          {/* Center Section: Logo */}
           <div className="flex justify-center">
             <Link to="/" className="flex-shrink-0 relative z-10 group">
-              <h1 className="text-2xl md:text-3xl font-black tracking-tighter text-black uppercase italic leading-none group-hover:scale-105 transition-transform duration-300">
+              <h1 className="text-xl md:text-2xl font-black tracking-tighter text-black uppercase italic leading-none group-hover:scale-105 transition-transform duration-300">
                 KRUMEKU<span className="text-red-600">.</span>
               </h1>
             </Link>
           </div>
 
-          {/* Right Section: Icons */}
-          <div className="flex items-center justify-end gap-4 md:gap-6 flex-1">
-            <Link to="/wishlist" className="relative group hidden md:block p-2">
+          <div className="flex items-center justify-end gap-3 md:gap-5 flex-1">
+            <Link
+              to="/wishlist"
+              className="relative group hidden md:block p-1.5"
+            >
               <Heart
-                size={22}
+                size={20}
                 strokeWidth={1.5}
                 className="group-hover:fill-black transition-all duration-300"
               />
               {wishlistCount > 0 && (
-                <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-red-600 rounded-full border-2 border-white"></span>
+                <span className="absolute top-0 right-0 w-2 h-2 bg-red-600 rounded-full border border-white"></span>
               )}
             </Link>
 
-            <Link to="/cart" className="relative group p-2">
-              <ShoppingBag size={22} strokeWidth={1.5} />
+            <Link to="/cart" className="relative group p-1.5">
+              <ShoppingBag size={20} strokeWidth={1.5} />
               {cartCount > 0 && (
-                <span className="absolute top-0 right-0 flex items-center justify-center bg-black text-white text-[9px] font-bold w-4 h-4 rounded-full border border-white">
+                <span className="absolute -top-1 -right-1 flex items-center justify-center bg-black text-white text-[9px] font-bold w-4 h-4 rounded-full border border-white">
                   {cartCount}
                 </span>
               )}
@@ -175,14 +167,14 @@ export default function Navbar() {
               onClick={() => setProfilePanel(true)}
               className="flex items-center gap-2 border border-zinc-200 hover:border-black rounded-full p-1 pr-3 transition-all duration-300 group"
             >
-              <div className="w-8 h-8 bg-black rounded-full flex items-center justify-center text-white text-[12px] font-bold overflow-hidden">
+              <div className="w-7 h-7 bg-black rounded-full flex items-center justify-center text-white text-[10px] font-bold overflow-hidden">
                 {user ? (
                   user.fullName?.charAt(0).toUpperCase()
                 ) : (
-                  <User size={16} />
+                  <User size={14} />
                 )}
               </div>
-              <span className="hidden md:block text-[10px] font-bold uppercase tracking-widest text-zinc-500 group-hover:text-black transition-colors">
+              <span className="hidden md:block text-[9px] font-bold uppercase tracking-widest text-zinc-500 group-hover:text-black transition-colors mt-0.5">
                 {user ? "Account" : "Login"}
               </span>
             </button>
@@ -190,10 +182,6 @@ export default function Navbar() {
         </div>
       </header>
 
-      {/* --- Rest of the code (Search Overlay, Drawers) remains exactly same as your input --- */}
-      {/* ... (Yahan se niche aapka SearchOverlay, MobileDrawer aur ProfileDrawer wala code hai) ... */}
-
-      {/* Search Overlay */}
       <div
         className={`fixed inset-x-0 top-0 z-[150] bg-white border-b-2 border-black transition-transform duration-500 ease-in-out ${
           searchOpen ? "translate-y-0" : "-translate-y-full"
@@ -201,13 +189,13 @@ export default function Navbar() {
       >
         <form
           onSubmit={handleSearchSubmit}
-          className="max-w-[1400px] mx-auto px-6 py-8 flex items-center gap-4 md:gap-6"
+          className="max-w-[1400px] mx-auto px-6 py-6 flex items-center gap-4 md:gap-6"
         >
-          <Search size={24} className="text-black" />
+          <Search size={22} className="text-black" />
           <input
             type="text"
             placeholder="Search for products..."
-            className="flex-1 bg-transparent text-xl md:text-4xl font-bold uppercase italic outline-none placeholder:text-zinc-300"
+            className="flex-1 bg-transparent text-xl md:text-3xl font-bold uppercase italic outline-none placeholder:text-zinc-300"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             autoFocus={searchOpen}
@@ -220,12 +208,11 @@ export default function Navbar() {
             }}
             className="p-2 hover:bg-zinc-100 rounded-full transition-colors"
           >
-            <X size={28} />
+            <X size={24} />
           </button>
         </form>
       </div>
 
-      {/* Mobile Navigation Drawer */}
       <div
         className={`fixed inset-0 z-[200] transition-all duration-500 ${
           open ? "visible pointer-events-auto" : "invisible pointer-events-none"
@@ -248,7 +235,7 @@ export default function Navbar() {
               onClick={() => setOpen(false)}
               className="self-start mb-10 p-2 hover:bg-zinc-100 rounded-full transition-colors"
             >
-              <X size={28} />
+              <X size={24} />
             </button>
 
             <nav className="flex flex-col gap-6">
@@ -298,7 +285,6 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* Profile Drawer */}
       <div
         className={`fixed inset-0 z-[200] transition-all duration-500 ${
           profilePanel
@@ -401,7 +387,6 @@ export default function Navbar() {
                     </Link>
                   ))}
 
-                  {/* Admin Link in Drawer */}
                   {user.role === "admin" && (
                     <Link
                       to="/admin/dashboard"

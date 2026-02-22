@@ -19,6 +19,7 @@ import GlobalLoader from "./components/GlobalLoader";
 import ScrollToTop from "./components/ScrollToTop";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminRoute from "./components/Admin/AdminRoute";
+import Policies from "./pages/Policies";
 
 // --- Lazy Loaded Pages ---
 
@@ -100,6 +101,7 @@ const App = () => {
             <Route path="/login" element={<Loginpage />} />
             <Route path="/forgot" element={<ForgotPassword />} />
             <Route path="/reset-password/:token" element={<ResetPassword />} />
+            <Route path="/policies" element={<Policies />} />
 
             {/* --- Shopping Routes --- */}
             <Route path="/products" element={<Clothes />} />
