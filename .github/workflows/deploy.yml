@@ -1,12 +1,13 @@
-name: Deploy Krumeku Backend
+name: Krumeku Auto-Deploy Pipeline
 
 on:
   push:
     branches:
-      - main
+      - main  # Agar aapki branch 'master' hai toh isko master kar dena
 
 jobs:
   build-and-push:
+    name: Build & Push to Docker Hub
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -24,10 +25,10 @@ jobs:
           context: .
           file: ./dockerfile
           push: true
-
-          tags: harshadkumawat/krumeku-backend:latest
+          tags: ${{ secrets.DOCKER_USERNAME }}/krumeku-backend:latest
 
   deploy-to-ec2:
+    name: Deploy to AWS EC2
     needs: build-and-push
     runs-on: ubuntu-latest
     steps:
@@ -38,42 +39,18 @@ jobs:
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_PRIVATE_KEY }}
           script: |
-            # 1. Nayi image Docker Hub se pull karo 
-            docker pull harshadkumawat/krumeku-backend:latest
-
-            # 2. Purane container ko roko aur hatao
+            # 1. GitHub Secret se .env file generate karo server par
+            echo "${{ secrets.ENV_FILE }}" > /home/ubuntu/.env
+            
+            # 2. Nayi image download karo Docker Hub se
+            docker pull ${{ secrets.DOCKER_USERNAME }}/krumeku-backend:latest
+            
+            # 3. Purane container ko roko aur hatao
             docker stop krumeku-api || true
             docker rm krumeku-api || true
-
-            # 3. Naya container start karo (Agar port 5000 hai toh 5000:5000)
-            docker run -d -p 8080:8080 --name krumeku-api harshadkumawat/krumeku-backend:latest
-
-            # 4. Faltu purani images hatao server space bachane ke liye
+            
+            # 4. Naya container start karo (Port 8080 par aur .env file ke sath)
+            docker run -d -p 8080:8080 --env-file /home/ubuntu/.env --name krumeku-api ${{ secrets.DOCKER_USERNAME }}/krumeku-backend:latest
+            
+            # 5. Purani useless images hatao
             docker image prune -f
-deploy-to-ec2:
-  name: Deploy to AWS EC2
-  needs: build-and-push
-  runs-on: ubuntu-latest
-  steps:
-    - name: Deploy via SSH
-      uses: appleboy/ssh-action@master
-      with:
-        host: ${{ secrets.EC2_HOST }}
-        username: ${{ secrets.EC2_USERNAME }}
-        key: ${{ secrets.EC2_PRIVATE_KEY }}
-        script: |
-          # 1. GitHub Secret se .env file generate karo server par
-          echo "${{ secrets.ENV_FILE }}" > /home/ubuntu/.env
-
-          # 2. Nayi image download karo Docker Hub se
-          docker pull ${{ secrets.DOCKER_USERNAME }}/krumeku-backend:latest
-
-          # 3. Purane container ko roko aur hatao
-          docker stop krumeku-api || true
-          docker rm krumeku-api || true
-
-          # 4. Naya container start karo (Port 5000 par aur .env file ke sath)
-          docker run -d -p 5000:5000 --env-file /home/ubuntu/.env --name krumeku-api ${{ secrets.DOCKER_USERNAME }}/krumeku-backend:latest
-
-          # 5. Purani useless images hatao
-          docker image prune -f
