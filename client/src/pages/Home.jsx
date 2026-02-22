@@ -61,7 +61,7 @@ const Home = () => {
               to="/products"
               className="inline-flex items-center gap-3 px-10 py-5 bg-white text-black text-xs font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all duration-500 shadow-2xl active:scale-95"
             >
-              Shop New Drop <ArrowRight size={16} />
+              Shop <ArrowRight size={16} />
             </Link>
           </div>
         </header>
