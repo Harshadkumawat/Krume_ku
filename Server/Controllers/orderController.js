@@ -7,9 +7,7 @@ const { getShiprocketToken } = require("./shippingController");
 const syncOrderToShiprocket = require("../Utils/shiprocketOrder");
 const axios = require("axios");
 
-// ------------------------------------------------------------------
-// 📊 ADMIN ANALYTICS
-// ------------------------------------------------------------------
+// -------------------- 1. ADMIN ANALYTICS --------------------
 const getAdminDashboardStats = asyncHandler(async (req, res) => {
   const { range = "daily" } = req.query;
   let groupFormat, matchDate;
@@ -25,7 +23,6 @@ const getAdminDashboardStats = asyncHandler(async (req, res) => {
     matchDate = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000);
   }
 
-  // ✅ Chart: Includes all valid orders (COD + Online)
   const salesData = await Order.aggregate([
     {
       $match: {
@@ -43,13 +40,8 @@ const getAdminDashboardStats = asyncHandler(async (req, res) => {
     { $sort: { _id: 1 } },
   ]);
 
-  // ✅ Total Revenue Box: Includes all valid orders (COD + Online)
   const totalSales = await Order.aggregate([
-    {
-      $match: {
-        orderStatus: { $nin: ["Cancelled", "Returned"] },
-      },
-    },
+    { $match: { orderStatus: { $nin: ["Cancelled", "Returned"] } } },
     { $group: { _id: null, total: { $sum: "$totalPrice" } } },
   ]);
 
@@ -81,10 +73,7 @@ const getAdminDashboardStats = asyncHandler(async (req, res) => {
   });
 });
 
-// ------------------------------------------------------------------
-// 📦 ORDER MANAGEMENT
-// ------------------------------------------------------------------
-
+// -------------------- 2. ORDER MANAGEMENT --------------------
 const addOrderItems = asyncHandler(async (req, res) => {
   const {
     orderItems,
@@ -95,17 +84,15 @@ const addOrderItems = asyncHandler(async (req, res) => {
     shippingPrice,
     totalPrice,
     couponCode,
-    isPaid, // ✅ Frontend se aaya naya data
-    paidAt, // ✅ Frontend se aaya naya data
-    paymentResult, // ✅ Frontend se aaya naya data
+    isPaid,
+    paidAt,
+    paymentResult,
   } = req.body;
 
   if (orderItems && orderItems.length === 0) {
-    res.status(400);
-    throw new Error("No order items");
+    return res.status(400).json({ success: false, message: "No order items" });
   }
 
-  // 1. Create Order
   const order = new Order({
     orderItems,
     user: req.user._id,
@@ -116,19 +103,19 @@ const addOrderItems = asyncHandler(async (req, res) => {
     shippingPrice,
     totalPrice,
     couponCode,
-    isPaid: isPaid || false, // ✅ Database me save ho jayega
+    isPaid: isPaid || false,
     paidAt: paidAt || null,
     paymentResult: paymentResult || {},
   });
 
   const createdOrder = await order.save();
 
-  // 2. Reduce Stock (Main & Size specific) with Negative Value Protection
+  // 🔥 UPDATE STOCK & Bestseller (soldCount)
   for (const item of orderItems) {
     const product = await Product.findById(item.product);
     if (product) {
-      // ✅ Math.max ensures stock never goes below 0
       product.countInStock = Math.max(0, product.countInStock - item.quantity);
+      product.soldCount = (product.soldCount || 0) + item.quantity; // 🔥 Naya jadoo: Bestseller Tracking
 
       const sizeIndex = product.sizes.findIndex((s) => s.label === item.size);
       if (sizeIndex !== -1) {
@@ -141,7 +128,6 @@ const addOrderItems = asyncHandler(async (req, res) => {
     }
   }
 
-  // 3. Update Coupon Usage
   if (couponCode) {
     await Coupon.findOneAndUpdate(
       { code: couponCode.toUpperCase() },
@@ -149,14 +135,9 @@ const addOrderItems = asyncHandler(async (req, res) => {
     );
   }
 
-  // 🔥 FAST WORK FIX: Pehle Response bhejo, User ko wait mat karao
   res.status(201).json(createdOrder);
 
-  // ---------------------------------------------------------
-  // ⚡ BACKGROUND TASKS
-  // ---------------------------------------------------------
-
-  // 4. Shiprocket Sync (Background)
+  // Background Tasks
   (async () => {
     try {
       const token = await getShiprocketToken();
@@ -171,18 +152,13 @@ const addOrderItems = asyncHandler(async (req, res) => {
           createdOrder.shiprocketOrderId = shiprocketRes.order_id;
           createdOrder.shiprocketShipmentId = shiprocketRes.shipment_id;
           await createdOrder.save();
-          console.log(
-            "✅ Shiprocket Order Created ID:",
-            shiprocketRes.order_id,
-          );
         }
       }
     } catch (error) {
-      console.error("⚠️ Shiprocket Sync Skipped/Failed:", error.message);
+      console.error("⚠️ Shiprocket Sync Failed:", error.message);
     }
   })();
 
-  // 5. Send Email
   (async () => {
     try {
       const orderDetails = {
@@ -204,87 +180,75 @@ const addOrderItems = asyncHandler(async (req, res) => {
   })();
 });
 
-// ------------------------------------------------------------------
-// 🔄 RETURN & EXCHANGE LOGIC
-// ------------------------------------------------------------------
-
+// -------------------- 3. RETURN & EXCHANGE --------------------
 const requestReturn = asyncHandler(async (req, res) => {
   const { reason, comments, type } = req.body;
   const order = await Order.findById(req.params.id);
 
-  if (!order) {
-    res.status(404);
-    throw new Error("Order not found");
-  }
+  if (!order)
+    return res.status(404).json({ success: false, message: "Order not found" });
 
-  // 1. Validation: Must be delivered first
   if (order.orderStatus !== "Delivered") {
-    res.status(400);
-    throw new Error("Order must be delivered to initiate return");
+    return res
+      .status(400)
+      .json({
+        success: false,
+        message: "Order must be delivered to initiate return",
+      });
   }
 
-  // 2. Validation: 7-Day Window
   const deliveryDate = new Date(order.deliveredAt);
-  const currentDate = new Date();
   const diffDays = Math.ceil(
-    Math.abs(currentDate - deliveryDate) / (1000 * 60 * 60 * 24),
+    Math.abs(new Date() - deliveryDate) / (1000 * 60 * 60 * 24),
   );
 
   if (diffDays > 7) {
-    res.status(400);
-    throw new Error("Return window closed (7 days exceeded)");
+    return res
+      .status(400)
+      .json({
+        success: false,
+        message: "Return window closed (7 days exceeded)",
+      });
   }
 
-  // 3. Validation: Already Requested
   if (order.returnInfo && order.returnInfo.isReturnRequested) {
-    res.status(400);
-    throw new Error("Return request already submitted");
+    return res
+      .status(400)
+      .json({ success: false, message: "Return request already submitted" });
   }
 
-  let formattedType = "Refund";
-  if (type) {
-    formattedType = type.charAt(0).toUpperCase() + type.slice(1).toLowerCase();
-  }
-
-  // 4. Update DB
   order.returnInfo = {
     isReturnRequested: true,
     reason,
     comments,
-    type: formattedType,
+    type: type
+      ? type.charAt(0).toUpperCase() + type.slice(1).toLowerCase()
+      : "Refund",
     requestedAt: Date.now(),
     status: "Pending",
   };
 
   order.orderStatus = "Return Requested";
   await order.save();
-
   res.status(200).json({ success: true, message: "Return Request Initiated" });
 });
 
-// 🔥 ADMIN HANDLER
 const handleReturnStatus = asyncHandler(async (req, res) => {
   const { status, adminComment } = req.body;
   const order = await Order.findById(req.params.id);
 
-  if (!order) {
-    res.status(404);
-    throw new Error("Order not found");
-  }
+  if (!order)
+    return res.status(404).json({ success: false, message: "Order not found" });
 
   order.returnInfo.status = status;
   if (adminComment) order.returnInfo.adminComment = adminComment;
 
-  // --- LOGIC ---
   if (status === "Approved") {
     order.orderStatus = "Return Approved";
 
-    // 🚀 SHIPROCKET REVERSE PICKUP (Auto)
     if (order.shiprocketOrderId) {
       try {
-        console.log("🚚 Attempting to create Shiprocket Reverse Pickup...");
         const token = await getShiprocketToken();
-
         const returnPayload = {
           order_id: order.shiprocketOrderId,
           order_date: order.createdAt.toISOString().split("T")[0],
@@ -316,32 +280,24 @@ const handleReturnStatus = asyncHandler(async (req, res) => {
           returnPayload,
           { headers: { Authorization: `Bearer ${token}` } },
         );
-
-        console.log(
-          "✅ Shiprocket Return Created ID:",
-          response.data.return_order_id,
-        );
         order.returnInfo.shiprocketReturnId = response.data.return_order_id;
       } catch (error) {
-        console.error(
-          "❌ Shiprocket Return API Failed:",
-          error.response?.data || error.message,
-        );
+        console.error("❌ Shiprocket Return API Failed:", error.message);
       }
-    } else {
-      console.log(
-        "⚠️ No Shiprocket Order ID found (Local Order), skipping API call.",
-      );
     }
   } else if (status === "Refunded") {
     order.orderStatus = "Returned";
-    order.isPaid = false; // Refund ho gaya
+    order.isPaid = false;
 
-    // 🔥 FIX: Proper Restock
     for (const item of order.orderItems) {
       const product = await Product.findById(item.product);
       if (product) {
         product.countInStock += item.quantity;
+        product.soldCount = Math.max(
+          0,
+          (product.soldCount || 0) - item.quantity,
+        ); // 🔥 Return hone par bestseller se minus bhi karo
+
         const sizeIndex = product.sizes.findIndex((s) => s.label === item.size);
         if (sizeIndex !== -1) {
           product.sizes[sizeIndex].stock += item.quantity;
@@ -357,27 +313,20 @@ const handleReturnStatus = asyncHandler(async (req, res) => {
   res.status(200).json({ success: true, message: `Return request ${status}` });
 });
 
-// ------------------------------------------------------------------
-// 🛠️ STANDARD CONTROLLERS
-// ------------------------------------------------------------------
-
+// -------------------- 4. STANDARD CONTROLLERS --------------------
 const updateOrderStatus = asyncHandler(async (req, res) => {
   const order = await Order.findById(req.params.id);
-  if (!order) {
-    res.status(404);
-    throw new Error("Order not found");
-  }
+  if (!order)
+    return res.status(404).json({ success: false, message: "Order not found" });
 
   const newStatus = req.body.status || req.body.orderStatus;
-
   if (order.orderStatus === "Cancelled") {
-    res.status(400);
-    throw new Error("Cannot update cancelled order");
+    return res
+      .status(400)
+      .json({ success: false, message: "Cannot update cancelled order" });
   }
 
   order.orderStatus = newStatus;
-
-  // ✅ COD Orders ko automatically "Paid" mark kar do jab Delivery ho jaye
   if (newStatus === "Delivered") {
     order.deliveredAt = Date.now();
     order.isDelivered = true;
@@ -394,10 +343,7 @@ const getOrderById = asyncHandler(async (req, res) => {
     "fullName email phone",
   );
   if (order) res.json(order);
-  else {
-    res.status(404);
-    throw new Error("Order not found");
-  }
+  else res.status(404).json({ success: false, message: "Order not found" });
 });
 
 const getMyOrders = asyncHandler(async (req, res) => {
@@ -409,21 +355,24 @@ const getMyOrders = asyncHandler(async (req, res) => {
 
 const cancelOrder = asyncHandler(async (req, res) => {
   const order = await Order.findById(req.params.id);
-  if (!order) {
-    res.status(404);
-    throw new Error("Order not found");
-  }
+  if (!order)
+    return res.status(404).json({ success: false, message: "Order not found" });
 
   if (order.orderStatus !== "Processing") {
-    res.status(400);
-    throw new Error("Cannot cancel shipped/delivered orders");
+    return res
+      .status(400)
+      .json({
+        success: false,
+        message: "Cannot cancel shipped/delivered orders",
+      });
   }
 
-  // 🔥 FIX: Proper Restock on Cancel
   for (const item of order.orderItems) {
     const product = await Product.findById(item.product);
     if (product) {
       product.countInStock += item.quantity;
+      product.soldCount = Math.max(0, (product.soldCount || 0) - item.quantity); // 🔥 Cancel hone par bestseller se minus
+
       const sizeIndex = product.sizes.findIndex((s) => s.label === item.size);
       if (sizeIndex !== -1) {
         product.sizes[sizeIndex].stock += item.quantity;
@@ -432,7 +381,6 @@ const cancelOrder = asyncHandler(async (req, res) => {
     }
   }
 
-  // Shiprocket Cancel
   if (order.shiprocketOrderId) {
     try {
       const token = await getShiprocketToken();
@@ -453,21 +401,17 @@ const cancelOrder = asyncHandler(async (req, res) => {
     .json({ success: true, message: "Order cancelled successfully" });
 });
 
-// 🔥 ADMIN: GET ALL ORDERS
 const getAllOrders = asyncHandler(async (req, res) => {
   const orders = await Order.find({})
     .populate("user", "fullName email")
     .sort({ createdAt: -1 });
-
   res.status(200).json({ success: true, count: orders.length, data: orders });
 });
 
 const deleteOrder = asyncHandler(async (req, res) => {
   const order = await Order.findById(req.params.id);
-  if (!order) {
-    res.status(404);
-    throw new Error("Order not found");
-  }
+  if (!order)
+    return res.status(404).json({ success: false, message: "Order not found" });
   await order.deleteOne();
   res.status(200).json({ success: true, message: "Order Removed" });
 });

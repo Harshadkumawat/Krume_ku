@@ -75,7 +75,7 @@ const Wishlist = () => {
         {/* --- HEADER SECTION --- */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-12 md:mb-20">
           <div className="space-y-4">
-            <h1 className="text-5xl md:text-8xl lg:text-9xl font-black uppercase tracking-tighter italic leading-[0.8] text-black">
+            <h1 className="text-5xl md:text-8xl lg:text-5xl font-black uppercase tracking-tighter italic leading-[0.8] text-black">
               SAVED <br />
               <span className="text-transparent stroke-text-black">
                 ARCHIVE

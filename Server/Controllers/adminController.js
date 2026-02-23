@@ -6,18 +6,13 @@ const calculatePricing = require("../Utils/calculatePricing");
 const uploadBufferToCloudinary = require("../Utils/uploadToCloudinary");
 const { cloudinary } = require("../Utils/cloudinary");
 
-// -------------------- 1. GET ALL PRODUCTS (Dashboard Table) --------------------
 exports.getAdminProducts = asyncHandler(async (req, res) => {
   const products = await Product.find({}).sort({ createdAt: -1 }).lean();
-
-  return res.status(200).json({
-    success: true,
-    count: products.length,
-    data: products,
-  });
+  return res
+    .status(200)
+    .json({ success: true, count: products.length, data: products });
 });
 
-// -------------------- 2. CREATE PRODUCT (Integrated with fabricCare) --------------------
 exports.createProductFast = asyncHandler(async (req, res) => {
   const {
     productName,
@@ -28,13 +23,13 @@ exports.createProductFast = asyncHandler(async (req, res) => {
     category,
     subCategory,
     season,
-    fabricCare, // 🔥 Captured from body
+    fabricCare,
     isFeatured = false,
+    isNewArrival = false,
   } = req.body;
 
   let { sizes, colors } = req.body;
 
-  // JSON Parsing for Arrays
   try {
     if (typeof sizes === "string") sizes = JSON.parse(sizes);
     if (typeof colors === "string") colors = JSON.parse(colors);
@@ -47,7 +42,6 @@ exports.createProductFast = asyncHandler(async (req, res) => {
       });
   }
 
-  // Validation
   if (
     !productName ||
     !price ||
@@ -67,18 +61,17 @@ exports.createProductFast = asyncHandler(async (req, res) => {
       .json({ success: false, message: "At least one image is required" });
   }
 
-  // Image Upload
   const uploaded = await Promise.all(
     req.files.map((f) =>
       uploadBufferToCloudinary(f.buffer, "krumeku/products"),
     ),
   );
+
   const images = uploaded.map((u) => ({
     url: u.secure_url,
     public_id: u.public_id,
   }));
 
-  // Pricing Logic Calculation
   const pricing = calculatePricing({
     price: Number(price),
     discountPercent: Number(discountPercent) || 0,
@@ -88,7 +81,7 @@ exports.createProductFast = asyncHandler(async (req, res) => {
     user: req.user._id,
     productName: String(productName).trim(),
     description: description ?? "",
-    fabricCare: fabricCare ?? "", // 🔥 Saving fabricCare to DB
+    fabricCare: fabricCare ?? "",
     price: Number(price),
     discountPercent: Number(discountPercent) || 0,
     ...pricing,
@@ -100,14 +93,15 @@ exports.createProductFast = asyncHandler(async (req, res) => {
     subCategory,
     season,
     isFeatured: String(isFeatured) === "true",
+    isNewArrival: String(isNewArrival) === "true",
   });
 
   return res.status(201).json({ success: true, data: product });
 });
 
-// -------------------- 3. UPDATE PRODUCT (Integrated with fabricCare) --------------------
 exports.updateProduct = asyncHandler(async (req, res) => {
   let product = await Product.findById(req.params.id);
+
   if (!product)
     return res
       .status(404)
@@ -122,8 +116,9 @@ exports.updateProduct = asyncHandler(async (req, res) => {
     category,
     subCategory,
     season,
-    fabricCare, // 🔥 Captured for update
+    fabricCare,
     isFeatured,
+    isNewArrival,
   } = req.body;
 
   let { sizes, colors, imagesToDelete } = req.body;
@@ -139,27 +134,28 @@ exports.updateProduct = asyncHandler(async (req, res) => {
       .json({ success: false, message: "Invalid format in update" });
   }
 
-  // Direct Updates
   if (productName) product.productName = productName;
   if (description) product.description = description;
-  if (fabricCare !== undefined) product.fabricCare = fabricCare; // 🔥 Updating fabricCare
+  if (fabricCare !== undefined) product.fabricCare = fabricCare;
   if (gender) product.gender = gender;
   if (category) product.category = category;
   if (subCategory) product.subCategory = subCategory;
   if (season) product.season = season;
+
   if (isFeatured !== undefined)
     product.isFeatured = String(isFeatured) === "true";
+  if (isNewArrival !== undefined)
+    product.isNewArrival = String(isNewArrival) === "true";
+
   if (sizes) product.sizes = sizes;
   if (colors) product.colors = colors;
 
-  // Recalculate Pricing if price/discount changed
   if (price !== undefined || discountPercent !== undefined) {
     const newPrice = price !== undefined ? Number(price) : product.price;
     const newDiscount =
       discountPercent !== undefined
         ? Number(discountPercent)
         : product.discountPercent;
-
     const pricing = calculatePricing({
       price: newPrice,
       discountPercent: newDiscount,
@@ -173,7 +169,6 @@ exports.updateProduct = asyncHandler(async (req, res) => {
     product.discountAmount = pricing.discountAmount;
   }
 
-  // Handle Image Deletion
   if (imagesToDelete?.length > 0) {
     await Promise.all(
       imagesToDelete.map((id) => cloudinary.uploader.destroy(id)),
@@ -183,7 +178,6 @@ exports.updateProduct = asyncHandler(async (req, res) => {
     );
   }
 
-  // Handle New Image Uploads
   if (req.files?.length > 0) {
     const uploaded = await Promise.all(
       req.files.map((f) =>
@@ -200,9 +194,9 @@ exports.updateProduct = asyncHandler(async (req, res) => {
   res.status(200).json({ success: true, data: product });
 });
 
-// -------------------- 4. DELETE PRODUCT --------------------
 exports.deleteProduct = asyncHandler(async (req, res) => {
   const product = await Product.findById(req.params.id);
+
   if (!product)
     return res
       .status(404)
@@ -220,7 +214,6 @@ exports.deleteProduct = asyncHandler(async (req, res) => {
     .json({ success: true, message: "Product deleted successfully" });
 });
 
-// -------------------- 5. DASHBOARD STATS --------------------
 exports.getDashboardStats = asyncHandler(async (req, res) => {
   const { range = "daily" } = req.query;
 
@@ -230,7 +223,6 @@ exports.getDashboardStats = asyncHandler(async (req, res) => {
     Order.countDocuments(),
   ]);
 
-  // Inventory Value (MRP * Stock)
   const inventoryValue = await Product.aggregate([
     {
       $project: {
@@ -244,19 +236,16 @@ exports.getDashboardStats = asyncHandler(async (req, res) => {
   const totalInventoryValue =
     inventoryValue.length > 0 ? inventoryValue[0].total : 0;
 
-  // Total Revenue
   const sales = await Order.aggregate([
     { $group: { _id: null, total: { $sum: "$totalPrice" } } },
   ]);
   const totalSales = sales.length > 0 ? sales[0].total : 0;
 
-  // Recent Orders
   const latestOrders = await Order.find()
     .populate("user", "fullName email avatar")
     .sort({ createdAt: -1 })
     .limit(6);
 
-  // Graph Data
   let groupBy = { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } };
   if (range === "monthly") {
     groupBy = { $dateToString: { format: "%Y-%m", date: "$createdAt" } };

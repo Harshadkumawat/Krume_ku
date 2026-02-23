@@ -17,7 +17,6 @@ import {
   Image as ImageIcon,
   ArrowLeft,
   Trash2,
-  Info,
   Sparkles,
 } from "lucide-react";
 import { toast } from "react-toastify";
@@ -79,6 +78,7 @@ export default function ProductForm() {
     season: "All Season",
     inStock: true,
     isFeatured: false,
+    isNewArrival: false, // 🔥 NEW ARRIVAL TOGGLE
   });
 
   const [colorInput, setColorInput] = useState("");
@@ -108,6 +108,7 @@ export default function ProductForm() {
           season: productToEdit.season,
           inStock: productToEdit.inStock !== false,
           isFeatured: !!productToEdit.isFeatured,
+          isNewArrival: !!productToEdit.isNewArrival, // 🔥 UPDATE EDIT MODE
           existingImages: productToEdit.images || [],
           files: [],
           imagesToDelete: [],
@@ -140,7 +141,6 @@ export default function ProductForm() {
   const removeSize = (i) =>
     setForm((f) => ({ ...f, sizes: f.sizes.filter((_, idx) => idx !== i) }));
 
-  // 🔥 Colors Logic
   const addColor = () => {
     const c = colorInput.trim();
     if (!c || form.colors.includes(c)) return;
@@ -184,6 +184,7 @@ export default function ProductForm() {
     fd.append("season", form.season);
     fd.append("inStock", String(!!form.inStock));
     fd.append("isFeatured", String(!!form.isFeatured));
+    fd.append("isNewArrival", String(!!form.isNewArrival)); // 🔥 SEND TO BACKEND
     fd.append("sizes", JSON.stringify(form.sizes));
     fd.append("colors", JSON.stringify(form.colors));
     if (isEditMode)
@@ -213,7 +214,6 @@ export default function ProductForm() {
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-200 pb-10 overflow-x-hidden">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
-        {/* TOP BAR */}
         <header className="mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between bg-neutral-900/50 p-4 md:p-6 rounded-2xl border border-neutral-800 gap-4">
           <div className="flex items-center gap-3">
             <button
@@ -238,9 +238,7 @@ export default function ProductForm() {
           onSubmit={handleSubmit}
           className="grid grid-cols-1 lg:grid-cols-12 gap-6"
         >
-          {/* LEFT SIDE: MAIN INFO */}
           <div className="lg:col-span-8 space-y-6">
-            {/* BASIC INFO */}
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-6 md:p-8 shadow-xl">
               <SectionHeader title="Basic Information" icon={Layers} />
               <div className="space-y-6">
@@ -339,10 +337,8 @@ export default function ProductForm() {
               </div>
             </div>
 
-            {/* VISUAL ASSETS */}
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-6 md:p-8 shadow-xl">
               <SectionHeader title="Product Images" icon={ImageIcon} />
-
               {isEditMode && form.existingImages.length > 0 && (
                 <div className="grid grid-cols-3 sm:grid-cols-5 gap-3 mb-6">
                   {form.existingImages.map((img) => (
@@ -404,11 +400,8 @@ export default function ProductForm() {
               )}
             </div>
 
-            {/* 🔥 MATRIX: COLORS & SIZES */}
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-6 md:p-8 shadow-xl">
               <SectionHeader title="Inventory Matrix" icon={Package} />
-
-              {/* Color Configuration Restored */}
               <div className="mb-8 pb-8 border-b border-neutral-800">
                 <label className="input-label mb-3">Color Configuration</label>
                 <div className="flex gap-3 mb-4">
@@ -435,7 +428,7 @@ export default function ProductForm() {
                       key={c}
                       className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black text-neutral-300 text-[10px] font-bold uppercase border border-neutral-800 shadow-sm group"
                     >
-                      {c}
+                      {c}{" "}
                       <X
                         className="w-3 h-3 cursor-pointer group-hover:text-red-500 transition-colors"
                         onClick={() => removeColor(c)}
@@ -445,7 +438,6 @@ export default function ProductForm() {
                 </div>
               </div>
 
-              {/* Sizes Table */}
               <div className="flex justify-between items-center mb-4">
                 <label className="input-label mb-0">Size & Stock</label>
                 <button
@@ -519,7 +511,6 @@ export default function ProductForm() {
             </div>
           </div>
 
-          {/* RIGHT SIDE: PRICING & CONTROLS */}
           <div className="lg:col-span-4 space-y-6">
             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-6 md:p-8 shadow-xl lg:sticky lg:top-6">
               <SectionHeader title="Pricing Protocol" icon={DollarSign} />
@@ -594,6 +585,20 @@ export default function ProductForm() {
                       checked={form.isFeatured}
                       onChange={(e) =>
                         updateField("isFeatured", e.target.checked)
+                      }
+                      className="accent-indigo-500 w-4 h-4 cursor-pointer"
+                    />
+                  </div>
+                  {/* 🔥 Naya Toggle */}
+                  <div className="flex items-center justify-between p-4 bg-black rounded-xl border border-neutral-800">
+                    <span className="text-[10px] font-black uppercase text-indigo-400">
+                      New Arrival
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={form.isNewArrival}
+                      onChange={(e) =>
+                        updateField("isNewArrival", e.target.checked)
                       }
                       className="accent-indigo-500 w-4 h-4 cursor-pointer"
                     />

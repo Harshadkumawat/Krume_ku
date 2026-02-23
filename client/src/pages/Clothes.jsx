@@ -1,20 +1,19 @@
-import React, { useEffect, useMemo, useState, lazy, Suspense } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useSearchParams } from "react-router-dom";
-import { SlidersHorizontal, X, Tag, ChevronDown, Search } from "lucide-react";
+import { SlidersHorizontal, X, ChevronDown, Search } from "lucide-react";
 
 import { getAllProducts } from "../features/products/productSlice";
 import FilterSidebar from "../components/clothes/FilterSidebar";
 import ProductCard from "../components/clothes/ProductCard";
 import PageTransition from "../components/PageTransition";
 
-// Skeleton Component
 const ProductSkeleton = () => (
   <div className="flex flex-col gap-3 animate-pulse">
-    <div className="aspect-[3/4] bg-gray-100 w-full rounded-2xl md:rounded-[2rem]" />
+    <div className="aspect-[3/4] bg-gray-50 w-full rounded-xl md:rounded-2xl" />
     <div className="space-y-2 px-2">
-      <div className="h-2.5 bg-gray-100 w-3/4 rounded-full" />
-      <div className="h-2.5 bg-gray-100 w-1/4 rounded-full" />
+      <div className="h-2 bg-gray-100 w-3/4 rounded-full" />
+      <div className="h-2 bg-gray-100 w-1/4 rounded-full" />
     </div>
   </div>
 );
@@ -25,6 +24,8 @@ const Clothes = () => {
 
   const genderParam = searchParams.get("gender");
   const queryParam = searchParams.get("q");
+  const newArrivalParam = searchParams.get("newArrival");
+  const categoryParam = searchParams.get("category");
 
   const { products, isLoading, isError, message } = useSelector(
     (s) => s.products,
@@ -41,12 +42,14 @@ const Clothes = () => {
       getAllProducts({
         gender: genderParam || "",
         q: queryParam || "",
+        newArrival: newArrivalParam || "",
+        category: categoryParam || "",
       }),
     );
     setSelectedCats([]);
     setSelectedSizes([]);
     setSelectedColors([]);
-  }, [dispatch, genderParam, queryParam]);
+  }, [dispatch, genderParam, queryParam, newArrivalParam, categoryParam]);
 
   const allProducts = useMemo(
     () => (Array.isArray(products) ? products : products?.data || []),
@@ -57,10 +60,10 @@ const Clothes = () => {
     const cats = new Set(),
       sizeSet = new Set(),
       colorSet = new Set();
+    const sizeOrder = ["XXS", "XS", "S", "M", "L", "XL", "XXL", "XXXL"];
 
     allProducts.forEach((p) => {
       if (p.category) cats.add(p.category);
-
       p.sizes?.forEach((s) =>
         sizeSet.add(
           String(s?.label || s)
@@ -68,8 +71,6 @@ const Clothes = () => {
             .trim(),
         ),
       );
-
-      // 🔥 COLOR DUPLICATE FIX: Sabhi colors ko uppercase karke add karega
       p.colors?.forEach((c) => {
         const colorVal = String(c?.name || c)
           .toUpperCase()
@@ -78,7 +79,6 @@ const Clothes = () => {
       });
     });
 
-    const sizeOrder = ["XXS", "XS", "S", "M", "L", "XL", "XXL", "XXXL"];
     return {
       uniqueCats: Array.from(cats).sort(),
       uniqueSizes: Array.from(sizeSet).sort(
@@ -92,8 +92,7 @@ const Clothes = () => {
     let data = [...allProducts];
     if (selectedCats.length > 0)
       data = data.filter((p) => selectedCats.includes(p.category));
-
-    if (selectedSizes.length > 0)
+    if (selectedSizes.length > 0) {
       data = data.filter((p) =>
         p.sizes?.some((s) =>
           selectedSizes.includes(
@@ -103,9 +102,8 @@ const Clothes = () => {
           ),
         ),
       );
-
-    // 🔥 COLOR FILTER FIX: Search karte waqt bhi case match karwayega
-    if (selectedColors.length > 0)
+    }
+    if (selectedColors.length > 0) {
       data = data.filter((p) =>
         p.colors?.some((c) =>
           selectedColors.includes(
@@ -115,6 +113,7 @@ const Clothes = () => {
           ),
         ),
       );
+    }
 
     if (sortBy === "low-high") data.sort((a, b) => a.price - b.price);
     else if (sortBy === "high-low") data.sort((a, b) => b.price - a.price);
@@ -152,84 +151,89 @@ const Clothes = () => {
   return (
     <PageTransition>
       <div className="min-h-screen bg-white selection:bg-black selection:text-white">
-        {/* 🏷️ Gender Tabs (Sticky on Mobile) */}
-        <div className="bg-gray-50 border-b border-gray-100 sticky top-0 z-40 overflow-x-auto no-scrollbar">
-          <div className="max-w-[1600px] mx-auto px-4 md:px-12 flex gap-6 md:gap-10">
+        {/* 🏷️ STICKY GENDER TABS */}
+        <div className="bg-white border-b border-zinc-100 sticky top-0 z-40">
+          <div className="max-w-[1600px] mx-auto px-4 md:px-12 flex gap-8">
             {["All", "Men", "Women"].map((g) => (
               <button
                 key={g}
                 onClick={() => {
-                  if (g === "All") searchParams.delete("gender");
-                  else searchParams.set("gender", g);
-                  setSearchParams(searchParams);
+                  const params = new URLSearchParams(searchParams);
+                  if (g === "All") params.delete("gender");
+                  else params.set("gender", g);
+                  params.delete("newArrival");
+                  setSearchParams(params);
                 }}
-                className={`py-4 md:py-6 text-[10px] md:text-[11px] font-black uppercase tracking-[0.3em] md:tracking-[0.4em] transition-all relative shrink-0 ${
+                className={`py-4 text-[10px] font-black uppercase tracking-[0.3em] transition-all relative ${
                   genderParam === g || (!genderParam && g === "All")
                     ? "text-black"
-                    : "text-gray-300"
+                    : "text-zinc-300"
                 }`}
               >
                 {g}
                 {(genderParam === g || (!genderParam && g === "All")) && (
-                  <span className="absolute bottom-0 left-0 w-full h-[2px] md:h-[3px] bg-black"></span>
+                  <span className="absolute bottom-0 left-0 w-full h-[2px] bg-black"></span>
                 )}
               </button>
             ))}
           </div>
         </div>
 
-        {/* 🏢 Header Section */}
-        <div className="py-8 md:py-16 border-b border-gray-100 bg-white">
+        {/* 🏢 SLEEK MINIMAL HEADER */}
+        <div className="py-6 md:py-10 bg-white">
           <div className="max-w-[1600px] mx-auto px-4 md:px-12">
-            {queryParam && (
-              <div className="mb-6 flex items-center gap-3 text-indigo-600 animate-in fade-in">
-                <Search size={14} />
-                <span className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em]">
-                  Results for: "{queryParam}"
+            {(queryParam || newArrivalParam) && (
+              <div className="mb-4 flex items-center gap-2 text-red-600 animate-in fade-in">
+                <span className="w-1.5 h-1.5 bg-red-600 rounded-full animate-pulse"></span>
+                <span className="text-[9px] font-black uppercase tracking-widest">
+                  {newArrivalParam ? "NEW DROPS" : `SEARCH: ${queryParam}`}
                 </span>
-                <button
+                <X
+                  size={12}
+                  className="cursor-pointer text-zinc-300 hover:text-black"
                   onClick={() => {
                     searchParams.delete("q");
+                    searchParams.delete("newArrival");
                     setSearchParams(searchParams);
                   }}
-                  className="text-gray-400 hover:text-black"
-                >
-                  <X size={14} />
-                </button>
+                />
               </div>
             )}
 
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 md:gap-8">
-              <div className="space-y-2">
-                <h1 className="text-5xl md:text-8xl font-black uppercase tracking-tighter italic leading-[0.85] md:leading-[0.8]">
-                  {queryParam ? "SEARCH" : genderParam || "SHOP"}
-                  <br />
-                  <span className="text-gray-200 text-3xl md:text-6xl uppercase">
-                    {queryParam ? "FOUND" : "COLLECTION"}
-                  </span>
+            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+              <div className="flex items-baseline gap-4">
+                <h1 className="text-3xl md:text-5xl font-black uppercase tracking-tighter italic leading-none">
+                  {newArrivalParam
+                    ? "NEW DROPS"
+                    : queryParam
+                      ? "RESULTS"
+                      : categoryParam ||
+                        genderParam ||
+                        "ARCHIVE" 
+                  }
                 </h1>
-                <p className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest text-gray-400 mt-2">
-                  {isLoading
-                    ? "Synchronizing..."
-                    : `${filteredProducts.length} Pieces Available`}
-                </p>
+                <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest hidden md:block">
+                  / {isLoading ? "..." : filteredProducts.length} PIECES
+                </span>
               </div>
 
-              {/* Sorting Tool */}
-              <div className="w-full md:w-auto">
-                <div className="relative group">
+              <div className="w-full md:w-auto flex gap-2">
+                <div className="md:hidden flex-1 bg-zinc-50 rounded-lg flex items-center justify-center text-[9px] font-black text-zinc-400 uppercase tracking-widest">
+                  {filteredProducts.length} ITEMS
+                </div>
+                <div className="relative flex-1 md:flex-none">
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value)}
-                    className="w-full md:min-w-[200px] bg-black text-white py-3.5 px-6 text-[10px] font-black uppercase tracking-widest appearance-none outline-none cursor-pointer rounded-lg md:rounded-none"
+                    className="w-full md:min-w-[180px] bg-white text-black py-2.5 px-4 text-[9px] font-black uppercase tracking-widest appearance-none border border-zinc-200 rounded-lg outline-none"
                   >
-                    <option value="newest">New Arrivals</option>
-                    <option value="low-high">Price: Low to High</option>
-                    <option value="high-low">Price: High to Low</option>
+                    <option value="newest">Sort: Newest</option>
+                    <option value="low-high">Price: Low-High</option>
+                    <option value="high-low">Price: High-Low</option>
                   </select>
                   <ChevronDown
-                    size={14}
-                    className="absolute right-5 top-1/2 -translate-y-1/2 text-white pointer-events-none"
+                    size={12}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none"
                   />
                 </div>
               </div>
@@ -237,103 +241,66 @@ const Clothes = () => {
           </div>
         </div>
 
-        {/* 🛒 Main Content Area */}
-        <div className="max-w-[1600px] mx-auto px-4 md:px-12 py-10 md:py-16 flex flex-col lg:flex-row gap-10 md:gap-16">
-          {/* Desktop Filter Sidebar */}
-          <aside className="hidden lg:block w-64 shrink-0 sticky top-32 h-fit">
-            <div className="border-l-2 border-black pl-8">
-              <h3 className="text-[10px] font-black uppercase tracking-[0.3em] mb-8 text-gray-400">
-                Refine Search
-              </h3>
-              <FilterSidebar {...filterProps} />
-            </div>
+        {/* 🛒 MAIN CONTENT */}
+        <div className="max-w-[1600px] mx-auto px-4 md:px-12 pb-20 flex gap-12">
+          <aside className="hidden lg:block w-64 shrink-0 sticky top-24 h-fit">
+            <FilterSidebar {...filterProps} />
           </aside>
 
           <main className="flex-1">
-            {isError && (
-              <div className="p-6 md:p-10 border-2 border-black mb-12 flex items-center justify-between bg-red-50">
-                <span className="text-[10px] font-black uppercase tracking-widest text-red-600">
-                  {message}
-                </span>
-                <button
-                  onClick={() => window.location.reload()}
-                  className="underline font-black text-[10px] uppercase"
-                >
-                  Retry
-                </button>
-              </div>
-            )}
-
-            {/* Product Grid - 2 cols on mobile, 3 on large */}
-            <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-x-4 md:gap-x-8 gap-y-12 md:gap-y-20">
+            <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-x-4 md:gap-x-8 gap-y-10 md:gap-y-16">
               {isLoading
-                ? [...Array(8)].map((_, i) => <ProductSkeleton key={i} />)
+                ? [...Array(6)].map((_, i) => <ProductSkeleton key={i} />)
                 : filteredProducts.map((p) => (
                     <ProductCard key={p._id} product={p} />
                   ))}
             </div>
 
-            {/* Empty State */}
             {!isLoading && filteredProducts.length === 0 && (
-              <div className="flex flex-col items-center justify-center py-24 md:py-40 border-2 border-dashed border-gray-100 rounded-3xl md:rounded-[2.5rem] px-6 text-center">
-                <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-6">
-                  <Search size={24} className="text-gray-200" />
-                </div>
-                <h3 className="text-xl font-black uppercase italic mb-2">
-                  Zero Results Found
-                </h3>
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-8 max-w-[250px]">
-                  No items match your current selection.
+              <div className="py-20 text-center border-2 border-dashed border-zinc-100 rounded-3xl">
+                <p className="text-[10px] font-black uppercase text-zinc-400 tracking-widest mb-4">
+                  No matching pieces
                 </p>
                 <button
                   onClick={filterProps.onClear}
-                  className="bg-black text-white px-8 py-4 text-[10px] font-black uppercase tracking-[0.2em] rounded-xl hover:bg-zinc-800 transition-all shadow-xl active:scale-95"
+                  className="text-[10px] font-black uppercase border-b-2 border-black pb-1"
                 >
-                  Reset All Filters
+                  Reset Filters
                 </button>
               </div>
             )}
           </main>
         </div>
 
-        {/* 📱 Mobile Filter Trigger (Bottom Floating) */}
-        <div className="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-[50] w-[90%] max-w-xs">
+        {/* 📱 MOBILE FLOATING FILTER */}
+        <div className="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
           <button
             onClick={() => setMobileFilterOpen(true)}
-            className="w-full bg-black text-white py-4 shadow-[0_20px_50px_rgba(0,0,0,0.3)] flex items-center justify-center gap-3 text-[10px] font-black uppercase tracking-[0.2em] rounded-full active:scale-95 transition-all"
+            className="bg-black text-white px-8 py-4 shadow-2xl flex items-center gap-3 text-[10px] font-black uppercase tracking-widest rounded-full active:scale-95 transition-all"
           >
-            <SlidersHorizontal size={14} /> Filter & Sort
+            <SlidersHorizontal size={14} /> Refine
           </button>
         </div>
 
-        {/* 📱 Mobile Filter Drawer */}
+        {/* 📱 MOBILE DRAWER */}
         {isMobileFilterOpen && (
           <div className="fixed inset-0 z-[100] flex justify-end">
             <div
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in"
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-in fade-in"
               onClick={() => setMobileFilterOpen(false)}
             />
-            <div className="relative bg-white w-[85%] max-w-[400px] h-full p-8 overflow-y-auto shadow-2xl animate-in slide-in-from-right duration-300 rounded-l-[2rem]">
-              <div className="flex justify-between items-center mb-10 border-b border-gray-50 pb-6">
-                <h3 className="text-2xl font-black uppercase italic tracking-tighter text-black">
-                  Refine
-                </h3>
-                <button
-                  onClick={() => setMobileFilterOpen(false)}
-                  className="p-2 bg-gray-50 rounded-full"
-                >
-                  <X size={20} />
-                </button>
+            <div className="relative bg-white w-[85%] h-full p-8 overflow-y-auto animate-in slide-in-from-right duration-300 rounded-l-3xl">
+              <div className="flex justify-between items-center mb-8">
+                <h3 className="text-xl font-black uppercase italic">Refine</h3>
+                <X size={20} onClick={() => setMobileFilterOpen(false)} />
               </div>
               <FilterSidebar {...filterProps} />
-
-              {/* Mobile Clear Button inside drawer */}
               <button
                 onClick={() => {
                   filterProps.onClear();
                   setMobileFilterOpen(false);
                 }}
-                className="w-full mt-10 py-4 border-2 border-black text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-black hover:text-white transition-all"
+                className="w-full mt-8 py-4 bg-black text-white text-[10px] font-black uppercase rounded-xl"
               >
                 Clear All
               </button>

@@ -3,8 +3,9 @@ const Product = require("../Models/ProductSchema");
 const mongoose = require("mongoose");
 const calculatePricing = require("../Utils/calculatePricing");
 
-// 1. GET ALL PRODUCTS (Shop Page)
+// 1. GET ALL PRODUCTS (With Smart Filters)
 exports.getProducts = asyncHandler(async (req, res) => {
+  // 1. Saare possible query params nikaalo
   let {
     page = 1,
     limit = 12,
@@ -15,6 +16,7 @@ exports.getProducts = asyncHandler(async (req, res) => {
     sort,
     minPrice,
     maxPrice,
+    newArrival,
   } = req.query;
 
   page = Math.max(1, Number(page));
@@ -22,26 +24,32 @@ exports.getProducts = asyncHandler(async (req, res) => {
 
   const filter = {};
 
+  // Text Search
   if (q) {
     filter.$or = [
       { productName: { $regex: q, $options: "i" } },
       { category: { $regex: q, $options: "i" } },
       { subCategory: { $regex: q, $options: "i" } },
-      { fabricCare: { $regex: q, $options: "i" } },
     ];
   }
 
+  // Exact Match Filters
   if (category) filter.category = category;
   if (subCategory) filter.subCategory = subCategory;
   if (gender) filter.gender = { $regex: `^${gender}$`, $options: "i" };
 
+  if (newArrival === "true") {
+    filter.isNewArrival = true;
+  }
+
+  // Price Range
   if (minPrice || maxPrice) {
     filter.price = {};
     if (minPrice) filter.price.$gte = Number(minPrice);
     if (maxPrice) filter.price.$lte = Number(maxPrice);
   }
 
-  // 🔥 SORT: Available items first (inStock: -1)
+  // Sorting logic (Same as before)
   const sortOptions = {
     price: { inStock: -1, price: 1 },
     "-price": { inStock: -1, price: -1 },
@@ -140,14 +148,12 @@ exports.getSingleProduct = asyncHandler(async (req, res) => {
 // 3. GET HOME SCREEN DATA
 exports.getHomeProducts = asyncHandler(async (req, res) => {
   const fetchOptions =
-    "productName price images category isFeatured discountPercent slug countInStock inStock";
-
-  // 🔥 Home Page Filter: Only show In-Stock items
+    "productName price images category isFeatured isNewArrival soldCount discountPercent slug countInStock inStock";
   const stockFilter = { inStock: true };
 
   const [newArrivalsRaw, featuredRaw, hotDealsRaw, premiumRaw] =
     await Promise.all([
-      Product.find(stockFilter)
+      Product.find({ ...stockFilter, isNewArrival: true })
         .sort({ createdAt: -1 })
         .limit(8)
         .select(fetchOptions)
@@ -162,7 +168,7 @@ exports.getHomeProducts = asyncHandler(async (req, res) => {
         .select(fetchOptions)
         .lean(),
       Product.find(stockFilter)
-        .sort({ price: -1 })
+        .sort({ soldCount: -1 })
         .limit(4)
         .select(fetchOptions)
         .lean(),
@@ -182,24 +188,19 @@ exports.getHomeProducts = asyncHandler(async (req, res) => {
   });
 });
 
-// 4. DATABASE FIX TOOL (Run this once)
+// 4. DATABASE FIX TOOL
 exports.fixProductData = asyncHandler(async (req, res) => {
   const products = await Product.find({});
   let count = 0;
 
   for (const product of products) {
-    // Recalculate Stock
     if (product.sizes && product.sizes.length > 0) {
       product.countInStock = product.sizes.reduce(
         (total, item) => total + (Number(item.stock) || 0),
         0,
       );
     }
-
-    // Update Boolean
     product.inStock = product.countInStock > 0;
-
-    // Fix Slugs
     if (!product.slug) {
       product.slug = product.productName
         .toLowerCase()
@@ -208,7 +209,6 @@ exports.fixProductData = asyncHandler(async (req, res) => {
         .replace(/[\s_-]+/g, "-")
         .replace(/^-+|-+$/g, "");
     }
-
     await product.save();
     count++;
   }

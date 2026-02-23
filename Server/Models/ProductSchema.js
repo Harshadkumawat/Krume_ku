@@ -76,6 +76,8 @@ const ProductSchema = new mongoose.Schema(
 
     inStock: { type: Boolean, default: true, index: true },
     isFeatured: { type: Boolean, default: false },
+    soldCount: { type: Number, default: 0 },
+    isNewArrival: { type: Boolean, default: false },
 
     user: {
       type: mongoose.Schema.ObjectId,
