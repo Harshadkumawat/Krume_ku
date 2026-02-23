@@ -3,7 +3,11 @@ const router = express.Router();
 
  
 const { createRazorpayOrder, verifyRazorpayPayment } = require("../Controllers/paymentController");
-const { protect } = require("../middleware/authMiddleware");
+const { protect } = require("../Middleware/authMiddleware");
+
+
+
+
 
 // ------------------------------------------------------------------
 // 🚀 RAZORPAY ROUTES
