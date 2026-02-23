@@ -6,22 +6,19 @@ const asyncHandler = require("express-async-handler");
 // ------------------------------------------------------------------
 const addToWishlist = asyncHandler(async (req, res) => {
   const { productId } = req.body;
-  const userId = req.user._id; 
+  const userId = req.user._id;
 
-  
   const user = await User.findByIdAndUpdate(
     userId,
     { $addToSet: { wishlist: productId } },
     { new: true },
   );
 
-  res
-    .status(200)
-    .json({
-      success: true,
-      message: "Added to Wishlist",
-      wishlist: user.wishlist,
-    });
+  res.status(200).json({
+    success: true,
+    message: "Added to Wishlist",
+    wishlist: user.wishlist,
+  });
 });
 
 // ------------------------------------------------------------------
@@ -38,13 +35,11 @@ const removeFromWishlist = asyncHandler(async (req, res) => {
     { new: true },
   );
 
-  res
-    .status(200)
-    .json({
-      success: true,
-      message: "Removed from Wishlist",
-      wishlist: user.wishlist,
-    });
+  res.status(200).json({
+    success: true,
+    message: "Removed from Wishlist",
+    wishlist: user.wishlist,
+  });
 });
 
 // ------------------------------------------------------------------
@@ -53,17 +48,15 @@ const removeFromWishlist = asyncHandler(async (req, res) => {
 const getMyWishlist = asyncHandler(async (req, res) => {
   const userId = req.user._id;
 
-  
   const user = await User.findById(userId).populate({
     path: "wishlist",
-    select: "productName price finalPriceWithTax images slug inStock", 
+    select: "productName price finalPriceWithTax images slug inStock",
   });
 
   if (!user) {
     return res.status(404).json({ success: false, message: "User not found" });
   }
 
-  
   res.status(200).json({ success: true, data: user.wishlist });
 });
 
