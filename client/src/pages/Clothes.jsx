@@ -38,14 +38,15 @@ const Clothes = () => {
   const [sortBy, setSortBy] = useState("newest");
 
   useEffect(() => {
-    dispatch(
-      getAllProducts({
-        gender: genderParam || "",
-        q: queryParam || "",
-        newArrival: newArrivalParam || "",
-        category: categoryParam || "",
-      }),
-    );
+    // 🧹 CLEANUP: Sirf wahi bhjeo jisme data ho
+    const filters = {};
+    if (genderParam) filters.gender = genderParam;
+    if (queryParam) filters.q = queryParam;
+    if (newArrivalParam) filters.newArrival = newArrivalParam;
+    if (categoryParam) filters.category = categoryParam;
+
+    dispatch(getAllProducts(filters));
+
     setSelectedCats([]);
     setSelectedSizes([]);
     setSelectedColors([]);
@@ -207,10 +208,7 @@ const Clothes = () => {
                     ? "NEW DROPS"
                     : queryParam
                       ? "RESULTS"
-                      : categoryParam ||
-                        genderParam ||
-                        "ARCHIVE" 
-                  }
+                      : categoryParam || genderParam || "ARCHIVE"}
                 </h1>
                 <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest hidden md:block">
                   / {isLoading ? "..." : filteredProducts.length} PIECES
