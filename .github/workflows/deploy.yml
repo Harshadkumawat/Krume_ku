@@ -3,7 +3,7 @@ name: Krumeku Auto-Deploy Pipeline
 on:
   push:
     branches:
-      - main # Agar aapki branch 'master' hai toh isko master kar dena
+      - main 
 
 jobs:
   build-and-push:
@@ -39,24 +39,23 @@ jobs:
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_PRIVATE_KEY }}
           script: |
-            # 🚨 IMPORTANT: Isse agar koi script fail hui toh Action ❌ (Red) ho jayega!
             set -e 
 
-            # 0. EC2 Server ko Docker Hub mein login karwao (Yeh line missing thi!)
+            # 0. EC2 Server login to Docker Hub
             echo "${{ secrets.DOCKER_PASSWORD }}" | sudo docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
-            # 1. GitHub Secret se .env file generate karo server par
+            # 1. Generate .env file on server
             echo "${{ secrets.ENV_FILE }}" > /home/ubuntu/.env
 
-            # 2. Nayi image download karo Docker Hub se
+            # 2. Pull latest image
             sudo docker pull ${{ secrets.DOCKER_USERNAME }}/krumeku-backend:latest
 
-            # 3. Purane container ko roko aur hatao (|| true isliye rakha hai taaki pehli baar fail na ho)
+            # 3. Stop and Remove old container
             sudo docker stop krumeku-api || true
             sudo docker rm krumeku-api || true
 
-            # 4. Naya container start karo (Port 8080 par aur .env file ke sath)
-            sudo docker run -d -p 8080:8080 \-v /home/ubuntu/.env:/app/.env \--name krumeku-api \harshadkumawat/krumeku-backend:latest
+            # 4. container start 
+            sudo docker run -d -p 8080:8080 --env-file /home/ubuntu/.env --name krumeku-api ${{ secrets.DOCKER_USERNAME }}/krumeku-backend:latest
 
-            # 5. Purani useless images hatao
+            # 5. Clean up old images
             sudo docker image prune -f
