@@ -56,7 +56,7 @@ jobs:
             sudo docker rm krumeku-api || true
 
             # 4. Naya container start karo (Port 8080 par aur .env file ke sath)
-            sudo docker run -d -p 8080:8080 --env-file /home/ubuntu/.env --name krumeku-api ${{ secrets.DOCKER_USERNAME }}/krumeku-backend:latest
+            sudo docker run -d -p 8080:8080 \-v /home/ubuntu/.env:/app/.env \--name krumeku-api \harshadkumawat/krumeku-backend:latest
 
             # 5. Purani useless images hatao
             sudo docker image prune -f
