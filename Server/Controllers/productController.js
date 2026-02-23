@@ -3,9 +3,8 @@ const Product = require("../Models/ProductSchema");
 const mongoose = require("mongoose");
 const calculatePricing = require("../Utils/calculatePricing");
 
-// 1. GET ALL PRODUCTS (With Smart Filters)
+// 1. GET ALL PRODUCTS
 exports.getProducts = asyncHandler(async (req, res) => {
-  // 1. Saare possible query params nikaalo
   let {
     page = 1,
     limit = 12,
