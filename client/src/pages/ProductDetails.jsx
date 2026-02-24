@@ -26,7 +26,7 @@ export default function ProductDetails() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  // 🚀 relatedProducts ko state se nikala (jo tumne screenshot mein dikhaya tha)
+  
   const { singleProduct, relatedProducts, isLoading, isError } = useSelector(
     (s) => s.products,
   );
@@ -50,6 +50,12 @@ export default function ProductDetails() {
       setSelectedColor("");
       setQuantity(1);
       window.scrollTo(0, 0);
+
+      const currentPath = window.location.pathname;
+      if (currentPath.startsWith("/item/")) {
+        const newUrl = currentPath.replace("/item/", "/product/");
+        window.history.replaceState(null, "", newUrl);
+      }
     }
   }, [dispatch, id]);
 
@@ -107,7 +113,7 @@ export default function ProductDetails() {
         title={pageTitle}
         description={seoDescription}
         image={seoImage}
-        url={`https://www.krumeku.com/item/${id}`}
+        url={`https://www.krumeku.com/product/${id}`}
         type="product"
       />
 
