@@ -107,7 +107,7 @@ const Wishlist = () => {
             <div
               key={item._id}
               className="group flex flex-col h-full relative cursor-pointer"
-              onClick={() => navigate(`/product/${item.slug || item._id}`)}
+              onClick={() => navigate(`/item/${item.slug || item._id}`)}
             >
               <div className="relative w-full aspect-[3/4] bg-zinc-50 overflow-hidden mb-5 rounded-2xl md:rounded-[2rem] border border-transparent group-hover:border-zinc-100 transition-all shadow-sm">
                 <img

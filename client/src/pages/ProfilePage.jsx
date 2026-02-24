@@ -272,7 +272,7 @@ export default function ProfilePage() {
                     key={item._id}
                     className="bg-white border border-zinc-100 p-3 md:p-4 rounded-2xl relative group hover:shadow-xl transition-all cursor-pointer"
                     onClick={() =>
-                      navigate(`/product/${item.slug || item._id}`)
+                      navigate(`/item/${item.slug || item._id}`)
                     }
                   >
                     <div className="relative w-full aspect-[3/4] rounded-xl overflow-hidden mb-3 bg-zinc-50">

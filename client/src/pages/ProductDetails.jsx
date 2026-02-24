@@ -107,7 +107,7 @@ export default function ProductDetails() {
         title={pageTitle}
         description={seoDescription}
         image={seoImage}
-        url={`https://www.krumeku.com/product/${id}`}
+        url={`https://www.krumeku.com/item/${id}`}
         type="product"
       />
 

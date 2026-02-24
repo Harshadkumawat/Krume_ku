@@ -27,7 +27,7 @@ export default function CartItem({
     <div className="py-6 border-b border-zinc-200 flex gap-4 md:gap-6 transition-all hover:bg-zinc-50/50 group/item">
       {/* --- IMAGE SECTION --- */}
       <Link
-        to={`/product/${product.slug || product._id}`}
+        to={`/item/${product.slug || product._id}`}
         className="w-24 h-32 md:w-32 md:h-40 block overflow-hidden bg-zinc-100 rounded-lg shrink-0 border border-zinc-200"
       >
         <SmartImage
@@ -52,7 +52,7 @@ export default function CartItem({
               )}
               <h3 className="text-sm md:text-base font-bold text-zinc-900 leading-snug line-clamp-2">
                 <Link
-                  to={`/product/${product.slug || product._id}`}
+                  to={`/item/${product.slug || product._id}`}
                   className="hover:text-red-600 transition-colors"
                 >
                   {product.productName || "Krumeku Product"}

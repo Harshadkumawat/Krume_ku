@@ -228,7 +228,7 @@ const Home = () => {
                     key={product._id}
                     className="group cursor-pointer flex flex-col"
                     onClick={() =>
-                      navigate(`/product/${product.slug || product._id}`)
+                      navigate(`/item/${product.slug || product._id}`)
                     }
                   >
                     <div className="relative w-full aspect-[3/4] bg-zinc-900 mb-3 overflow-hidden rounded-xl border border-white/10">

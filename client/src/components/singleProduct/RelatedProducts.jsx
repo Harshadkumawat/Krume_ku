@@ -52,7 +52,7 @@ const RelatedProducts = ({ products, currentCategory }) => {
             key={item._id}
             className="group cursor-pointer"
             onClick={() => {
-              navigate(`/product/${item._id}`);
+              navigate(`/item/${item._id}`);
               window.scrollTo({ top: 0, behavior: "smooth" });
             }}
           >

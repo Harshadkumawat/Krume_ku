@@ -55,7 +55,7 @@ export default function ProductCard({
 
   return (
     <div
-      onClick={() => navigate(`/product/${slug || _id}`)}
+      onClick={() => navigate(`/item/${slug || _id}`)}
       className="group cursor-pointer flex flex-col relative animate-in fade-in duration-700 h-full"
     >
       <div className="relative w-full aspect-[3/4] overflow-hidden bg-zinc-50 mb-4 border border-transparent group-hover:border-black transition-all duration-500 rounded-sm">
