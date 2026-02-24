@@ -1,7 +1,7 @@
 const asyncHandler = require("express-async-handler");
 const axios = require("axios");
 
-// 1. Shiprocket Token Lena
+// 1. Shiprocket Token Lena (Ye sahi chal raha hai)
 const getShiprocketToken = async () => {
   try {
     const res = await axios.post(
@@ -23,12 +23,21 @@ const getShiprocketToken = async () => {
 
 // 2. Pincode Serviceability Check
 const checkPincode = asyncHandler(async (req, res) => {
-  const { pincode } = req.params;
+  const pincode = req.params.pincode || req.body.pincode || req.query.pincode;
+
+  if (!pincode) {
+    return res
+      .status(400)
+      .json({ success: false, message: "Pincode is missing from frontend!" });
+  }
+
   const token = await getShiprocketToken();
 
   if (!token) {
-    res.status(500);
-    throw new Error("Shipping service currently unavailable");
+    return res.status(500).json({
+      success: false,
+      message: "Shipping service currently unavailable",
+    });
   }
 
   try {
@@ -47,13 +56,18 @@ const checkPincode = asyncHandler(async (req, res) => {
 
     const data = response.data.data;
 
-    if (!data || data.available_courier_companies.length === 0) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Pincode not serviceable" });
+    // 🔥 Added safety check
+    if (
+      !data ||
+      !data.available_courier_companies ||
+      data.available_courier_companies.length === 0
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Pincode not serviceable by Shiprocket",
+      });
     }
 
-    // Sabse fast courier filter karna
     const fastest = data.available_courier_companies[0];
 
     res.status(200).json({
@@ -63,9 +77,17 @@ const checkPincode = asyncHandler(async (req, res) => {
       is_cod: data.is_cod_available,
     });
   } catch (error) {
-    res
-      .status(400)
-      .json({ success: false, message: "Invalid Pincode or Service Error" });
+    console.error(
+      "❌ Shiprocket Serviceability API Error:",
+      error.response?.data || error.message,
+    );
+
+    res.status(400).json({
+      success: false,
+      message: "Invalid Pincode or Service Error",
+
+      shiprocketSaying: error.response?.data?.message || error.message,
+    });
   }
 });
 
