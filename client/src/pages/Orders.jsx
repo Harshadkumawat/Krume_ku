@@ -13,6 +13,7 @@ import {
   Clock,
   Banknote,
   XCircle,
+  RotateCcw,
 } from "lucide-react";
 
 import {
@@ -21,6 +22,7 @@ import {
   returnOrder,
 } from "../features/orders/orderSlice";
 import OrderCard from "../components/order/OrderCard";
+import SEO from "../components/SEO"; // 🚀 SEO Import Added
 
 export default function Orders() {
   const dispatch = useDispatch();
@@ -37,9 +39,7 @@ export default function Orders() {
 
   const handleReturnSubmit = (e) => {
     e.preventDefault();
-    if (!returnReason) {
-      return toast.error("Please select a reason for return");
-    }
+    if (!returnReason) return toast.error("Please select a reason for return");
 
     const returnData = {
       type: returnType,
@@ -73,17 +73,21 @@ export default function Orders() {
   if (isLoading)
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
+        <SEO title="Loading Orders..." />
         <Loader2 className="animate-spin text-black w-10 h-10" />
       </div>
     );
 
   return (
-    // 🔥 Top padding badha di hai taaki nav bar na chhupe (pt-24 md:pt-32)
     <div className="min-h-screen bg-white pt-24 md:pt-32 pb-20 selection:bg-black selection:text-white overflow-x-hidden">
+      <SEO
+        title="My Orders"
+        description="Track and manage your premium Krumeku streetwear acquisitions."
+      />
+
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-12">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10 md:mb-12 border-b border-black/5 pb-6 md:pb-8">
           <div>
-            {/* 🔥 Heading chhoti aur sleek kar di hai */}
             <h1 className="text-4xl md:text-6xl font-black uppercase tracking-tighter italic leading-none">
               MY{" "}
               <span className="text-transparent stroke-text-black">ORDERS</span>
@@ -92,30 +96,25 @@ export default function Orders() {
               Track your premium acquisitions
             </p>
           </div>
-          <div className="flex items-center gap-8 self-start md:self-auto">
-            <div className="text-left md:text-center bg-zinc-50 px-6 py-3 rounded-xl border border-zinc-100">
-              <p className="text-xl md:text-2xl font-black italic text-black">
-                {orders?.length || 0}
-              </p>
-              <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-1">
-                Total Pieces
-              </p>
-            </div>
+          <div className="text-left md:text-center bg-zinc-50 px-6 py-3 rounded-xl border border-zinc-100">
+            <p className="text-xl md:text-2xl font-black italic text-black">
+              {orders?.length || 0}
+            </p>
+            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-1">
+              Total Pieces
+            </p>
           </div>
         </div>
 
         {!orders || orders.length === 0 ? (
-          <div className="py-20 md:py-28 text-center border-2 border-dashed border-gray-100 rounded-[2rem] mx-2 md:mx-0">
-            <PackageSearch
-              size={40}
-              className="mx-auto text-gray-300 mb-6 md:w-12 md:h-12"
-            />
+          <div className="py-20 md:py-28 text-center border-2 border-dashed border-gray-100 rounded-[2rem]">
+            <PackageSearch size={40} className="mx-auto text-gray-300 mb-6" />
             <h2 className="text-xl md:text-2xl font-black uppercase italic mb-4">
               No History Found
             </h2>
             <Link
               to="/products"
-              className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest border-b-2 border-black pb-1 hover:text-gray-500 transition-all"
+              className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest border-b-2 border-black pb-1"
             >
               Acquire Your First Piece <ArrowRight size={14} />
             </Link>
@@ -144,7 +143,6 @@ export default function Orders() {
               onClick={() => setSelectedOrder(null)}
               className="absolute inset-0 bg-black/40 backdrop-blur-sm cursor-pointer"
             />
-
             <motion.div
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
@@ -154,7 +152,7 @@ export default function Orders() {
             >
               <div className="p-6 md:p-8 lg:p-12 min-h-full flex flex-col">
                 <div className="flex justify-between items-start mb-8 md:mb-10">
-                  <h2 className="text-2xl md:text-3xl font-black uppercase italic tracking-tighter leading-none mt-1">
+                  <h2 className="text-2xl md:text-3xl font-black uppercase italic tracking-tighter leading-none">
                     {selectedOrder.returnInfo?.isReturnRequested
                       ? "Request\nStatus"
                       : "Initiate\nProtocol"}
@@ -163,42 +161,32 @@ export default function Orders() {
                     onClick={() => setSelectedOrder(null)}
                     className="p-2 md:p-3 bg-zinc-50 hover:bg-zinc-100 rounded-full transition-all"
                   >
-                    <X size={20} className="md:w-6 md:h-6" />
+                    <X size={20} />
                   </button>
                 </div>
 
-                <div className="flex-1 space-y-6 md:space-y-8">
+                <div className="flex-1 space-y-6">
                   {selectedOrder.returnInfo?.isReturnRequested ? (
-                    <div className="space-y-6 animate-in fade-in">
-                      <div className="bg-zinc-50 border border-zinc-100 p-6 md:p-8 rounded-2xl md:rounded-[2rem]">
+                    <div className="space-y-6">
+                      <div className="bg-zinc-50 border border-zinc-100 p-6 rounded-2xl">
                         <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">
                           Current Status
                         </p>
-
                         <div className="flex items-center gap-4">
                           {selectedOrder.returnInfo.status === "Pending" && (
-                            <div className="w-12 h-12 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center shrink-0">
-                              <Clock size={24} />
-                            </div>
+                            <Clock size={24} className="text-orange-600" />
                           )}
                           {selectedOrder.returnInfo.status === "Approved" && (
-                            <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center shrink-0">
-                              <CheckCircle size={24} />
-                            </div>
+                            <CheckCircle size={24} className="text-blue-600" />
                           )}
                           {selectedOrder.returnInfo.status === "Refunded" && (
-                            <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center shrink-0">
-                              <Banknote size={24} />
-                            </div>
+                            <Banknote size={24} className="text-emerald-600" />
                           )}
                           {selectedOrder.returnInfo.status === "Rejected" && (
-                            <div className="w-12 h-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center shrink-0">
-                              <XCircle size={24} />
-                            </div>
+                            <XCircle size={24} className="text-red-600" />
                           )}
-
                           <div>
-                            <h3 className="text-xl md:text-2xl font-black uppercase italic tracking-tighter">
+                            <h3 className="text-xl font-black uppercase italic tracking-tighter">
                               {selectedOrder.returnInfo.status}
                             </h3>
                             <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1">
@@ -206,7 +194,6 @@ export default function Orders() {
                             </p>
                           </div>
                         </div>
-
                         {selectedOrder.returnInfo.adminComment && (
                           <div className="mt-6 p-4 bg-white border border-gray-200 rounded-xl">
                             <span className="text-[9px] font-black uppercase tracking-widest text-gray-400 block mb-1">
@@ -218,69 +205,50 @@ export default function Orders() {
                           </div>
                         )}
                       </div>
-
-                      <div className="px-2">
-                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2">
-                          Original Request Details
-                        </p>
-                        <p className="text-[11px] font-bold uppercase tracking-tight text-gray-800">
-                          Reason: {selectedOrder.returnInfo.reason}
-                        </p>
-                        {selectedOrder.returnInfo.comments && (
-                          <p className="text-[11px] font-medium text-gray-500 uppercase tracking-tight mt-1">
-                            Note: {selectedOrder.returnInfo.comments}
-                          </p>
-                        )}
-                      </div>
                     </div>
                   ) : (
                     <>
-                      <div className="bg-orange-50 border border-orange-100 p-3 md:p-4 rounded-xl flex gap-3">
+                      <div className="bg-orange-50 border border-orange-100 p-3 rounded-xl flex gap-3">
                         <AlertCircle
                           className="text-orange-600 shrink-0 mt-0.5"
                           size={18}
                         />
-                        <p className="text-[10px] md:text-[11px] font-bold text-orange-800 leading-relaxed uppercase tracking-tighter">
+                        <p className="text-[10px] font-bold text-orange-800 uppercase tracking-tighter">
                           Ensure artifact is unused, unwashed, and original tags
-                          attached. QC will be performed at pickup.
+                          attached.
                         </p>
                       </div>
-
-                      <form
-                        onSubmit={handleReturnSubmit}
-                        className="space-y-6 md:space-y-8 pb-10"
-                      >
-                        <div className="space-y-2 md:space-y-3">
-                          <label className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                      <form onSubmit={handleReturnSubmit} className="space-y-6">
+                        <div>
+                          <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400 block mb-2">
                             Request Type
                           </label>
-                          <div className="grid grid-cols-2 gap-3 md:gap-4">
+                          <div className="grid grid-cols-2 gap-3">
                             <button
                               type="button"
                               onClick={() => setReturnType("refund")}
-                              className={`py-3 md:py-4 rounded-xl border-2 text-[10px] md:text-[11px] font-black uppercase tracking-widest transition-all ${returnType === "refund" ? "border-black bg-black text-white" : "border-zinc-100 text-zinc-400 hover:border-black"}`}
+                              className={`py-3 rounded-xl border-2 text-[10px] font-black uppercase tracking-widest transition-all ${returnType === "refund" ? "border-black bg-black text-white" : "border-zinc-100 text-zinc-400"}`}
                             >
                               Refund
                             </button>
                             <button
                               type="button"
                               onClick={() => setReturnType("exchange")}
-                              className={`py-3 md:py-4 rounded-xl border-2 text-[10px] md:text-[11px] font-black uppercase tracking-widest transition-all ${returnType === "exchange" ? "border-black bg-black text-white" : "border-zinc-100 text-zinc-400 hover:border-black"}`}
+                              className={`py-3 rounded-xl border-2 text-[10px] font-black uppercase tracking-widest transition-all ${returnType === "exchange" ? "border-black bg-black text-white" : "border-zinc-100 text-zinc-400"}`}
                             >
                               Exchange
                             </button>
                           </div>
                         </div>
-
-                        <div className="space-y-2 md:space-y-3">
-                          <label className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                        <div>
+                          <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400 block mb-2">
                             Reason
                           </label>
                           <select
                             required
                             value={returnReason}
                             onChange={(e) => setReturnReason(e.target.value)}
-                            className="w-full p-3 md:p-4 bg-zinc-50 border border-zinc-200 rounded-xl outline-none text-[11px] md:text-xs font-bold uppercase focus:border-black transition-all appearance-none cursor-pointer"
+                            className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl outline-none text-[11px] font-bold uppercase focus:border-black transition-all"
                           >
                             <option value="">Select Protocol</option>
                             <option value="size">Size Fit Issue</option>
@@ -293,9 +261,8 @@ export default function Orders() {
                             <option value="mind">Change of Mind</option>
                           </select>
                         </div>
-
-                        <div className="space-y-2 md:space-y-3">
-                          <label className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                        <div>
+                          <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400 block mb-2">
                             Remarks
                           </label>
                           <textarea
@@ -303,13 +270,12 @@ export default function Orders() {
                             value={comments}
                             onChange={(e) => setComments(e.target.value)}
                             placeholder="DESCRIBE THE ISSUE..."
-                            className="w-full p-3 md:p-4 bg-zinc-50 border border-zinc-200 rounded-xl outline-none text-[11px] md:text-xs font-medium focus:border-black transition-all resize-none uppercase"
+                            className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl outline-none text-[11px] font-medium focus:border-black transition-all resize-none uppercase"
                           />
                         </div>
-
                         <button
                           type="submit"
-                          className="w-full py-4 md:py-5 bg-black text-white text-[10px] md:text-[11px] font-black uppercase tracking-[0.2em] rounded-xl hover:bg-zinc-800 transition-all shadow-xl active:scale-95"
+                          className="w-full py-4 bg-black text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-xl hover:bg-zinc-800 transition-all shadow-xl"
                         >
                           Confirm Request
                         </button>

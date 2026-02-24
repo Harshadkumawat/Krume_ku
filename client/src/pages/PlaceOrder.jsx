@@ -3,7 +3,6 @@ import { Link, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { createOrder, resetOrderState } from "../features/orders/orderSlice";
 import { clearCart } from "../features/cart/cartSlice";
-
 import {
   Loader2,
   MapPin,
@@ -19,17 +18,18 @@ import {
 import { toast } from "react-toastify";
 import SmartImage from "../components/SmartImage";
 import { paymentService } from "../features/payment/paymentService";
+import SEO from "../components/SEO";
 
 export default function PlaceOrder() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  const cart = useSelector((state) => state.cart);
+  const { billDetails, shippingAddress, cartItems } = useSelector(
+    (state) => state.cart,
+  );
   const { isSuccess, isLoading, isError, message } = useSelector(
     (state) => state.order,
   );
-  const { user } = useSelector((state) => state.auth);
-  const { billDetails, shippingAddress, cartItems } = cart;
 
   const [selectedPayment, setSelectedPayment] = useState("COD");
 
@@ -40,15 +40,12 @@ export default function PlaceOrder() {
 
   useEffect(() => {
     dispatch(resetOrderState());
-  }, [dispatch]);
-
-  useEffect(() => {
-    if (!shippingAddress.address) {
+    if (!shippingAddress?.address) {
       navigate("/shipping");
     } else if (cartItems.length === 0) {
       navigate("/products");
     }
-  }, [shippingAddress, cartItems, navigate]);
+  }, [dispatch, shippingAddress, cartItems, navigate]);
 
   const dispatchCreateOrder = (paymentInfo = null) => {
     const formattedOrderItems = cartItems.map((item) => ({
@@ -84,7 +81,7 @@ export default function PlaceOrder() {
         taxPrice: billDetails?.gstAmount || 0,
         discountPrice: billDetails?.discountAmount || 0,
         totalPrice: billDetails?.finalTotal || 0,
-        isPaid: paymentInfo ? true : false,
+        isPaid: !!paymentInfo,
         paidAt: paymentInfo ? new Date() : null,
         paymentResult: paymentInfo,
       }),
@@ -119,30 +116,23 @@ export default function PlaceOrder() {
               });
 
               if (verifyRes.success) {
-                const paymentInfo = {
+                dispatchCreateOrder({
                   id: response.razorpay_payment_id,
                   status: "success",
                   update_time: new Date().toISOString(),
-                };
-                dispatchCreateOrder(paymentInfo);
+                });
               }
             } catch (error) {
               toast.error("Payment Verification Failed!");
             }
           },
-          prefill: {
-            name: "Krumeku Customer",
-            contact: shippingAddress.phone,
-          },
-          theme: {
-            color: "#000000",
-          },
+          prefill: { contact: shippingAddress.phone },
+          theme: { color: "#000000" },
         };
 
         const rzp = new window.Razorpay(options);
         rzp.open();
       } catch (error) {
-        console.log("RAZORPAY ERROR:", error.response?.data || error.message);
         toast.error(
           error.response?.data?.message || "Failed to initiate payment.",
         );
@@ -152,19 +142,14 @@ export default function PlaceOrder() {
 
   const placeOrderHandler = () => {
     if (isLoading) return;
-
-    if (selectedPayment === "Online") {
-      loadRazorpay();
-    } else {
-      dispatchCreateOrder();
-    }
+    selectedPayment === "Online" ? loadRazorpay() : dispatchCreateOrder();
   };
 
   useEffect(() => {
     if (isSuccess) {
       toast.success(
         selectedPayment === "COD"
-          ? "Order Placed! Jai Mata Di! 🚩"
+          ? "Order Placed Successfully!"
           : "Payment Successful!",
       );
       dispatch(clearCart());
@@ -178,7 +163,12 @@ export default function PlaceOrder() {
   }, [isSuccess, isError, message, navigate, dispatch, selectedPayment]);
 
   return (
-    <div className="bg-[#fafafa] min-h-screen pt-24 pb-20 font-sans">
+    <div className="bg-[#fafafa] min-h-screen pt-24 pb-20 selection:bg-black selection:text-white">
+      <SEO
+        title="Payment & Review"
+        description="Review your order and choose a payment method to complete your Krumeku purchase."
+      />
+
       <div className="max-w-[1400px] mx-auto px-4 md:px-8">
         <div className="flex items-center gap-3 mb-8 opacity-60">
           <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">
@@ -203,7 +193,7 @@ export default function PlaceOrder() {
                 </h2>
                 <Link
                   to="/shipping"
-                  className="text-[10px] font-bold text-zinc-400 border-b border-zinc-200 hover:text-black transition-colors"
+                  className="text-[10px] font-bold text-zinc-400 border-b border-zinc-200 hover:text-black"
                 >
                   EDIT
                 </Link>
@@ -285,7 +275,6 @@ export default function PlaceOrder() {
                     item.finalPriceWithTax ||
                     item.product?.pricing?.finalPriceWithTax ||
                     item.price;
-
                   return (
                     <div
                       key={index}
@@ -312,7 +301,7 @@ export default function PlaceOrder() {
                             "en-IN",
                           )}
                         </p>
-                        <p className="text-[8px] text-zinc-400 font-medium">
+                        <p className="text-[8px] text-zinc-400 font-medium uppercase">
                           Incl. Tax
                         </p>
                       </div>
@@ -328,7 +317,6 @@ export default function PlaceOrder() {
               <h2 className="text-xs font-black uppercase tracking-[0.2em] text-zinc-400 mb-6">
                 Price Breakdown
               </h2>
-
               <div className="space-y-4 text-[13px] font-medium text-zinc-600">
                 <div className="flex justify-between italic">
                   <span>Total MRP</span>
@@ -352,12 +340,10 @@ export default function PlaceOrder() {
                     </span>
                   </div>
                 )}
-
                 <div className="flex justify-between pt-3 border-t border-zinc-50 text-black font-black italic uppercase text-[11px]">
                   <span>Subtotal (incl. GST)</span>
                   <span>₹{subtotalWithTax.toLocaleString("en-IN")}</span>
                 </div>
-
                 <div className="flex justify-between italic">
                   <span>Delivery Charges (+)</span>
                   <span
@@ -373,9 +359,7 @@ export default function PlaceOrder() {
                   </span>
                 </div>
               </div>
-
               <div className="h-[2px] bg-zinc-900 my-6"></div>
-
               <div className="flex justify-between items-end mb-8">
                 <span className="text-[10px] font-black uppercase text-zinc-400">
                   Total Amount
@@ -384,26 +368,24 @@ export default function PlaceOrder() {
                   ₹{billDetails?.finalTotal?.toLocaleString("en-IN")}
                 </span>
               </div>
-
               <button
                 onClick={placeOrderHandler}
                 disabled={isLoading}
-                className="w-full h-14 bg-zinc-900 text-white rounded-xl font-bold uppercase tracking-widest text-xs hover:bg-black transition-all flex items-center justify-center gap-3 disabled:opacity-50 shadow-xl shadow-zinc-200"
+                className="w-full h-14 bg-zinc-900 text-white rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-black transition-all flex items-center justify-center gap-3 disabled:opacity-50"
               >
                 {isLoading ? (
                   <Loader2 className="animate-spin" />
                 ) : (
                   <>
                     {selectedPayment === "COD"
-                      ? "Confirm COD Order"
+                      ? "Confirm Order"
                       : "Pay & Place Order"}{" "}
                     <ArrowRight size={18} />
                   </>
                 )}
               </button>
-
-              <div className="mt-6 flex flex-col items-center gap-3">
-                <div className="flex items-center gap-1.5 text-[9px] font-bold text-zinc-400 uppercase tracking-widest">
+              <div className="mt-6 flex flex-col items-center gap-1.5 opacity-40">
+                <div className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest">
                   <ShieldCheck size={12} className="text-emerald-500" /> Secure
                   SSL Encryption
                 </div>

@@ -10,6 +10,7 @@ import { auth } from "../../../firebaseConfig";
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { toast } from "react-toastify";
 import { Eye, EyeOff, ArrowRight, Loader2 } from "lucide-react";
+import SEO from "../../../components/SEO"; // 🚀 SEO Import
 
 export default function RegisterPage() {
   const navigate = useNavigate();
@@ -29,6 +30,7 @@ export default function RegisterPage() {
   const handleGoogleRegister = async () => {
     try {
       const googleProvider = new GoogleAuthProvider();
+      googleProvider.setCustomParameters({ prompt: "select_account" });
       const result = await signInWithPopup(auth, googleProvider);
       const googleData = {
         fullName: result.user.displayName,
@@ -36,9 +38,12 @@ export default function RegisterPage() {
         avatar: result.user.photoURL,
         uid: result.user.uid,
       };
-      dispatch(googleLoginUser(googleData));
+      await dispatch(googleLoginUser(googleData)).unwrap();
+      toast.success("Welcome to the Movement! 🎉");
     } catch (error) {
-      toast.error("Google Signup Failed.");
+      if (error.code !== "auth/popup-closed-by-user") {
+        toast.error("Google Signup Failed.");
+      }
     }
   };
 
@@ -59,26 +64,29 @@ export default function RegisterPage() {
 
   useEffect(() => {
     if (isSuccess && user) {
-      toast.success("Account Created Successfully! 🎉");
-
+      toast.success("Account Created Successfully!");
       if (user.role === "admin") {
         navigate("/admin/dashboard");
       } else {
         navigate("/");
       }
-
       dispatch(reset());
     }
 
-    // 2. Agar koi Error aaya
     if (isError && message) {
       toast.error(message || "Registration failed.");
       dispatch(reset());
     }
-  }, [isSuccess, isError, message,  navigate, dispatch]);
+  }, [isSuccess, isError, message, navigate, dispatch, user]);
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6 font-sans selection:bg-black selection:text-white">
+      {/* 🚀 SEO Component */}
+      <SEO
+        title="Join the Movement"
+        description="Create your Krumeku account to join the premium streetwear community and track your acquisitions."
+      />
+
       <div className="w-full max-w-[440px] bg-white rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.04)] overflow-hidden border border-gray-100">
         {/* Header Branding */}
         <div className="bg-black p-8 text-center relative">
@@ -86,7 +94,7 @@ export default function RegisterPage() {
             to="/"
             className="text-white text-2xl font-black uppercase tracking-tighter italic"
           >
-            KRUMEKU<span className="text-blue-500">.</span>
+            KRUMEKU<span className="text-red-600">.</span>
           </Link>
           <p className="text-gray-500 text-[9px] font-bold uppercase tracking-[0.3em] mt-2 opacity-80">
             Join the Movement
@@ -98,13 +106,14 @@ export default function RegisterPage() {
             <h2 className="text-2xl font-black text-gray-900 tracking-tighter uppercase italic leading-none">
               Create Account
             </h2>
-            <div className="h-1 w-10 bg-blue-500 mt-3 mx-auto rounded-full"></div>
+            <div className="h-1 w-10 bg-red-600 mt-3 mx-auto rounded-full"></div>
           </header>
 
           <button
             type="button"
             onClick={handleGoogleRegister}
-            className="w-full py-3.5 border-2 border-gray-100 rounded-2xl flex items-center justify-center gap-3 hover:bg-gray-50 transition-all mb-6 group"
+            disabled={isLoading}
+            className="w-full py-3.5 border-2 border-gray-100 rounded-2xl flex items-center justify-center gap-3 hover:bg-gray-50 transition-all mb-6 group disabled:opacity-50"
           >
             <img
               src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
@@ -219,7 +228,7 @@ export default function RegisterPage() {
             Already have an account?{" "}
             <Link
               to="/login"
-              className="text-black border-b-2 border-black ml-1 hover:text-blue-600 hover:border-blue-600 transition-all"
+              className="text-black border-b-2 border-black ml-1 hover:text-red-600 hover:border-red-600 transition-all"
             >
               Login Here
             </Link>

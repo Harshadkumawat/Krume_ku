@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { saveShippingAddress } from "../features/cart/cartSlice";
+import { toast } from "react-toastify";
 import {
   MapPin,
   Phone,
@@ -10,10 +11,10 @@ import {
   CheckCircle2,
   ChevronLeft,
 } from "lucide-react";
+import SEO from "../components/SEO";
 
 export default function Shipping() {
-  const cart = useSelector((state) => state.cart);
-  const { shippingAddress } = cart;
+  const { shippingAddress } = useSelector((state) => state.cart);
 
   const indianStates = [
     "Andhra Pradesh",
@@ -64,9 +65,8 @@ export default function Shipping() {
 
   const submitHandler = (e) => {
     e.preventDefault();
-    // Indian Phone Validation
-    if (phone.length < 10) {
-      return alert("Please enter a valid 10-digit mobile number.");
+    if (phone.length !== 10) {
+      return toast.error("Please enter a valid 10-digit mobile number.");
     }
 
     dispatch(
@@ -84,7 +84,12 @@ export default function Shipping() {
   };
 
   return (
-    <div className="min-h-screen bg-white md:bg-[#FAFAFA] text-black font-sans pb-24 md:pb-0">
+    <div className="min-h-screen bg-white md:bg-[#FAFAFA] text-black pb-24 md:pb-0">
+      <SEO
+        title="Shipping Details"
+        description="Provide your delivery address to complete the purchase at Krumeku."
+      />
+
       {/* Mobile Header */}
       <div className="md:hidden flex items-center px-4 py-4 border-b border-gray-100 sticky top-0 bg-white z-50">
         <button onClick={() => navigate(-1)} className="p-2 -ml-2">
@@ -98,26 +103,26 @@ export default function Shipping() {
       <div className="max-w-[1440px] mx-auto px-4 md:px-6 lg:px-12 py-6 md:py-12">
         <div className="max-w-xl mx-auto">
           {/* Desktop Stepper */}
-          <div className="hidden md:flex justify-between items-center mb-12">
+          <div className="hidden md:flex justify-between items-center mb-12 px-10">
             <div className="flex flex-col items-center gap-2">
-              <CheckCircle2 size={20} className="text-black" />
-              <span className="text-[10px] font-bold uppercase tracking-widest">
+              <CheckCircle2 size={18} className="text-black" />
+              <span className="text-[9px] font-black uppercase tracking-widest">
                 Cart
               </span>
             </div>
             <div className="h-[2px] flex-1 bg-black mx-4"></div>
             <div className="flex flex-col items-center gap-2">
-              <div className="w-5 h-5 rounded-full bg-black flex items-center justify-center text-white text-[10px]">
+              <div className="w-5 h-5 rounded-full bg-black flex items-center justify-center text-white text-[9px] font-black italic">
                 2
               </div>
-              <span className="text-[10px] font-bold uppercase tracking-widest">
+              <span className="text-[9px] font-black uppercase tracking-widest">
                 Shipping
               </span>
             </div>
             <div className="h-[2px] flex-1 bg-gray-200 mx-4"></div>
             <div className="flex flex-col items-center gap-2">
               <div className="w-5 h-5 rounded-full border-2 border-gray-200"></div>
-              <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
+              <span className="text-[9px] font-black uppercase tracking-widest text-gray-400">
                 Payment
               </span>
             </div>
@@ -164,7 +169,7 @@ export default function Shipping() {
                   <input
                     type="text"
                     required
-                    placeholder="Address"
+                    placeholder="Full Address"
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
                     className="w-full h-12 md:h-14 pl-12 pr-4 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:border-black focus:bg-white outline-none transition-all"
@@ -202,7 +207,7 @@ export default function Shipping() {
                     placeholder="City"
                     value={city}
                     onChange={(e) => setCity(e.target.value)}
-                    className="w-full h-12 md:h-14 px-4 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:border-black focus:bg-white outline-none transition-all"
+                    className="w-full h-12 md:h-14 px-4 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:border-black focus:bg-white outline-none"
                   />
                 </div>
                 <div className="space-y-1">
@@ -215,7 +220,7 @@ export default function Shipping() {
                     placeholder="Pincode"
                     value={pincode}
                     onChange={(e) => setPincode(e.target.value)}
-                    className="w-full h-12 md:h-14 px-4 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:border-black focus:bg-white outline-none transition-all"
+                    className="w-full h-12 md:h-14 px-4 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:border-black focus:bg-white outline-none"
                   />
                 </div>
               </div>
@@ -239,21 +244,21 @@ export default function Shipping() {
 
               <button
                 type="submit"
-                className="hidden md:flex w-full bg-black text-white h-16 rounded-xl font-bold uppercase tracking-widest text-xs items-center justify-center gap-3 hover:bg-zinc-800 transition-all shadow-lg mt-4"
+                className="hidden md:flex w-full bg-black text-white h-16 rounded-xl font-black uppercase tracking-[0.2em] text-xs items-center justify-center gap-3 hover:bg-zinc-800 transition-all shadow-lg mt-4"
               >
-                Proceed to Payment <ArrowRight size={18} />
+                Continue to Payment <ArrowRight size={18} />
               </button>
             </form>
           </div>
         </div>
       </div>
 
-      <div className="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-gray-100 p-4 z-50 shadow-[0_-5px_15px_rgba(0,0,0,0.05)]">
+      <div className="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-gray-100 p-4 z-50">
         <button
           onClick={submitHandler}
-          className="w-full bg-black text-white h-14 rounded-xl font-bold uppercase tracking-widest text-xs flex items-center justify-center gap-2 active:scale-95 transition-all"
+          className="w-full bg-black text-white h-14 rounded-xl font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 active:scale-95 transition-all"
         >
-          Proceed to Payment <ArrowRight size={16} />
+          Continue to Payment <ArrowRight size={16} />
         </button>
       </div>
     </div>

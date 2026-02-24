@@ -4,9 +4,10 @@ import { useNavigate, useParams, Link } from "react-router-dom";
 import { toast } from "react-toastify";
 import { Lock, Eye, EyeOff, Loader2, ShieldAlert } from "lucide-react";
 import { reset, resetPassword } from "../features/auth/authSlice";
+import SEO from "../components/SEO"; // 🚀 SEO Import
 
 const ResetPassword = () => {
-  const { token } = useParams(); 
+  const { token } = useParams();
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
@@ -42,13 +43,19 @@ const ResetPassword = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6 font-sans selection:bg-black selection:text-white">
+      {/* 🚀 SEO Component */}
+      <SEO
+        title="Reset Access Key"
+        description="Securely update your Krumeku account credentials using our single-use token protocol."
+      />
+
       <div className="w-full max-w-[420px] bg-white rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.04)] overflow-hidden border border-gray-100">
         <div className="bg-black p-8 text-center">
           <Link
             to="/"
             className="text-white text-2xl font-black uppercase tracking-tighter italic"
           >
-            KRUMEKU<span className="text-blue-500">.</span>
+            KRUMEKU<span className="text-red-600">.</span>
           </Link>
           <p className="text-gray-500 text-[8px] font-black uppercase tracking-[0.4em] mt-2 opacity-70">
             Security Protocol
@@ -66,7 +73,6 @@ const ResetPassword = () => {
           </header>
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            {/* New Password */}
             <div className="space-y-1.5">
               <label className="text-[9px] font-black uppercase text-gray-400 ml-1">
                 New Security Key
@@ -94,7 +100,6 @@ const ResetPassword = () => {
               </div>
             </div>
 
-            {/* Confirm Password */}
             <div className="space-y-1.5">
               <label className="text-[9px] font-black uppercase text-gray-400 ml-1">
                 Confirm Key

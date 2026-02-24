@@ -1,7 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import {
-  Facebook,
   Instagram,
   Twitter,
   ArrowRight,
@@ -13,6 +12,10 @@ import {
 } from "lucide-react";
 
 const Footer = () => {
+  // Common link hover style
+  const linkStyle =
+    "text-[10px] font-bold uppercase tracking-widest text-zinc-400 hover:text-black hover:pl-1 transition-all duration-300 block";
+
   return (
     <footer className="bg-white border-t border-gray-100 text-gray-600 font-sans mt-auto selection:bg-black selection:text-white">
       <div className="max-w-[1600px] mx-auto px-4 md:px-12 pt-16 md:pt-24 pb-8 md:pb-12">
@@ -34,9 +37,9 @@ const Footer = () => {
             {/* Social Icons */}
             <div className="flex items-center gap-3 pt-2">
               {[
-                { Icon: Instagram, link: "https://instagram.com" },
-                { Icon: Youtube, link: "https://youtube.com" },
-                { Icon: Twitter, link: "https://twitter.com" },
+                { Icon: Instagram, link: "https://instagram.com/krumeku" },
+                { Icon: Youtube, link: "https://youtube.com/@krumeku" },
+                { Icon: Twitter, link: "https://twitter.com/krumeku" },
               ].map(({ Icon, link }, i) => (
                 <a
                   key={i}
@@ -45,29 +48,29 @@ const Footer = () => {
                   rel="noopener noreferrer"
                   className="w-10 h-10 flex items-center justify-center bg-zinc-50 border border-zinc-100 hover:border-black hover:bg-black hover:text-white transition-all duration-500 rounded-full group"
                 >
-                  <Icon className="w-4 h-4 text-black group-hover:text-white transition-colors" />
+                  <Icon
+                    size={16}
+                    className="text-black group-hover:text-white transition-colors"
+                  />
                 </a>
               ))}
             </div>
           </div>
 
-          {/* 2. DIRECTORY (Responsive Grid for Mobile) */}
+          {/* 2. DIRECTORY */}
           <div className="lg:col-span-2 lg:col-start-6">
-            <h4 className="font-black text-black uppercase tracking-[0.2em] text-[11px] mb-6 md:mb-8 italic">
+            <h4 className="font-black text-black uppercase tracking-[0.2em] text-[11px] mb-6 md:mb-8 italic underline decoration-red-600 underline-offset-4">
               Shop
             </h4>
             <ul className="space-y-3 md:space-y-4">
               {[
-                { name: "New Drops", path: "/products" },
+                { name: "New Drops", path: "/products?newArrival=true" },
                 { name: "Best Sellers", path: "/products" },
-                { name: "Oversized", path: "/products" },
+                { name: "Oversized", path: "/products?category=Oversized" },
                 { name: "Archive", path: "/products" },
               ].map((item) => (
                 <li key={item.name}>
-                  <Link
-                    to={item.path}
-                    className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 hover:text-black hover:pl-1 transition-all duration-300 block"
-                  >
+                  <Link to={item.path} className={linkStyle}>
                     {item.name}
                   </Link>
                 </li>
@@ -77,7 +80,7 @@ const Footer = () => {
 
           {/* 3. ASSISTANCE */}
           <div className="lg:col-span-2">
-            <h4 className="font-black text-black uppercase tracking-[0.2em] text-[11px] mb-6 md:mb-8 italic">
+            <h4 className="font-black text-black uppercase tracking-[0.2em] text-[11px] mb-6 md:mb-8 italic underline decoration-red-600 underline-offset-4">
               Support
             </h4>
             <ul className="space-y-3 md:space-y-4">
@@ -86,14 +89,10 @@ const Footer = () => {
                 { name: "Exchange & Returns", path: "/orders" },
                 { name: "Size Guide", path: "/products" },
                 { name: "Contact Us", path: "/profile" },
-                // 🔥 NAYA LINK YAHAN ADD KIYA HAI
                 { name: "Policies & Legal", path: "/policies" },
               ].map((item) => (
                 <li key={item.name}>
-                  <Link
-                    to={item.path}
-                    className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 hover:text-black hover:pl-1 transition-all duration-300 block"
-                  >
+                  <Link to={item.path} className={linkStyle}>
                     {item.name}
                   </Link>
                 </li>
@@ -118,9 +117,10 @@ const Footer = () => {
               />
               <button
                 type="button"
+                aria-label="Subscribe"
                 className="absolute right-0 top-1/2 -translate-y-1/2 p-2 text-black hover:text-red-600 transition-all active:scale-90"
               >
-                <ArrowRight className="w-5 h-5" />
+                <ArrowRight size={20} />
               </button>
             </form>
 
@@ -131,7 +131,7 @@ const Footer = () => {
               </div>
               <div className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-zinc-300">
                 <ShieldCheck size={14} className="text-black" />
-                <span>Authentic</span>
+                <span>100% Authentic</span>
               </div>
             </div>
           </div>
@@ -139,7 +139,6 @@ const Footer = () => {
 
         {/* FOOTER BOTTOM */}
         <div className="pt-8 border-t border-zinc-100 flex flex-col md:flex-row items-center justify-between gap-6">
-          {/* 🔥 SABSE NICHE COPYRIGHT KE SATH BHI LINK ADD KIYA HAI */}
           <div className="flex flex-col md:flex-row items-center gap-3 md:gap-6">
             <p className="text-[9px] font-black uppercase text-zinc-300 tracking-[0.2em] text-center">
               © {new Date().getFullYear()} KRUMEKU Archive. All Rights Reserved.
@@ -154,9 +153,9 @@ const Footer = () => {
           </div>
 
           <div className="flex items-center gap-6 opacity-30 hover:opacity-100 transition-opacity duration-700">
-            <div className="flex items-center gap-2">
-              <Smartphone size={14} />
-              <CreditCard size={14} />
+            <div className="flex items-center gap-3">
+              <Smartphone size={16} />
+              <CreditCard size={16} />
             </div>
             <div className="h-3 w-[1px] bg-zinc-200"></div>
             <span className="text-[8px] font-black uppercase tracking-[0.2em] italic">

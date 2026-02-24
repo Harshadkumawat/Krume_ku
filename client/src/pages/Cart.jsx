@@ -18,6 +18,7 @@ import {
 import CartItem from "../components/carts/CartItem";
 import CartSummary from "../components/carts/CartSummary";
 import CouponSection from "../components/carts/CouponSection";
+import SEO from "../components/SEO"; 
 
 export default function Cart() {
   const dispatch = useDispatch();
@@ -49,7 +50,6 @@ export default function Cart() {
     dispatch(updateCartItem({ itemId, action }));
   };
 
-  // 🔥 NAYA FUNCTION: Size Update karne ke liye
   const handleSizeChange = (itemId, newSize) => {
     dispatch(updateCartItem({ itemId, action: "updateSize", size: newSize }));
   };
@@ -60,9 +60,14 @@ export default function Cart() {
     }
   };
 
+  // Loading State with SEO
   if (isLoading && (!cartItems || cartItems.length === 0)) {
     return (
       <div className="h-screen bg-white flex flex-col items-center justify-center gap-4">
+        <SEO
+          title="Your Bag"
+          description="Review your selected premium streetwear items in the Krumeku cart."
+        />
         <Loader2 className="animate-spin text-black" size={40} />
         <p className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400">
           Updating Bag...
@@ -73,8 +78,13 @@ export default function Cart() {
 
   return (
     <div className="bg-white min-h-screen pt-20 md:pt-32 pb-24 lg:pb-32 selection:bg-black selection:text-white overflow-x-hidden">
+      {/* Main Page SEO */}
+      <SEO
+        title="Your Bag"
+        description="Review your selected premium streetwear items in the Krumeku cart."
+      />
+
       <div className="max-w-[1400px] mx-auto px-4 md:px-8 lg:px-12">
-        {/* --- Header Section --- */}
         <div className="mb-10 md:mb-16">
           <h1 className="text-4xl md:text-7xl font-black uppercase tracking-tighter leading-none mb-3 italic">
             Your <span className="text-transparent stroke-text-black">Bag</span>
@@ -102,7 +112,6 @@ export default function Cart() {
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 md:gap-16 items-start">
-            {/* --- Left Column: Items --- */}
             <div className="lg:col-span-8 flex flex-col divide-y divide-zinc-100 border-t-2 border-black">
               {cartItems.map((item) => (
                 <div key={item._id} className="py-2">
@@ -110,12 +119,11 @@ export default function Cart() {
                     item={item}
                     handleQuantity={handleQuantity}
                     onRemove={(id) => dispatch(removeCartItem(id))}
-                    handleSizeChange={handleSizeChange} // 🔥 YAHAN ADD KIYA HAI
+                    handleSizeChange={handleSizeChange}
                   />
                 </div>
               ))}
 
-              {/* Back to Shop link for mobile */}
               <Link
                 to="/products"
                 className="lg:hidden flex items-center justify-center gap-2 py-6 text-[10px] font-black uppercase tracking-widest text-zinc-400"
@@ -125,7 +133,6 @@ export default function Cart() {
               </Link>
             </div>
 
-            {/* --- Right Column: Summary & Coupon --- */}
             <div className="lg:col-span-4 space-y-8 lg:sticky lg:top-32">
               <div className="bg-zinc-50 rounded-[2rem] p-6 md:p-8 border border-zinc-100 shadow-sm">
                 <CartSummary
@@ -155,7 +162,6 @@ export default function Cart() {
                 />
               </div>
 
-              {/* Trust Badges - Essential for Indian Vibe */}
               <div className="px-4 py-2 grid grid-cols-3 gap-4 border-t border-zinc-100 pt-8 opacity-60">
                 <div className="flex flex-col items-center text-center gap-2">
                   <div className="w-8 h-8 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-600">

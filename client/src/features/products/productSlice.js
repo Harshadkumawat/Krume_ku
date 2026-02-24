@@ -109,6 +109,7 @@ const productSlice = createSlice({
         state.isLoading = true;
         state.isSuccess = false;
         state.isError = false;
+        state.singleProduct = null;
       })
       .addCase(getSingleProduct.fulfilled, (state, action) => {
         state.isLoading = false;

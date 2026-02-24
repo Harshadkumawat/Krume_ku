@@ -1,12 +1,13 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useSearchParams } from "react-router-dom";
-import { SlidersHorizontal, X, ChevronDown, Search } from "lucide-react";
+import { SlidersHorizontal, X, ChevronDown } from "lucide-react"; // Search hataya kyunki use nahi ho raha tha
 
 import { getAllProducts } from "../features/products/productSlice";
 import FilterSidebar from "../components/clothes/FilterSidebar";
 import ProductCard from "../components/clothes/ProductCard";
 import PageTransition from "../components/PageTransition";
+import SEO from "../components/SEO"; // 🚀 SEO Import Added
 
 const ProductSkeleton = () => (
   <div className="flex flex-col gap-3 animate-pulse">
@@ -149,9 +150,28 @@ const Clothes = () => {
     },
   };
 
+  let baseTitle = "Archive";
+
+  if (queryParam) {
+    baseTitle = `Search: ${queryParam}`;
+  } else if (newArrivalParam) {
+    baseTitle = "New Drops";
+  } else if (categoryParam) {
+    baseTitle = categoryParam;
+  } else if (genderParam && genderParam !== "All") {
+    baseTitle = `${genderParam}'s Collection`;
+  }
+
+  const pageTitle = `Buy ${baseTitle}`;
+
   return (
     <PageTransition>
       <div className="min-h-screen bg-white selection:bg-black selection:text-white">
+        <SEO
+          title={pageTitle}
+          description={`Discover and Buy ${baseTitle} from Krumeku. Premium quality oversized and embroidered streetwear.`}
+        />
+
         {/* 🏷️ STICKY GENDER TABS */}
         <div className="bg-white border-b border-zinc-100 sticky top-0 z-40">
           <div className="max-w-[1600px] mx-auto px-4 md:px-12 flex gap-8">

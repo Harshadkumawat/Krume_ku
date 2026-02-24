@@ -50,6 +50,7 @@ export default function ProductGallery({ images = [], productName }) {
             <img
               src={cldSrc(img, 800)}
               alt={`${productName} view ${idx + 1}`}
+              loading="lazy"
               className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-700"
             />
             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors" />

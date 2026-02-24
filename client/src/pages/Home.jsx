@@ -14,6 +14,7 @@ import {
 import { getHomeData } from "../features/products/productSlice";
 import ProductCard from "../components/clothes/ProductCard";
 import PageTransition from "../components/PageTransition";
+import SEO from "../components/SEO"; // SEO Import
 
 const Home = () => {
   const dispatch = useDispatch();
@@ -27,7 +28,12 @@ const Home = () => {
     dispatch(getHomeData());
   }, [dispatch]);
 
-  // --- LOADER SCREEN ---
+  // Cloudinary Helper for Elite Series
+  const cldSrc = (img, width = 600) => {
+    if (!img?.public_id) return img?.url || img;
+    return `https://res.cloudinary.com/dftticvtc/image/upload/c_scale,w_${width},f_auto,q_auto/${img.public_id}`;
+  };
+
   if (isLoading) {
     return (
       <div className="h-screen bg-white flex items-center justify-center flex-col">
@@ -43,12 +49,18 @@ const Home = () => {
 
   return (
     <PageTransition>
+      <SEO
+        title="Home"
+        description="India's Premium Streetwear Archive. Shop exclusive oversized tees and embroidered collection."
+      />
+
       <div className="bg-white min-h-screen text-zinc-900 font-sans selection:bg-red-600 selection:text-white overflow-x-hidden">
-        {/* --- 1. HERO SECTION (Isko bada rakha hai taaki impact aaye) --- */}
+        {/* --- 1. HERO SECTION --- */}
         <header className="relative w-full h-[85vh] flex items-center bg-black overflow-hidden">
           <img
             src="https://images.unsplash.com/photo-1550995123-d3434199c158?q=80&w=2000&auto=format&fit=crop"
-            alt="Krumeku Streetwear"
+            alt="Krumeku Streetwear Banner"
+            loading="eager" // Hero image hamesha eager load honi chahiye
             className="absolute inset-0 w-full h-full object-cover object-center opacity-50 animate-slow-zoom"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
@@ -93,8 +105,8 @@ const Home = () => {
           </div>
         </div>
 
-        {/* --- 3. VIP SECTION: FEATURED PICKS 🔥 --- */}
-        {featuredProducts && featuredProducts.length > 0 && (
+        {/* --- 3. FEATURED PICKS --- */}
+        {featuredProducts?.length > 0 && (
           <section className="py-12 md:py-16 bg-zinc-50 border-b border-zinc-200">
             <div className="max-w-[1600px] mx-auto px-4 md:px-12">
               <div className="flex flex-col items-center mb-8 text-center">
@@ -105,17 +117,11 @@ const Home = () => {
                     Picks
                   </span>
                 </h2>
-                <p className="text-[9px] font-black text-zinc-500 uppercase tracking-[0.3em] mt-2">
-                  Handpicked For The Streets
-                </p>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 md:gap-x-6 gap-y-10">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 md:gap-x-6 gap-y-10">
                 {featuredProducts.map((product) => (
                   <div key={product._id} className="relative group">
-                    <div className="absolute -top-2 -right-2 z-20 bg-red-600 text-white text-[8px] font-black uppercase tracking-widest py-1 px-2.5 shadow-lg transform rotate-3">
-                      TOP PICK
-                    </div>
                     <ProductCard product={product} />
                   </div>
                 ))}
@@ -125,7 +131,7 @@ const Home = () => {
         )}
 
         {/* --- 4. NEW ARRIVALS --- */}
-        {newArrivals && newArrivals.length > 0 && (
+        {newArrivals?.length > 0 && (
           <section className="py-12 md:py-16 max-w-[1600px] mx-auto px-4 md:px-12">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4">
               <div>
@@ -147,8 +153,7 @@ const Home = () => {
                 <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
               </Link>
             </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 md:gap-x-6 gap-y-10">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 md:gap-x-6 gap-y-10">
               {newArrivals.map((product) => (
                 <ProductCard key={product._id} product={product} />
               ))}
@@ -182,8 +187,8 @@ const Home = () => {
           </div>
         </section>
 
-        {/* --- 6. HOT DEALS (BESTSELLERS) --- */}
-        {hotDeals && hotDeals.length > 0 && (
+        {/* --- 6. HOT DEALS --- */}
+        {hotDeals?.length > 0 && (
           <section className="py-12 md:py-16 max-w-[1600px] mx-auto px-4 md:px-12 overflow-hidden">
             <div className="flex items-center gap-2 mb-8">
               <Flame className="w-5 h-5 text-red-600 fill-red-600 animate-pulse" />
@@ -191,9 +196,7 @@ const Home = () => {
                 Bestseller Steals
               </h2>
             </div>
-
-            {/* Horizontal Scroll Container */}
-            <div className="flex overflow-x-auto gap-4 pb-6 no-scrollbar snap-x snap-mandatory pr-8">
+            <div className="flex overflow-x-auto gap-4 pb-6 no-scrollbar snap-x snap-mandatory">
               {hotDeals.map((product) => (
                 <div
                   key={product._id}
@@ -206,8 +209,8 @@ const Home = () => {
           </section>
         )}
 
-        {/* --- 7. ELITE SERIES (PREMIUM) --- */}
-        {premiumCollection && premiumCollection.length > 0 && (
+        {/* --- 7. ELITE SERIES --- */}
+        {premiumCollection?.length > 0 && (
           <section className="bg-black text-white py-16 md:py-20">
             <div className="max-w-[1600px] mx-auto px-6">
               <div className="flex flex-col items-center mb-10 text-center">
@@ -219,7 +222,6 @@ const Home = () => {
                   Limited Edition Archive
                 </p>
               </div>
-
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
                 {premiumCollection.map((product) => (
                   <div
@@ -230,9 +232,9 @@ const Home = () => {
                     }
                   >
                     <div className="relative w-full aspect-[3/4] bg-zinc-900 mb-3 overflow-hidden rounded-xl border border-white/10">
-                      <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors z-10" />
                       <img
-                        src={product.images?.[0]?.url}
+                        src={cldSrc(product.images?.[0], 600)}
+                        loading="lazy"
                         className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-all duration-700 group-hover:scale-105"
                         alt={product.productName}
                       />
@@ -250,46 +252,20 @@ const Home = () => {
           </section>
         )}
 
-        {/* --- CSS / ANIMATIONS --- */}
+        {/* --- CSS --- */}
         <style>{`
           .stroke-text { -webkit-text-stroke: 1px white; }
           .stroke-text-black { -webkit-text-stroke: 1px #18181b; } 
-          
-          @keyframes scroll { 
-            0% { transform: translate3d(0, 0, 0); } 
-            100% { transform: translate3d(-50%, 0, 0); } 
-          }
-          
-          .animate-scroll { 
-            animation: scroll 30s linear infinite; 
-            width: fit-content;
-            will-change: transform;
-            image-rendering: -webkit-optimize-contrast;
-            transform: translateZ(0);
-            backface-visibility: hidden;
-          }
-
-          .marquee-text {
-            -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
-            transform: translateZ(0);
-          }
-
-          @keyframes shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(200%); } }
-          .animate-shimmer { animation: shimmer 1.5s infinite linear; }
-          
-          @keyframes slow-zoom { 0% { transform: scale(1); } 100% { transform: scale(1.08); } }
-          .animate-slow-zoom { animation: slow-zoom 20s infinite alternate ease-in-out; }
-          
+          @keyframes scroll { 0% { transform: translate3d(0, 0, 0); } 100% { transform: translate3d(-50%, 0, 0); } }
+          .animate-scroll { animation: scroll 30s linear infinite; width: fit-content; }
           .no-scrollbar::-webkit-scrollbar { display: none; }
-          .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; scroll-behavior: smooth; }
+          .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         `}</style>
       </div>
     </PageTransition>
   );
 };
 
-// --- HELPER COMPONENT ---
 const TrustItem = ({ icon, title, desc }) => (
   <div className="flex flex-col items-center text-center group cursor-default">
     <div className="w-10 h-10 md:w-12 md:h-12 bg-white rounded-full flex items-center justify-center shadow-sm border border-zinc-100 mb-3 group-hover:bg-red-600 group-hover:text-white group-hover:-translate-y-1 transition-all duration-300">

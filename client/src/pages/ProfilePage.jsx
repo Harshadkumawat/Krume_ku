@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate, Link } from "react-router-dom";
 import { logout } from "../features/auth/authSlice";
-import { getMyOrders, cancelOrderUser } from "../features/orders/orderSlice";
+import { getMyOrders } from "../features/orders/orderSlice";
 import {
   fetchWishlist,
   removeFromWishlist,
@@ -19,19 +19,18 @@ import {
   ChevronRight,
   RotateCcw,
 } from "lucide-react";
+import SEO from "../components/SEO"; // 🚀 SEO Import
 
-// 🔥 FIXED: Cloudinary Helper (Now handles Strings & Objects properly)
+// Cloudinary Helper
 const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || "dftticvtc";
 const getImgUrl = (imgId) => {
   if (!imgId) return "https://placehold.co/400x600/000000/FFFFFF?text=No+Image";
-
   if (typeof imgId === "object") {
     if (imgId.url) return imgId.url;
     if (imgId.secure_url) return imgId.secure_url;
     if (imgId.public_id)
       return `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/c_fill,w_300,q_auto,f_auto/${imgId.public_id}`;
   }
-
   if (typeof imgId === "string" && imgId.startsWith("http")) return imgId;
   return `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/c_fill,w_300,q_auto,f_auto/${imgId}`;
 };
@@ -40,14 +39,11 @@ export default function ProfilePage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  // Redux States
   const { user, isLoading: authLoading } = useSelector((state) => state.auth);
   const { orders, isLoading: ordersLoading } = useSelector(
     (state) => state.order,
   );
-  const { wishlistItems, isLoading: wishlistLoading } = useSelector(
-    (state) => state.wishlist,
-  );
+  const { wishlistItems } = useSelector((state) => state.wishlist);
 
   const [activeTab, setActiveTab] = useState("overview");
 
@@ -75,7 +71,7 @@ export default function ProfilePage() {
     );
   }
 
-  // Stats
+  // Stats logic
   const totalOrders = orders?.length || 0;
   const totalSpent =
     orders?.reduce((acc, order) => acc + order.totalPrice, 0) || 0;
@@ -91,16 +87,23 @@ export default function ProfilePage() {
     return styles[status] || "bg-gray-100 text-gray-700 border-gray-200";
   };
 
+  // SEO Dynamic Title
+  const tabTitles = {
+    overview: "Account Overview",
+    orders: "My Order History",
+    wishlist: "Saved Archive",
+    settings: "Account Settings",
+  };
+
   const renderContent = () => {
     switch (activeTab) {
       case "overview":
         return (
           <div className="space-y-8 animate-in fade-in duration-500">
-            {/* Stats Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="bg-black text-white p-6 md:p-8 rounded-[1.5rem] shadow-xl relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-2xl -mr-10 -mt-10"></div>
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 mb-2 relative z-10">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 mb-2">
                   Total Spent
                 </p>
                 <h3 className="text-3xl md:text-4xl font-black italic relative z-10">
@@ -125,7 +128,6 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            {/* Recent Orders */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-[11px] font-black uppercase tracking-widest flex items-center gap-2 text-zinc-800">
@@ -138,7 +140,6 @@ export default function ProfilePage() {
                   View All
                 </button>
               </div>
-
               {ordersLoading ? (
                 <div className="py-10 flex justify-center">
                   <Loader2 className="animate-spin text-zinc-300" />
@@ -203,7 +204,6 @@ export default function ProfilePage() {
                     className="bg-white border border-zinc-200 p-4 md:p-6 rounded-[1.5rem] flex flex-col md:flex-row justify-between gap-4 md:gap-6 shadow-sm hover:border-black transition-all"
                   >
                     <div className="flex gap-4 md:gap-6">
-                      {/* 🔥 Image fixed here */}
                       <div className="w-20 h-24 md:w-24 md:h-28 bg-zinc-50 rounded-xl border border-zinc-100 overflow-hidden flex-shrink-0">
                         <img
                           src={getImgUrl(item?.image)}
@@ -225,7 +225,6 @@ export default function ProfilePage() {
                         <p className="text-sm md:text-lg font-black italic mb-2">
                           ₹{order.totalPrice.toLocaleString("en-IN")}
                         </p>
-
                         <div className="flex flex-wrap items-center gap-2">
                           <span
                             className={`px-3 py-1 text-[9px] font-black uppercase rounded-md border ${getStatusStyle(order.orderStatus)}`}
@@ -241,7 +240,6 @@ export default function ProfilePage() {
                         </div>
                       </div>
                     </div>
-
                     <div className="flex items-center justify-start md:justify-end gap-3 border-t md:border-t-0 border-zinc-100 pt-4 md:pt-0">
                       <Link
                         to={`/order/${order._id}`}
@@ -278,7 +276,6 @@ export default function ProfilePage() {
                     }
                   >
                     <div className="relative w-full aspect-[3/4] rounded-xl overflow-hidden mb-3 bg-zinc-50">
-                      {/* 🔥 Image fixed here */}
                       <img
                         src={getImgUrl(item.images?.[0])}
                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
@@ -350,8 +347,12 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-white pt-24 md:pt-32 pb-20 selection:bg-black selection:text-white overflow-x-hidden">
+      <SEO
+        title={tabTitles[activeTab]}
+        description="Manage your Krumeku account, view orders, and access your saved archive."
+      />
+
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-12">
-        {/* Profile Header */}
         <div className="flex flex-col md:flex-row justify-between items-center bg-zinc-50 border border-zinc-100 p-6 md:p-8 rounded-[2rem] mb-10 md:mb-12 gap-6">
           <div className="flex flex-col md:flex-row items-center gap-4 md:gap-6 text-center md:text-left">
             <div className="w-20 h-20 md:w-24 md:h-24 rounded-[1.5rem] bg-black text-white flex items-center justify-center text-3xl font-black uppercase shadow-xl shrink-0 italic">
@@ -366,7 +367,6 @@ export default function ProfilePage() {
               </p>
             </div>
           </div>
-
           <button
             onClick={handleLogout}
             className="flex items-center justify-center gap-2 px-6 py-3.5 bg-red-50 text-red-600 border border-red-100 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all w-full md:w-auto shrink-0 active:scale-95"
@@ -375,9 +375,7 @@ export default function ProfilePage() {
           </button>
         </div>
 
-        {/* Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
-          {/* Navigation Sidebar */}
           <nav className="lg:col-span-3 flex lg:flex-col gap-3 overflow-x-auto lg:overflow-visible pb-4 lg:pb-0 no-scrollbar items-start">
             {[
               { id: "overview", label: "Overview", icon: User },
@@ -399,15 +397,11 @@ export default function ProfilePage() {
             ))}
           </nav>
 
-          {/* Content Area */}
           <div className="lg:col-span-9 min-h-[50vh]">{renderContent()}</div>
         </div>
       </div>
 
-      <style>{`
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-      `}</style>
+      <style>{`.no-scrollbar::-webkit-scrollbar { display: none; } .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }`}</style>
     </div>
   );
 }

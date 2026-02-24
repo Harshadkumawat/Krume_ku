@@ -131,9 +131,22 @@ export default function Navbar() {
             </button>
           </div>
 
-          <div className="flex justify-center">
-            <Link to="/" className="flex-shrink-0 relative z-10 group">
-              <h1 className="text-xl md:text-2xl font-black tracking-tighter text-black uppercase italic leading-none group-hover:scale-105 transition-transform duration-300">
+          <div className="flex justify-center flex-1">
+            <Link
+              to="/"
+              className="flex items-center justify-center group gap-2 md:gap-3 transition-transform duration-300 hover:scale-[1.02]"
+            >
+              {/* 🔥 Logo Size Optimized */}
+              <div className="relative w-8 h-8 md:w-12 md:h-12 flex items-center justify-center overflow-hidden">
+                <img
+                  src="/logo.png"
+                  alt="Krumeku"
+                  className="w-full h-full object-contain group-hover:rotate-6 transition-transform duration-500"
+                />
+              </div>
+
+              {/* 🔥 Text Styling Fixed */}
+              <h1 className="text-2xl md:text-4xl font-black tracking-tighter text-black uppercase italic leading-none flex items-center">
                 KRUMEKU<span className="text-red-600">.</span>
               </h1>
             </Link>

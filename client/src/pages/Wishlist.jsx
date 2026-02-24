@@ -5,13 +5,8 @@ import {
   fetchWishlist,
   removeFromWishlist,
 } from "../features/wishlist/wishlistSlice";
-import {
-  ShoppingBag,
-  Trash2,
-  ArrowRight,
-  HeartOff,
-  Loader2,
-} from "lucide-react";
+import { Trash2, ArrowRight, HeartOff, Loader2 } from "lucide-react";
+import SEO from "../components/SEO"; // 🚀 SEO Import
 
 const Wishlist = () => {
   const dispatch = useDispatch();
@@ -39,6 +34,7 @@ const Wishlist = () => {
   if (isLoading)
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-white">
+        <SEO title="Syncing Archive" />
         <Loader2 className="w-10 h-10 animate-spin text-black mb-4" />
         <p className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-400">
           Syncing Archive...
@@ -49,6 +45,10 @@ const Wishlist = () => {
   if (!wishlistItems || wishlistItems.length === 0) {
     return (
       <div className="min-h-screen pt-32 flex flex-col items-center justify-center bg-white px-6 text-center">
+        <SEO
+          title="Empty Archive"
+          description="Your Krumeku wishlist is empty. Start adding premium pieces to your collection."
+        />
         <div className="bg-zinc-50 p-8 rounded-full mb-8 shadow-inner">
           <HeartOff size={50} className="text-zinc-200" />
         </div>
@@ -71,8 +71,13 @@ const Wishlist = () => {
 
   return (
     <div className="min-h-screen bg-white pt-20 md:pt-32 pb-24 selection:bg-black selection:text-white overflow-x-hidden">
+      {/* 🚀 SEO Component */}
+      <SEO
+        title="Saved Archive"
+        description={`View your personal collection of ${wishlistItems.length} saved premium pieces at Krumeku.`}
+      />
+
       <div className="max-w-[1600px] mx-auto px-4 md:px-12">
-        {/* --- HEADER SECTION --- */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-12 md:mb-20">
           <div className="space-y-4">
             <h1 className="text-5xl md:text-8xl lg:text-5xl font-black uppercase tracking-tighter italic leading-[0.8] text-black">
@@ -96,7 +101,7 @@ const Wishlist = () => {
           </Link>
         </div>
 
-        {/* --- GRID SECTION (Indian Style 2-Column Mobile) --- */}
+        {/* --- GRID SECTION --- */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 md:gap-x-10 gap-y-12 md:gap-y-20">
           {wishlistItems.map((item) => (
             <div
@@ -104,7 +109,6 @@ const Wishlist = () => {
               className="group flex flex-col h-full relative cursor-pointer"
               onClick={() => navigate(`/product/${item.slug || item._id}`)}
             >
-              {/* Image Container */}
               <div className="relative w-full aspect-[3/4] bg-zinc-50 overflow-hidden mb-5 rounded-2xl md:rounded-[2rem] border border-transparent group-hover:border-zinc-100 transition-all shadow-sm">
                 <img
                   src={
@@ -116,7 +120,7 @@ const Wishlist = () => {
                   className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110"
                 />
 
-                {/* Remove Button (Always visible on Mobile, hover on Desktop) */}
+                {/* Remove Button */}
                 <button
                   onClick={(e) => handleRemove(e, item._id)}
                   className="absolute top-3 right-3 bg-white/90 backdrop-blur-md p-2.5 rounded-full text-zinc-400 hover:text-red-600 shadow-xl z-20 md:opacity-0 md:group-hover:opacity-100 transition-all active:scale-75"
@@ -124,7 +128,6 @@ const Wishlist = () => {
                   <Trash2 size={16} strokeWidth={2.5} />
                 </button>
 
-                {/* Sold Out Overlay */}
                 {!item.inStock && (
                   <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] flex items-center justify-center">
                     <span className="text-[10px] font-black uppercase tracking-widest bg-black text-white px-4 py-2 rounded-full italic">
@@ -143,7 +146,7 @@ const Wishlist = () => {
                   <span className="font-black text-base md:text-lg italic tracking-tighter">
                     ₹
                     {item.finalPriceWithTax?.toLocaleString("en-IN") ||
-                      item.price}
+                      item.price?.toLocaleString("en-IN")}
                   </span>
                   {item.discountPercent > 0 && (
                     <span className="text-[9px] font-bold text-teal-600 uppercase italic">
@@ -152,7 +155,6 @@ const Wishlist = () => {
                   )}
                 </div>
 
-                {/* Action Button */}
                 <button className="mt-3 w-full py-3 bg-white border border-black text-[9px] font-black uppercase tracking-widest group-hover:bg-black group-hover:text-white transition-all duration-500 rounded-xl">
                   View Detail
                 </button>
@@ -163,15 +165,8 @@ const Wishlist = () => {
       </div>
 
       <style>{`
-        .stroke-text-black {
-          -webkit-text-stroke: 1.2px black;
-          color: transparent;
-        }
-        @media (max-width: 768px) {
-          .stroke-text-black {
-            -webkit-text-stroke: 1px black;
-          }
-        }
+        .stroke-text-black { -webkit-text-stroke: 1.2px black; color: transparent; }
+        @media (max-width: 768px) { .stroke-text-black { -webkit-text-stroke: 1px black; } }
       `}</style>
     </div>
   );

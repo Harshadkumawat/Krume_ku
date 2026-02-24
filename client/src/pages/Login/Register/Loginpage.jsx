@@ -10,6 +10,7 @@ import {
   googleLoginUser,
   reset,
 } from "../../../features/auth/authSlice";
+import SEO from "../../../components/SEO"; // 🚀 SEO Import
 
 const Login = () => {
   const navigate = useNavigate();
@@ -22,7 +23,6 @@ const Login = () => {
   const [data, setData] = useState({ email: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
 
-  
   useEffect(() => {
     // 1. Handle Error
     if (isError && message) {
@@ -30,20 +30,16 @@ const Login = () => {
       dispatch(reset());
     }
 
-    
+    // 2. Handle Success & Role Redirection
     if (isSuccess && user) {
-    
       if (user.role === "admin") {
         navigate("/admin/dashboard");
       } else {
         navigate("/");
       }
-
-      
       dispatch(reset());
     }
-  }, [isSuccess, isError, message, navigate, dispatch]);
-  
+  }, [isSuccess, isError, message, navigate, dispatch, user]);
 
   const handleChange = (e) =>
     setData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -63,7 +59,7 @@ const Login = () => {
       };
 
       await dispatch(googleLoginUser(googleData)).unwrap();
-      toast.success("Logged in successfully!");
+      toast.success("Welcome back to the Archive!");
     } catch (error) {
       if (error.code !== "auth/popup-closed-by-user") {
         toast.error("Google login failed.");
@@ -82,6 +78,12 @@ const Login = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6 font-sans selection:bg-black selection:text-white">
+      {/* 🚀 SEO Component */}
+      <SEO
+        title="Login"
+        description="Access your Krumeku account to track orders and manage your premium streetwear collection."
+      />
+
       <div className="w-full max-w-[420px] bg-white rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.04)] overflow-hidden border border-gray-100">
         {/* Branding Header */}
         <div className="bg-black p-8 text-center relative">
@@ -89,7 +91,7 @@ const Login = () => {
             to="/"
             className="text-white text-2xl font-black uppercase tracking-tighter italic"
           >
-            KRUMEKU<span className="text-blue-500">.</span>
+            KRUMEKU<span className="text-red-600">.</span>
           </Link>
           <p className="text-gray-500 text-[9px] font-bold uppercase tracking-[0.3em] mt-2 opacity-80">
             Welcome Back
@@ -98,10 +100,10 @@ const Login = () => {
 
         <div className="p-8 md:p-10">
           <header className="mb-8 text-center">
-            <h2 className="text-2xl font-black text-gray-900 tracking-tighter uppercase italic">
+            <h2 className="text-2xl font-black text-gray-900 tracking-tighter uppercase italic leading-none">
               Login
             </h2>
-            <div className="h-1 w-10 bg-blue-500 mt-3 mx-auto rounded-full"></div>
+            <div className="h-1 w-10 bg-red-600 mt-3 mx-auto rounded-full"></div>
           </header>
 
           {/* Google Login Button */}
@@ -158,7 +160,7 @@ const Login = () => {
                 </label>
                 <Link
                   to="/forgot"
-                  className="text-[10px] font-bold text-black hover:text-blue-600 transition-colors"
+                  className="text-[10px] font-bold text-black hover:text-red-600 transition-colors"
                 >
                   Forgot Password?
                 </Link>
@@ -189,13 +191,13 @@ const Login = () => {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full py-4 bg-black text-white rounded-2xl font-bold text-[11px] uppercase tracking-[0.2em] shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2 disabled:bg-zinc-700 hover:bg-zinc-900"
+              className="w-full py-4 bg-black text-white rounded-2xl font-bold text-[11px] uppercase tracking-[0.2em] shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2 disabled:bg-zinc-700"
             >
               {isLoading ? (
                 <Loader2 className="animate-spin" size={18} />
               ) : (
                 <>
-                  LOGIN <ArrowRight size={16} />
+                  Login <ArrowRight size={16} />
                 </>
               )}
             </button>
@@ -205,7 +207,7 @@ const Login = () => {
             Don't have an account?{" "}
             <Link
               to="/register"
-              className="text-black border-b-2 border-black ml-1 hover:text-blue-600 hover:border-blue-600 transition-all"
+              className="text-black border-b-2 border-black ml-1 hover:text-red-600 hover:border-red-600 transition-all"
             >
               Register Here
             </Link>
