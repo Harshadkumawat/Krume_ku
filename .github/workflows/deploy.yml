@@ -3,7 +3,7 @@ name: Krumeku Auto-Deploy Pipeline
 on:
   push:
     branches:
-      - main 
+      - main
 
 jobs:
   build-and-push:
@@ -44,18 +44,17 @@ jobs:
             # 0. EC2 Server login to Docker Hub
             echo "${{ secrets.DOCKER_PASSWORD }}" | sudo docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
-            # 1. Generate .env file on server
-            echo "${{ secrets.ENV_FILE }}" > /home/ubuntu/.env
+            # NOTE: Step 1 (Generate .env) hata diya hai taaki server ki file safe rahe.
 
-            # 2. Pull latest image
+            # 1. Pull latest image
             sudo docker pull ${{ secrets.DOCKER_USERNAME }}/krumeku-backend:latest
 
-            # 3. Stop and Remove old container
+            # 2. Stop and Remove old container
             sudo docker stop krumeku-api || true
             sudo docker rm krumeku-api || true
 
-            # 4. container start 
+            # 3. Naya container start (Existing /home/ubuntu/.env file use karega)
             sudo docker run -d -p 8080:8080 --env-file /home/ubuntu/.env --name krumeku-api ${{ secrets.DOCKER_USERNAME }}/krumeku-backend:latest
 
-            # 5. Clean up old images
+            # 4. Clean up old images
             sudo docker image prune -f

@@ -39,7 +39,7 @@ export default function ProductGallery({ images = [], productName }) {
 
   return (
     <>
-      {/* 🖼️ Grid View (Snitch Style) */}
+      {/* 🖼️ Grid View */}
       <div className="flex overflow-x-auto lg:grid lg:grid-cols-2 gap-2 lg:gap-4 snap-x snap-mandatory no-scrollbar pb-4 lg:pb-0">
         {images.map((img, idx) => (
           <div
@@ -64,15 +64,17 @@ export default function ProductGallery({ images = [], productName }) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[200] bg-white flex items-center justify-center touch-none overflow-hidden"
+            className="fixed inset-0 z-[200] bg-zinc-950 flex items-center justify-center touch-none overflow-hidden"
           >
+            {/* Modal Close Button */}
             <button
               onClick={() => setIsGalleryOpen(false)}
-              className="absolute top-4 right-4 md:top-6 md:right-8 z-[220] p-3 bg-zinc-100 hover:bg-zinc-200 text-black rounded-full transition-all"
+              className="absolute top-4 right-4 md:top-6 md:right-8 z-[220] p-3 bg-white/10 hover:bg-white/20 text-white rounded-full transition-all"
             >
               <X size={24} />
             </button>
 
+            {/* Desktop Navigation Buttons */}
             {images.length > 1 && zoomLevel === 1 && (
               <>
                 <button
@@ -82,7 +84,7 @@ export default function ProductGallery({ images = [], productName }) {
                       (p) => (p - 1 + images.length) % images.length,
                     );
                   }}
-                  className="absolute left-2 md:left-8 z-[210] p-3 text-black hover:bg-zinc-100 rounded-full transition-all hidden sm:block"
+                  className="absolute left-2 md:left-8 z-[210] p-3 text-white hover:bg-white/10 rounded-full transition-all hidden sm:block"
                 >
                   <ChevronLeft size={36} strokeWidth={1} />
                 </button>
@@ -91,7 +93,7 @@ export default function ProductGallery({ images = [], productName }) {
                     e.stopPropagation();
                     setActiveImageIdx((p) => (p + 1) % images.length);
                   }}
-                  className="absolute right-2 md:right-8 z-[210] p-3 text-black hover:bg-zinc-100 rounded-full transition-all hidden sm:block"
+                  className="absolute right-2 md:right-8 z-[210] p-3 text-white hover:bg-white/10 rounded-full transition-all hidden sm:block"
                 >
                   <ChevronRight size={36} strokeWidth={1} />
                 </button>
@@ -99,34 +101,71 @@ export default function ProductGallery({ images = [], productName }) {
             )}
 
             <motion.div className="relative w-full h-full flex items-center justify-center">
-              <motion.img
-                key={activeImageIdx}
-                src={cldSrc(images[activeImageIdx], 1600)}
-                className={`max-w-full max-h-full object-contain select-none ${zoomLevel > 1 ? "cursor-grab active:cursor-grabbing" : "cursor-default"}`}
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: zoomLevel }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                transition={{ type: "spring", stiffness: 200, damping: 25 }}
-                drag={zoomLevel > 1 ? true : "y"}
-                dragConstraints={
-                  zoomLevel > 1
-                    ? { top: -400, bottom: 400, left: -400, right: 400 }
-                    : { top: 0, bottom: 0 }
-                }
-                onDragEnd={(e, { offset }) => {
-                  if (zoomLevel === 1 && (offset.y > 100 || offset.y < -100))
-                    setIsGalleryOpen(false);
-                }}
-                onDoubleClick={(e) => {
-                  e.stopPropagation();
-                  setZoomLevel((p) => (p === 1 ? 2.5 : 1));
-                }}
-              />
+              {/* 👇 YAHAN MAGIC HAI: AnimatePresence mode="wait" lagaya */}
+              <AnimatePresence mode="wait">
+                <motion.img
+                  key={activeImageIdx}
+                  src={cldSrc(images[activeImageIdx], 1600)}
+                  // 👇 absolute lagaya taaki layout jhatka na khaye
+                  className={`absolute max-w-full max-h-full object-contain select-none ${
+                    zoomLevel > 1
+                      ? "cursor-grab active:cursor-grabbing"
+                      : "cursor-default"
+                  }`}
+                  initial={{ opacity: 0, scale: 0.95, x: 0, y: 0 }}
+                  animate={{
+                    opacity: 1,
+                    scale: zoomLevel,
+                    x: zoomLevel === 1 ? 0 : undefined,
+                    y: zoomLevel === 1 ? 0 : undefined,
+                  }}
+                  exit={{
+                    opacity: 0,
+                    scale: 0.95,
+                    transition: { duration: 0.15 },
+                  }}
+                  transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                  drag={true}
+                  dragConstraints={
+                    zoomLevel > 1
+                      ? { top: -400, bottom: 400, left: -400, right: 400 }
+                      : { top: 0, bottom: 0, left: 0, right: 0 }
+                  }
+                  // 👇 Rubber-band effect swipe ke liye
+                  dragElastic={zoomLevel === 1 ? 0.8 : 0.1}
+                  onDragEnd={(e, { offset, velocity }) => {
+                    if (zoomLevel === 1) {
+                      const isHorizontal =
+                        Math.abs(offset.x) > Math.abs(offset.y);
+                      // 👇 Velocity check: Halka sa fast swipe karne par bhi change hoga
+                      const swipePower = Math.abs(offset.x) * velocity.x;
+
+                      if (isHorizontal) {
+                        if (offset.x < -50 || swipePower < -10000) {
+                          setActiveImageIdx((p) => (p + 1) % images.length);
+                        } else if (offset.x > 50 || swipePower > 10000) {
+                          setActiveImageIdx(
+                            (p) => (p - 1 + images.length) % images.length,
+                          );
+                        }
+                      } else {
+                        if (offset.y > 100 || offset.y < -100) {
+                          setIsGalleryOpen(false);
+                        }
+                      }
+                    }
+                  }}
+                  onDoubleClick={(e) => {
+                    e.stopPropagation();
+                    setZoomLevel((p) => (p === 1 ? 2.5 : 1));
+                  }}
+                />
+              </AnimatePresence>
             </motion.div>
 
             {/* Mobile swipe helper */}
-            <div className="absolute bottom-10 left-1/2 -translate-x-1/2 text-zinc-400 text-xs font-medium sm:hidden z-[210] pointer-events-none">
-              Double tap to zoom • Swipe down to close
+            <div className="absolute bottom-10 left-0 w-full text-center text-zinc-400 text-xs font-medium sm:hidden z-[210] pointer-events-none px-4">
+              Double tap to zoom • Swipe left/right • Swipe down to close
             </div>
           </motion.div>
         )}
