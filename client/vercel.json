@@ -11,6 +11,17 @@
       ],
       "destination": "/api/og?id=:id"
     },
-    { "source": "/product/:id", "destination": "/index.html" }
+    {
+      "source": "/product/:id",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/item/:id",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
   ]
 }
