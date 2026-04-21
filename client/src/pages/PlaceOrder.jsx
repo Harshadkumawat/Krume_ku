@@ -1,10 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { createOrder, resetOrderState } from "../features/orders/orderSlice";
 import { clearCart } from "../features/cart/cartSlice";
 import {
-  Loader2,
   MapPin,
   Package,
   CreditCard,
@@ -14,11 +13,14 @@ import {
   Zap,
   TicketPercent,
   CheckCircle2,
+  Scissors,
 } from "lucide-react";
 import { toast } from "react-toastify";
-import SmartImage from "../components/SmartImage";
 import { paymentService } from "../features/payment/paymentService";
 import SEO from "../components/SEO";
+import { cldImage } from "../utils/imageHelper";
+import { formatPrice } from "../utils/formatters";
+import Button from "../components/ui/Button";
 
 export default function PlaceOrder() {
   const dispatch = useDispatch();
@@ -27,11 +29,14 @@ export default function PlaceOrder() {
   const { billDetails, shippingAddress, cartItems } = useSelector(
     (state) => state.cart,
   );
-  const { isSuccess, isLoading, isError, message } = useSelector(
+
+  const { orderCreated, isLoading, isError, message } = useSelector(
     (state) => state.order,
   );
 
   const [selectedPayment, setSelectedPayment] = useState("COD");
+  const razorpayScriptLoaded = useRef(false);
+  const isOrderPlaced = useRef(false);
 
   const subtotalWithTax =
     (billDetails?.cartTotalExclTax || 0) +
@@ -40,72 +45,66 @@ export default function PlaceOrder() {
 
   useEffect(() => {
     dispatch(resetOrderState());
+
     if (!shippingAddress?.address) {
       navigate("/shipping");
-    } else if (cartItems.length === 0) {
+    } else if (cartItems.length === 0 && !isOrderPlaced.current) {
       navigate("/products");
     }
-  }, [dispatch, shippingAddress, cartItems, navigate]);
 
-  const dispatchCreateOrder = (paymentInfo = null) => {
-    const formattedOrderItems = cartItems.map((item) => ({
-      product: item.product?._id || item.product,
-      productName: item.product?.productName || item.productName,
-      image:
-        item.product?.images?.[0]?.public_id ||
-        item.product?.images?.[0] ||
-        item.image,
-      price:
-        item.product?.pricing?.finalPriceWithTax ||
-        item.finalPriceWithTax ||
-        item.price,
-      quantity: item.quantity,
-      size: item.size || "M",
-      color: item.color || "Standard",
-    }));
+    return () => {
+      dispatch(resetOrderState());
+    };
+  }, [dispatch, shippingAddress, cartItems.length, navigate]);
 
-    dispatch(
-      createOrder({
-        orderItems: formattedOrderItems,
-        shippingAddress: {
-          address: shippingAddress.address,
-          city: shippingAddress.city,
-          postalCode: shippingAddress.pincode,
-          country: "India",
-          phone: shippingAddress.phone,
-          state: shippingAddress.state,
-        },
-        paymentMethod: selectedPayment,
-        itemsPrice: billDetails?.cartTotalExclTax || 0,
-        shippingPrice: billDetails?.shipping || 0,
-        taxPrice: billDetails?.gstAmount || 0,
-        discountPrice: billDetails?.discountAmount || 0,
-        totalPrice: billDetails?.finalTotal || 0,
-        isPaid: !!paymentInfo,
-        paidAt: paymentInfo ? new Date() : null,
-        paymentResult: paymentInfo,
-      }),
-    );
-  };
+  const dispatchCreateOrder = useCallback(
+    (paymentInfo = null) => {
+      if (cartItems.length === 0) {
+        toast.error("Cart is empty. Please add items first.");
+        return;
+      }
 
-  const loadRazorpay = async () => {
-    const script = document.createElement("script");
-    script.src = "https://checkout.razorpay.com/v1/checkout.js";
-    script.onerror = () => toast.error("Razorpay SDK failed to load.");
-    document.body.appendChild(script);
+      isOrderPlaced.current = true;
 
-    script.onload = async () => {
+      dispatch(
+        createOrder({
+          shippingAddress: {
+            fullName: shippingAddress?.fullName || "",
+            phone: shippingAddress?.phone || "",
+            pincode: shippingAddress?.pincode || "",
+            city: shippingAddress?.city || "",
+            state: shippingAddress?.state || "",
+            address: shippingAddress?.address || "",
+            landmark: shippingAddress?.landmark || "",
+            country: "India",
+          },
+          paymentMethod: selectedPayment,
+          isPaid: !!paymentInfo,
+          paidAt: paymentInfo ? new Date().toISOString() : null,
+          paymentResult: paymentInfo || {},
+        }),
+      );
+    },
+    [cartItems.length, dispatch, shippingAddress, selectedPayment],
+  );
+
+  const loadRazorpay = useCallback(async () => {
+    const razorpayKey = import.meta.env.VITE_RAZORPAY_KEY_ID;
+    if (!razorpayKey) {
+      toast.error("Payment configuration missing. Please contact support.");
+      return;
+    }
+
+    const initRazorpay = async () => {
       try {
-        const orderData = await paymentService.createRazorpayOrder({
-          amount: billDetails?.finalTotal || 0,
-        });
+        const orderData = await paymentService.createRazorpayOrder();
 
         const options = {
-          key: import.meta.env.VITE_RAZORPAY_KEY_ID,
+          key: razorpayKey,
           amount: orderData.order.amount,
           currency: orderData.order.currency,
           name: "Krumeku",
-          description: "Premium T-Shirts",
+          description: "Premium Crafted Apparel",
           order_id: orderData.order.id,
           handler: async function (response) {
             try {
@@ -122,11 +121,11 @@ export default function PlaceOrder() {
                   update_time: new Date().toISOString(),
                 });
               }
-            } catch (error) {
+            } catch {
               toast.error("Payment Verification Failed!");
             }
           },
-          prefill: { contact: shippingAddress.phone },
+          prefill: { contact: shippingAddress?.phone || "" },
           theme: { color: "#000000" },
         };
 
@@ -138,39 +137,56 @@ export default function PlaceOrder() {
         );
       }
     };
-  };
 
-  const placeOrderHandler = () => {
+    if (razorpayScriptLoaded.current || window.Razorpay) {
+      razorpayScriptLoaded.current = true;
+      await initRazorpay();
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.onerror = () => toast.error("Razorpay SDK failed to load.");
+    script.onload = async () => {
+      razorpayScriptLoaded.current = true;
+      await initRazorpay();
+    };
+    document.body.appendChild(script);
+  }, [dispatchCreateOrder, shippingAddress?.phone]);
+
+  const placeOrderHandler = useCallback(() => {
     if (isLoading) return;
     selectedPayment === "Online" ? loadRazorpay() : dispatchCreateOrder();
-  };
+  }, [isLoading, selectedPayment, loadRazorpay, dispatchCreateOrder]);
 
   useEffect(() => {
-    if (isSuccess) {
-      toast.success(
-        selectedPayment === "COD"
-          ? "Order Placed Successfully!"
-          : "Payment Successful!",
-      );
+    if (orderCreated) {
       dispatch(clearCart());
       dispatch(resetOrderState());
       navigate("/orders");
     }
+
     if (isError) {
-      toast.error(message);
+      toast.error(message || "Something went wrong!");
+      isOrderPlaced.current = false;
       dispatch(resetOrderState());
     }
-  }, [isSuccess, isError, message, navigate, dispatch, selectedPayment]);
+  }, [orderCreated, isError, message, navigate, dispatch]);
+
+  const validCartItems = cartItems.filter((item) => item.product != null);
 
   return (
-    <div className="bg-[#fafafa] min-h-screen pt-24 pb-20 selection:bg-black selection:text-white">
+    <div className="bg-[#fafafa] min-h-screen pt-24 pb-20 selection:bg-black selection:text-white animate-in fade-in duration-500">
       <SEO
         title="Payment & Review"
-        description="Review your order and choose a payment method to complete your Krumeku purchase."
+        description="Finalize your Krumeku acquisition. Choose secure payment method and confirm order."
       />
 
       <div className="max-w-[1400px] mx-auto px-4 md:px-8">
-        <div className="flex items-center gap-3 mb-8 opacity-60">
+        <div
+          className="flex items-center gap-3 mb-8 opacity-60"
+          aria-hidden="true"
+        >
           <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">
             Address
           </span>
@@ -181,40 +197,60 @@ export default function PlaceOrder() {
         </div>
 
         <h1 className="text-4xl md:text-6xl font-black uppercase italic tracking-tighter mb-10">
-          Finalize <span className="text-transparent stroke-black">Order</span>
+          Finalize{" "}
+          <span className="text-transparent [-webkit-text-stroke:1px_black]">
+            Order
+          </span>
         </h1>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
           <div className="lg:col-span-8 space-y-6">
-            <section className="bg-white p-6 rounded-2xl border border-zinc-100 shadow-sm">
+            <section
+              className="bg-white p-6 rounded-2xl border border-zinc-100 shadow-sm"
+              aria-labelledby="delivery-heading"
+            >
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-[10px] font-black uppercase tracking-widest text-zinc-400 flex items-center gap-2">
-                  <MapPin size={14} /> Deliver To
+                <h2
+                  id="delivery-heading"
+                  className="text-[10px] font-black uppercase tracking-widest text-zinc-400 flex items-center gap-2"
+                >
+                  <MapPin size={14} aria-hidden="true" /> Deliver To
                 </h2>
                 <Link
                   to="/shipping"
-                  className="text-[10px] font-bold text-zinc-400 border-b border-zinc-200 hover:text-black"
+                  className="text-[10px] font-bold text-zinc-400 border-b border-zinc-200 hover:text-black transition-colors outline-none focus-visible:ring-2 focus-visible:ring-black"
                 >
                   EDIT
                 </Link>
               </div>
               <p className="text-base font-bold uppercase">
-                {shippingAddress.address}
+                {shippingAddress?.address}
               </p>
               <p className="text-sm text-zinc-500 font-medium">
-                {shippingAddress.city}, {shippingAddress.state} -{" "}
-                {shippingAddress.pincode}
+                {shippingAddress?.city}, {shippingAddress?.state} -{" "}
+                {shippingAddress?.pincode}
               </p>
               <p className="text-xs font-bold mt-2">
-                +91 {shippingAddress.phone}
+                +91 {shippingAddress?.phone}
               </p>
             </section>
 
-            <section className="bg-white p-6 rounded-2xl border border-zinc-100 shadow-sm">
-              <h2 className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-6 flex items-center gap-2">
-                <CreditCard size={14} /> Choose Payment
+            <section
+              className="bg-white p-6 rounded-2xl border border-zinc-100 shadow-sm"
+              aria-labelledby="payment-heading"
+            >
+              <h2
+                id="payment-heading"
+                className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-6 flex items-center gap-2"
+              >
+                <CreditCard size={14} aria-hidden="true" /> Choose Payment
+                Method
               </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div
+                className="grid grid-cols-1 sm:grid-cols-2 gap-4"
+                role="radiogroup"
+                aria-label="Payment methods"
+              >
                 {[
                   {
                     id: "Online",
@@ -230,76 +266,121 @@ export default function PlaceOrder() {
                     icon: Banknote,
                     color: "text-emerald-500",
                   },
-                ].map((method) => (
-                  <div
-                    key={method.id}
-                    onClick={() => setSelectedPayment(method.id)}
-                    className={`relative cursor-pointer p-5 border-2 rounded-xl transition-all ${selectedPayment === method.id ? "border-black bg-zinc-900 text-white shadow-lg" : "border-zinc-100 hover:border-zinc-300 bg-zinc-50/50"}`}
-                  >
-                    <div className="flex items-center gap-3 mb-1">
-                      <method.icon
-                        size={20}
-                        className={
-                          selectedPayment === method.id
-                            ? method.color
-                            : "text-zinc-400"
-                        }
-                      />
-                      <span className="font-bold uppercase text-sm italic">
-                        {method.label}
-                      </span>
-                    </div>
-                    <p
-                      className={`text-[10px] font-medium ${selectedPayment === method.id ? "text-zinc-400" : "text-zinc-500"}`}
+                ].map((method) => {
+                  const isSelected = selectedPayment === method.id;
+                  return (
+                    <div
+                      key={method.id}
+                      role="radio"
+                      aria-checked={isSelected}
+                      tabIndex={0}
+                      onClick={() => setSelectedPayment(method.id)}
+                      onKeyDown={(e) =>
+                        (e.key === "Enter" || e.key === " ") &&
+                        setSelectedPayment(method.id)
+                      }
+                      className={`relative cursor-pointer p-5 border-2 rounded-xl transition-all outline-none focus-visible:ring-2 focus-visible:ring-black ${
+                        isSelected
+                          ? "border-black bg-zinc-900 text-white shadow-lg scale-[1.02]"
+                          : "border-zinc-100 hover:border-zinc-300 bg-zinc-50/50"
+                      }`}
                     >
-                      {method.sub}
-                    </p>
-                    {selectedPayment === method.id && (
-                      <CheckCircle2
-                        size={16}
-                        className="absolute top-4 right-4 text-white"
-                      />
-                    )}
-                  </div>
-                ))}
+                      <div className="flex items-center gap-3 mb-1">
+                        <method.icon
+                          size={20}
+                          className={
+                            isSelected ? method.color : "text-zinc-400"
+                          }
+                          aria-hidden="true"
+                        />
+                        <span className="font-bold uppercase text-sm italic">
+                          {method.label}
+                        </span>
+                      </div>
+                      <p
+                        className={`text-[10px] font-medium ${
+                          isSelected ? "text-zinc-400" : "text-zinc-500"
+                        }`}
+                      >
+                        {method.sub}
+                      </p>
+                      {isSelected && (
+                        <CheckCircle2
+                          size={16}
+                          className="absolute top-4 right-4 text-white animate-in zoom-in"
+                          aria-hidden="true"
+                        />
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </section>
 
-            <section className="bg-white p-6 rounded-2xl border border-zinc-100 shadow-sm">
-              <h2 className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-6 flex items-center gap-2">
-                <Package size={14} /> Review Items
+            <section
+              className="bg-white p-6 rounded-2xl border border-zinc-100 shadow-sm"
+              aria-labelledby="review-heading"
+            >
+              <h2
+                id="review-heading"
+                className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-6 flex items-center gap-2"
+              >
+                <Package size={14} aria-hidden="true" /> Review Items
               </h2>
-              <div className="divide-y divide-zinc-50">
-                {cartItems.map((item, index) => {
+              <div className="divide-y divide-zinc-50" role="list">
+                {validCartItems.map((item) => {
                   const displayPrice =
                     item.finalPriceWithTax ||
                     item.product?.pricing?.finalPriceWithTax ||
                     item.price;
+                  const isEmbroidered =
+                    item.product?.subCategory === "Embroidered";
+                  const pName = item.product?.productName || item.productName;
+
                   return (
                     <div
-                      key={index}
+                      key={item._id || item.product?._id}
                       className="flex gap-4 py-4 first:pt-0 last:pb-0"
+                      role="listitem"
                     >
                       <div className="w-14 h-18 bg-zinc-50 rounded-lg overflow-hidden border border-zinc-100 shrink-0">
-                        <SmartImage
-                          src={item.product?.images?.[0] || item.image}
+                        <img
+                          src={cldImage(
+                            item.product?.images?.[0]?.public_id || item.image,
+                            200,
+                          )}
                           className="w-full h-full object-cover"
+                          alt={pName}
+                          loading="lazy"
+                          decoding="async"
                         />
                       </div>
                       <div className="flex-1">
-                        <p className="text-xs font-bold uppercase line-clamp-1">
-                          {item.product?.productName || item.productName}
-                        </p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-xs font-bold uppercase line-clamp-1">
+                            {pName}
+                          </p>
+                          {isEmbroidered && (
+                            <Scissors
+                              size={10}
+                              className="text-red-500"
+                              aria-label="Embroidered item"
+                            />
+                          )}
+                        </div>
                         <p className="text-[10px] text-zinc-400 font-bold mt-1 uppercase">
-                          Size: {item.size} • Qty: {item.quantity}
+                          Size: {item.size} <span aria-hidden="true">•</span>{" "}
+                          Qty: {item.quantity}
                         </p>
+                        {isEmbroidered && (
+                          <p className="text-[8px] text-zinc-400 uppercase font-bold mt-1 tracking-widest">
+                            In-House Machine Work
+                          </p>
+                        )}
                       </div>
                       <div className="text-right">
                         <p className="font-bold text-sm text-zinc-900">
-                          ₹
-                          {(displayPrice * item.quantity).toLocaleString(
-                            "en-IN",
-                          )}
+                          {formatPrice(displayPrice * item.quantity)}
                         </p>
                         <p className="text-[8px] text-zinc-400 font-medium uppercase">
                           Incl. Tax
@@ -313,7 +394,11 @@ export default function PlaceOrder() {
           </div>
 
           <div className="lg:col-span-4 lg:sticky lg:top-28">
-            <div className="bg-white p-6 rounded-3xl border border-zinc-100 shadow-2xl">
+            <div
+              className="bg-white p-6 rounded-3xl border border-zinc-100 shadow-2xl"
+              role="region"
+              aria-label="Price Breakdown"
+            >
               <h2 className="text-xs font-black uppercase tracking-[0.2em] text-zinc-400 mb-6">
                 Price Breakdown
               </h2>
@@ -321,28 +406,27 @@ export default function PlaceOrder() {
                 <div className="flex justify-between italic">
                   <span>Total MRP</span>
                   <span className="text-black">
-                    ₹{billDetails?.cartTotalExclTax?.toLocaleString("en-IN")}
+                    {formatPrice(billDetails?.cartTotalExclTax)}
                   </span>
                 </div>
                 <div className="flex justify-between italic">
                   <span>GST / Taxes (+)</span>
                   <span className="text-black">
-                    ₹{billDetails?.gstAmount?.toLocaleString("en-IN")}
+                    {formatPrice(billDetails?.gstAmount)}
                   </span>
                 </div>
                 {billDetails?.discountAmount > 0 && (
                   <div className="flex justify-between text-emerald-600 font-bold italic">
                     <span className="flex items-center gap-1">
-                      <TicketPercent size={14} /> Discount (-)
+                      <TicketPercent size={14} aria-hidden="true" /> Discount
+                      (-)
                     </span>
-                    <span>
-                      - ₹{billDetails?.discountAmount?.toLocaleString("en-IN")}
-                    </span>
+                    <span>- {formatPrice(billDetails?.discountAmount)}</span>
                   </div>
                 )}
                 <div className="flex justify-between pt-3 border-t border-zinc-50 text-black font-black italic uppercase text-[11px]">
                   <span>Subtotal (incl. GST)</span>
-                  <span>₹{subtotalWithTax.toLocaleString("en-IN")}</span>
+                  <span>{formatPrice(subtotalWithTax)}</span>
                 </div>
                 <div className="flex justify-between italic">
                   <span>Delivery Charges (+)</span>
@@ -355,46 +439,55 @@ export default function PlaceOrder() {
                   >
                     {billDetails?.shipping === 0
                       ? "FREE"
-                      : `₹${billDetails?.shipping}`}
+                      : formatPrice(billDetails?.shipping)}
                   </span>
                 </div>
               </div>
-              <div className="h-[2px] bg-zinc-900 my-6"></div>
+
+              <div
+                className="h-[2px] bg-zinc-900 my-6"
+                aria-hidden="true"
+              ></div>
+
               <div className="flex justify-between items-end mb-8">
                 <span className="text-[10px] font-black uppercase text-zinc-400">
                   Total Amount
                 </span>
                 <span className="text-3xl font-black italic leading-none">
-                  ₹{billDetails?.finalTotal?.toLocaleString("en-IN")}
+                  {formatPrice(billDetails?.finalTotal)}
                 </span>
               </div>
-              <button
+
+              <Button
+                variant="primary"
                 onClick={placeOrderHandler}
+                isLoading={isLoading}
                 disabled={isLoading}
-                className="w-full h-14 bg-zinc-900 text-white rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-black transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+                className="w-full h-14"
+                size="lg"
               >
-                {isLoading ? (
-                  <Loader2 className="animate-spin" />
-                ) : (
-                  <>
-                    {selectedPayment === "COD"
-                      ? "Confirm Order"
-                      : "Pay & Place Order"}{" "}
-                    <ArrowRight size={18} />
-                  </>
+                {selectedPayment === "COD"
+                  ? "Confirm Order"
+                  : "Pay & Place Order"}
+                {!isLoading && (
+                  <ArrowRight size={18} className="ml-2" aria-hidden="true" />
                 )}
-              </button>
+              </Button>
+
               <div className="mt-6 flex flex-col items-center gap-1.5 opacity-40">
                 <div className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest">
-                  <ShieldCheck size={12} className="text-emerald-500" /> Secure
-                  SSL Encryption
+                  <ShieldCheck
+                    size={12}
+                    className="text-emerald-500"
+                    aria-hidden="true"
+                  />{" "}
+                  Secure SSL Encryption
                 </div>
               </div>
             </div>
           </div>
         </div>
       </div>
-      <style>{`.stroke-black { -webkit-text-stroke: 1px black; }`}</style>
     </div>
   );
 }

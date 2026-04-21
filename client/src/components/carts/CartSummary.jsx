@@ -1,109 +1,220 @@
-import React from "react";
-import { ArrowRight, BadgePercent, ShieldCheck } from "lucide-react";
+import React, { memo } from "react";
+import { ArrowRight, Tag, Truck, Lock, ChevronRight } from "lucide-react";
+import { formatPrice } from "../../utils/formatters";
+import Button from "../ui/Button";
 
-export default function CartSummary({
-  billDetails,
-  onCheckout,
-  couponSection,
-}) {
+const CartSummary = memo(({ billDetails, onCheckout, couponSection }) => {
   const {
     cartTotalExclTax = 0,
     gstAmount = 0,
+    discountAmount = 0,
     shipping = 0,
     finalTotal = 0,
-    discountAmount = 0,
-  } = billDetails;
+  } = billDetails || {};
 
-  // 🔥 NEW: Customer ko clear math dikhane ke liye Total calculate kiya (Delivery se pehle)
-  const itemsTotal = cartTotalExclTax - discountAmount + gstAmount;
+  const subtotal = cartTotalExclTax + gstAmount - discountAmount;
 
   return (
-    <div className="bg-white rounded-md border border-gray-200 shadow-sm p-5 md:p-6 flex flex-col gap-5">
-      {/* HEADER */}
-      <div className="border-b border-gray-200 pb-3">
-        <h2 className="text-xs md:text-sm font-bold uppercase tracking-widest text-gray-500">
-          Price Details
-        </h2>
-      </div>
+    <>
+      <style>{`
+        @keyframes cs-slide-in {
+          from { opacity: 0; transform: translateY(8px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        .cs-row {
+          animation: cs-slide-in 0.3s cubic-bezier(0.33,1,0.68,1) both;
+        }
+        .cs-row:nth-child(1) { animation-delay: 0.05s; }
+        .cs-row:nth-child(2) { animation-delay: 0.10s; }
+        .cs-row:nth-child(3) { animation-delay: 0.15s; }
+        .cs-row:nth-child(4) { animation-delay: 0.20s; }
+        .cs-row:nth-child(5) { animation-delay: 0.25s; }
 
-      {/* PRICE BREAKDOWN (With Math Signs) */}
-      <div className="space-y-3">
-        {/* Total MRP */}
-        <div className="flex justify-between items-center text-[13px] md:text-sm font-medium text-gray-800">
-          <span>Total MRP</span>
-          <span>₹{cartTotalExclTax.toLocaleString("en-IN")}</span>
+        .cs-btn { position: relative; overflow: hidden; }
+        .cs-btn::after {
+          content: '';
+          position: absolute;
+          top: 0; left: -80%; width: 55%; height: 100%;
+          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.09), transparent);
+          transition: left 0.6s ease;
+          pointer-events: none;
+        }
+        .cs-btn:hover::after { left: 135%; }
+
+        .cs-badge {
+          display: inline-flex; align-items: center;
+          background: #000; color: #fff;
+          font-size: 8.5px; font-weight: 900;
+          letter-spacing: 0.1em; text-transform: uppercase;
+          padding: 3px 12px 3px 8px;
+          clip-path: polygon(7px 0%, 100% 0%, calc(100% - 7px) 100%, 0% 100%);
+        }
+
+        .cs-total-num {
+          font-variant-numeric: tabular-nums;
+          letter-spacing: -0.03em;
+        }
+      `}</style>
+
+      <div
+        role="region"
+        aria-label="Order Summary"
+        className="flex flex-col select-none"
+      >
+        {/* ── Header ── */}
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400">
+            Order Summary
+          </h2>
+          {discountAmount > 0 && (
+            <span className="cs-badge">
+              Saving {formatPrice(discountAmount)}
+            </span>
+          )}
         </div>
 
-        {/* Discount */}
-        {discountAmount > 0 && (
-          <div className="flex justify-between items-center text-[13px] md:text-sm font-medium text-emerald-600">
-            <span>Discount on MRP</span>
-            <span>- ₹{discountAmount.toLocaleString("en-IN")}</span>
+        {/* ── Rows ── */}
+        <div className="space-y-0">
+          {/* Item Total */}
+          <div className="cs-row flex justify-between items-start py-3.5 border-b border-zinc-100">
+            <div>
+              <p className="text-[13px] font-semibold text-zinc-800 leading-snug">
+                Item Total
+              </p>
+              <p className="text-[10px] text-zinc-400 mt-0.5 font-medium">
+                Price before tax
+              </p>
+            </div>
+            <span className="text-[13px] font-bold text-zinc-800 tabular-nums">
+              {formatPrice(cartTotalExclTax)}
+            </span>
           </div>
-        )}
 
-        {/* GST */}
-        <div className="flex justify-between items-center text-[13px] md:text-sm font-medium text-gray-800">
-          <span>Tax (GST)</span>
-          <span>+ ₹{gstAmount.toLocaleString("en-IN")}</span>
+          {/* GST */}
+          <div className="cs-row flex justify-between items-start py-3.5 border-b border-zinc-100">
+            <div>
+              <p className="text-[13px] font-semibold text-zinc-500 leading-snug">
+                GST{" "}
+                <span className="text-[10px] font-normal text-zinc-400">
+                  (Govt. tax)
+                </span>
+              </p>
+              <p className="text-[10px] text-zinc-400 mt-0.5 font-medium">
+                Included in your final price
+              </p>
+            </div>
+            <span className="text-[13px] font-semibold text-zinc-400 tabular-nums">
+              +&thinsp;{formatPrice(gstAmount)}
+            </span>
+          </div>
+
+          {/* Coupon Discount */}
+          {discountAmount > 0 && (
+            <div className="cs-row flex justify-between items-start py-3.5 border-b border-zinc-100">
+              <div className="flex items-start gap-1.5">
+                <Tag size={11} className="text-emerald-500 mt-1 shrink-0" />
+                <div>
+                  <p className="text-[13px] font-semibold text-emerald-600 leading-snug">
+                    Coupon Discount
+                  </p>
+                  <p className="text-[10px] text-zinc-400 mt-0.5 font-medium">
+                    Promo code applied
+                  </p>
+                </div>
+              </div>
+              <span className="text-[13px] font-black text-emerald-600 tabular-nums">
+                &minus;&thinsp;{formatPrice(discountAmount)}
+              </span>
+            </div>
+          )}
+
+          {/* Subtotal */}
+          <div className="cs-row flex justify-between items-center py-3.5 border-b border-zinc-200">
+            <p className="text-[11px] font-black uppercase tracking-[0.15em] text-zinc-500">
+              Subtotal
+            </p>
+            <span className="text-[14px] font-black text-zinc-800 tabular-nums">
+              {formatPrice(subtotal)}
+            </span>
+          </div>
+
+          {/* Delivery */}
+          <div className="cs-row flex justify-between items-start py-3.5">
+            <div className="flex items-start gap-1.5">
+              <Truck
+                size={11}
+                className={`mt-1 shrink-0 ${shipping === 0 ? "text-emerald-500" : "text-zinc-400"}`}
+              />
+              <div>
+                <p className="text-[13px] font-semibold text-zinc-800 leading-snug">
+                  Delivery
+                </p>
+                <p
+                  className={`text-[10px] mt-0.5 font-medium ${shipping === 0 ? "text-emerald-500" : "text-zinc-400"}`}
+                >
+                  {shipping === 0
+                    ? "Free on orders above ₹1,000 ✓"
+                    : "Free delivery on orders above ₹1,000"}
+                </p>
+              </div>
+            </div>
+            <span
+              className={`text-[13px] font-black tabular-nums ${shipping === 0 ? "text-emerald-600" : "text-zinc-800"}`}
+            >
+              {shipping === 0 ? "FREE" : `+\u2009${formatPrice(shipping)}`}
+            </span>
+          </div>
         </div>
 
-        {/* 🔥 NEW: Subtotal Line (MRP + GST) */}
-        <div className="flex justify-between items-center text-[13px] md:text-sm font-bold text-gray-900 border-t border-gray-100 pt-3 mt-1">
-          <span>Subtotal (incl. GST)</span>
-          <span>₹{itemsTotal.toLocaleString("en-IN")}</span>
+        {/* ── Grand Total ── */}
+        <div className="mt-1 pt-5 border-t-[2.5px] border-black">
+          <div className="flex justify-between items-end">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.25em] text-zinc-400 mb-1">
+                Grand Total
+              </p>
+              <p className="text-[10px] text-zinc-400 font-medium">
+                Incl. all taxes &amp; charges
+              </p>
+            </div>
+            <p
+              className="cs-total-num text-[32px] font-black text-zinc-900 leading-none"
+              aria-label={`Grand total ${formatPrice(finalTotal)}`}
+            >
+              {formatPrice(finalTotal)}
+            </p>
+          </div>
         </div>
 
-        {/* Delivery Charges */}
-        <div className="flex justify-between items-center text-[13px] md:text-sm font-medium text-gray-800">
-          <span>Delivery Charges</span>
-          <span
-            className={
-              shipping === 0 ? "text-emerald-600 font-bold" : "text-gray-800"
-            }
+        {/* ── Coupon Input ── */}
+        <div className="mt-6 pt-5 border-t border-dashed border-zinc-200">
+          {couponSection}
+        </div>
+
+        {/* ── CTA ── */}
+        <div className="cs-btn mt-5 rounded-none">
+          <Button
+            variant="primary"
+            onClick={onCheckout}
+            className="w-full py-[14px] text-[11px] font-black tracking-[0.25em] uppercase rounded-none"
+            size="lg"
           >
-            {shipping === 0 ? "FREE" : `+ ₹${shipping.toLocaleString("en-IN")}`}
+            Proceed to Checkout
+            <ArrowRight size={14} className="ml-2" aria-hidden="true" />
+          </Button>
+        </div>
+
+        {/* ── Trust ── */}
+        <div className="flex items-center justify-center gap-1.5 mt-4 opacity-40">
+          <Lock size={10} aria-hidden="true" />
+          <span className="text-[9px] font-black uppercase tracking-[0.2em]">
+            Secure &middot; UPI &middot; Cards &middot; COD
           </span>
         </div>
       </div>
-
-      {/* COUPON SECTION */}
-      <div className="py-2 border-t border-dashed border-gray-200 mt-1">
-        {couponSection}
-      </div>
-
-      {/* FINAL TOTAL */}
-      <div className="flex justify-between items-center pt-4 border-t border-dashed border-gray-200">
-        <span className="text-base font-bold text-gray-900">Total Amount</span>
-        <span className="text-xl font-black text-gray-900">
-          ₹{finalTotal.toLocaleString("en-IN")}
-        </span>
-      </div>
-
-      {/* THE GREEN SAVINGS BANNER */}
-      {discountAmount > 0 && (
-        <div className="bg-emerald-50 text-emerald-700 text-xs font-bold p-3 rounded flex items-center gap-2">
-          <BadgePercent size={18} />
-          You will save ₹{discountAmount.toLocaleString("en-IN")} on this order
-        </div>
-      )}
-
-      {/* CHECKOUT BUTTON */}
-      <button
-        onClick={onCheckout}
-        className="w-full bg-zinc-900 text-white h-12 rounded font-bold uppercase tracking-widest text-sm hover:bg-black transition-all flex items-center justify-center gap-2 shadow-md active:scale-95 mt-2"
-      >
-        PLACE ORDER
-        <ArrowRight size={18} />
-      </button>
-
-      {/* TRUST BADGE */}
-      <div className="flex items-center justify-center gap-1.5 text-gray-400 mt-1">
-        <ShieldCheck size={14} className="text-emerald-500" />
-        <span className="text-[10px] font-bold uppercase tracking-widest">
-          Safe and Secure Payments
-        </span>
-      </div>
-    </div>
+    </>
   );
-}
+});
+
+CartSummary.displayName = "CartSummary";
+export default CartSummary;

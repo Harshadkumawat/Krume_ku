@@ -1,15 +1,8 @@
-import axios from "axios";
 
-const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+import api from "../../utils/api";
 
-const api = axios.create({
-  baseURL: API_URL,
-  withCredentials: true, 
-});
-
-// Ab hume koi config ya token manually bhejne ki zaroorat nahi hai
-const createRazorpayOrder = async (orderData) => {
-  const response = await api.post("/api/payment/create-order", orderData);
+const createRazorpayOrder = async () => {
+  const response = await api.post("/api/payment/create-order");
   return response.data;
 };
 

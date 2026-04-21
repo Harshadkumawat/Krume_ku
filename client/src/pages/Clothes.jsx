@@ -1,253 +1,285 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { useSearchParams } from "react-router-dom";
-import { SlidersHorizontal, X, ChevronDown } from "lucide-react"; // Search hataya kyunki use nahi ho raha tha
-
-import { getAllProducts } from "../features/products/productSlice";
+import React, { useState, useEffect, useCallback, useMemo, memo } from "react";
+import {
+  X,
+  ChevronDown,
+  Scissors,
+  Loader2,
+  AlertCircle,
+  RefreshCw,
+  SlidersHorizontal,
+} from "lucide-react";
 import FilterSidebar from "../components/clothes/FilterSidebar";
 import ProductCard from "../components/clothes/ProductCard";
 import PageTransition from "../components/PageTransition";
-import SEO from "../components/SEO"; // 🚀 SEO Import Added
+import SEO from "../components/SEO";
+import { ProductSkeleton } from "../components/Skeletons";
+import Button from "../components/ui/Button";
+import { useProductFilters } from "../hooks/useProductFilters";
 
-const ProductSkeleton = () => (
-  <div className="flex flex-col gap-3 animate-pulse">
-    <div className="aspect-[3/4] bg-gray-50 w-full rounded-xl md:rounded-2xl" />
-    <div className="space-y-2 px-2">
-      <div className="h-2 bg-gray-100 w-3/4 rounded-full" />
-      <div className="h-2 bg-gray-100 w-1/4 rounded-full" />
-    </div>
+// ── Constants ─────────────────────────────────────────────
+const QUICK_TABS = [
+  { label: "All", type: "all" },
+  { label: "Embroidered", type: "subCategory", val: "Embroidered" },
+  { label: "Printed", type: "subCategory", val: "Printed" },
+  { label: "Men", type: "gender", val: "Men" },
+  { label: "Women", type: "gender", val: "Women" },
+];
+
+const SKELETON_ITEMS = Array.from({ length: 6 }, (_, i) => i);
+
+const SORT_OPTIONS = [
+  { value: "newest", label: "Sort: Newest" },
+  { value: "popular", label: "Sort: Popular" },
+  { value: "price", label: "Price: Low–High" },
+  { value: "-price", label: "Price: High–Low" },
+];
+
+// ── Helpers ───────────────────────────────────────────────
+const getDisplayTitle = (params) => {
+  if (params.queryParam) return `SEARCH: ${params.queryParam}`;
+  if (params.newArrivalParam) return "FRESH DROPS";
+  if (params.subCategoryParam === "Embroidered") return "EMBROIDERED FITS";
+  if (params.subCategoryParam === "Printed") return "GRAPHIC PRINTS";
+  if (params.genderParam && params.genderParam !== "All")
+    return `${params.genderParam.toUpperCase()}'S COLLECTION`;
+  return "SHOP ALL";
+};
+
+// ── Memoized Child Components ─────────────────────────────
+const TabButton = memo(({ tab, isActive, onClick }) => (
+  <button
+    onClick={onClick}
+    className={`py-4 text-[10px] font-black uppercase tracking-[0.3em] transition-colors relative outline-none ${
+      isActive ? "text-black" : "text-zinc-300 hover:text-zinc-600"
+    }`}
+  >
+    {tab.label}
+    {isActive && (
+      <span className="absolute bottom-0 left-0 w-full h-[2px] bg-black" />
+    )}
+  </button>
+));
+
+const ErrorBlock = memo(({ onRetry }) => (
+  <div className="py-12 text-center border-2 border-dashed border-red-100 rounded-3xl mb-8 bg-red-50/50">
+    <AlertCircle size={24} className="mx-auto mb-3 text-red-400" />
+    <p className="text-[11px] font-black uppercase text-red-500 tracking-widest mb-4">
+      Something went wrong.
+    </p>
+    <button
+      onClick={onRetry}
+      className="text-[10px] font-black uppercase border-b-2 border-red-500 pb-1 text-red-600 hover:text-red-800"
+    >
+      <RefreshCw size={12} className="inline mr-1" /> Retry
+    </button>
   </div>
-);
+));
 
-const Clothes = () => {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const dispatch = useDispatch();
+const EmptyState = memo(({ hasFilters, onClear }) => (
+  <div className="py-20 mt-10 text-center border-2 border-dashed border-zinc-100 rounded-3xl">
+    <p className="text-[10px] font-black uppercase text-zinc-400 tracking-widest mb-4">
+      No matching threads found.
+    </p>
+    {hasFilters && (
+      <button
+        onClick={onClear}
+        className="text-[10px] font-black uppercase border-b-2 border-black pb-1 hover:text-red-600"
+      >
+        Reset Filters
+      </button>
+    )}
+  </div>
+));
 
-  const genderParam = searchParams.get("gender");
-  const queryParam = searchParams.get("q");
-  const newArrivalParam = searchParams.get("newArrival");
-  const categoryParam = searchParams.get("category");
-
-  const { products, isLoading, isError, message } = useSelector(
-    (s) => s.products,
-  );
-
-  const [selectedCats, setSelectedCats] = useState([]);
-  const [selectedSizes, setSelectedSizes] = useState([]);
-  const [selectedColors, setSelectedColors] = useState([]);
-  const [isMobileFilterOpen, setMobileFilterOpen] = useState(false);
-  const [sortBy, setSortBy] = useState("newest");
-
-  useEffect(() => {
-    // 🧹 CLEANUP: Sirf wahi bhjeo jisme data ho
-    const filters = {};
-    if (genderParam) filters.gender = genderParam;
-    if (queryParam) filters.q = queryParam;
-    if (newArrivalParam) filters.newArrival = newArrivalParam;
-    if (categoryParam) filters.category = categoryParam;
-
-    dispatch(getAllProducts(filters));
-
-    setSelectedCats([]);
-    setSelectedSizes([]);
-    setSelectedColors([]);
-  }, [dispatch, genderParam, queryParam, newArrivalParam, categoryParam]);
-
-  const allProducts = useMemo(
-    () => (Array.isArray(products) ? products : products?.data || []),
-    [products],
-  );
-
-  const { uniqueCats, uniqueSizes, uniqueColors } = useMemo(() => {
-    const cats = new Set(),
-      sizeSet = new Set(),
-      colorSet = new Set();
-    const sizeOrder = ["XXS", "XS", "S", "M", "L", "XL", "XXL", "XXXL"];
-
-    allProducts.forEach((p) => {
-      if (p.category) cats.add(p.category);
-      p.sizes?.forEach((s) =>
-        sizeSet.add(
-          String(s?.label || s)
-            .toUpperCase()
-            .trim(),
-        ),
-      );
-      p.colors?.forEach((c) => {
-        const colorVal = String(c?.name || c)
-          .toUpperCase()
-          .trim();
-        if (colorVal) colorSet.add(colorVal);
-      });
-    });
-
-    return {
-      uniqueCats: Array.from(cats).sort(),
-      uniqueSizes: Array.from(sizeSet).sort(
-        (a, b) => (sizeOrder.indexOf(a) || 99) - (sizeOrder.indexOf(b) || 99),
-      ),
-      uniqueColors: Array.from(colorSet).sort(),
-    };
-  }, [allProducts]);
-
-  const filteredProducts = useMemo(() => {
-    let data = [...allProducts];
-    if (selectedCats.length > 0)
-      data = data.filter((p) => selectedCats.includes(p.category));
-    if (selectedSizes.length > 0) {
-      data = data.filter((p) =>
-        p.sizes?.some((s) =>
-          selectedSizes.includes(
-            String(s?.label || s)
-              .toUpperCase()
-              .trim(),
-          ),
-        ),
-      );
-    }
-    if (selectedColors.length > 0) {
-      data = data.filter((p) =>
-        p.colors?.some((c) =>
-          selectedColors.includes(
-            String(c?.name || c)
-              .toUpperCase()
-              .trim(),
-          ),
-        ),
-      );
-    }
-
-    if (sortBy === "low-high") data.sort((a, b) => a.price - b.price);
-    else if (sortBy === "high-low") data.sort((a, b) => b.price - a.price);
-    else data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    return data;
-  }, [allProducts, selectedCats, selectedSizes, selectedColors, sortBy]);
-
-  const filterProps = {
-    uniqueCats,
-    uniqueSizes,
-    uniqueColors,
-    selectedCats,
-    selectedSizes,
-    selectedColors,
-    toggleCat: (c) =>
-      setSelectedCats((p) =>
-        p.includes(c) ? p.filter((x) => x !== c) : [...p, c],
-      ),
-    toggleSize: (s) =>
-      setSelectedSizes((p) =>
-        p.includes(s) ? p.filter((x) => x !== s) : [...p, s],
-      ),
-    toggleColor: (c) =>
-      setSelectedColors((p) =>
-        p.includes(c) ? p.filter((x) => x !== c) : [...p, c],
-      ),
-    onClear: () => {
-      setSelectedCats([]);
-      setSelectedSizes([]);
-      setSelectedColors([]);
-      setSearchParams({});
-    },
-  };
-
-  let baseTitle = "Archive";
-
-  if (queryParam) {
-    baseTitle = `Search: ${queryParam}`;
-  } else if (newArrivalParam) {
-    baseTitle = "New Drops";
-  } else if (categoryParam) {
-    baseTitle = categoryParam;
-  } else if (genderParam && genderParam !== "All") {
-    baseTitle = `${genderParam}'s Collection`;
+const ProductGrid = memo(({ products, isLoading, isFetchingMore }) => {
+  if (isLoading && !isFetchingMore) {
+    return (
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-x-4 md:gap-x-8 gap-y-10 md:gap-y-16">
+        {SKELETON_ITEMS.map((i) => (
+          <ProductSkeleton key={i} />
+        ))}
+      </div>
+    );
   }
+  return (
+    <div className="grid grid-cols-2 lg:grid-cols-3 gap-x-4 md:gap-x-8 gap-y-10 md:gap-y-16">
+      {products.map((p) => (
+        <ProductCard key={p._id} product={p} />
+      ))}
+    </div>
+  );
+});
 
-  const pageTitle = `Buy ${baseTitle}`;
+// ═════════════════════════════════════════════════════════════
+// ─── MAIN COMPONENT ─────────────────────────────────────────
+// ═════════════════════════════════════════════════════════════
+const Clothes = () => {
+  const { state, params, options, actions } = useProductFilters();
+  const [isMobileFilterOpen, setMobileFilterOpen] = useState(false);
+
+  // Body scroll lock
+  useEffect(() => {
+    document.body.style.overflow = isMobileFilterOpen ? "hidden" : "";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [isMobileFilterOpen]);
+
+  const activeFilterCount = useMemo(
+    () =>
+      params.selectedCats.length +
+      params.selectedSizes.length +
+      params.selectedColors.length,
+    [params.selectedCats, params.selectedSizes, params.selectedColors],
+  );
+
+  const displayTitle = useMemo(() => getDisplayTitle(params), [params]);
+  const totalPieces = state.meta?.total || state.allProducts.length;
+
+  const activeTabType = useMemo(() => {
+    if (params.genderParam) return `gender:${params.genderParam}`;
+    if (params.subCategoryParam)
+      return `subCategory:${params.subCategoryParam}`;
+    if (params.categoryParam) return `category:${params.categoryParam}`;
+    if (params.newArrivalParam) return "newArrival";
+    return "all";
+  }, [params]);
+
+  const handleTabClick = useCallback(
+    (tab) => {
+      actions.setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        ["newArrival", "cats", "sizes", "colors"].forEach((k) =>
+          next.delete(k),
+        );
+        if (tab.type === "all") {
+          ["gender", "category", "subCategory"].forEach((k) => next.delete(k));
+        } else {
+          next.set(tab.type, tab.val);
+          if (tab.type === "gender") {
+            ["category", "subCategory"].forEach((k) => next.delete(k));
+          } else {
+            next.delete("gender");
+          }
+        }
+        return next;
+      });
+    },
+    [actions],
+  );
+
+  const handleSortChange = useCallback(
+    (e) => {
+      const val = e.target.value;
+      actions.setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.set("sort", val);
+        return next;
+      });
+    },
+    [actions],
+  );
+
+  const filterProps = useMemo(
+    () => ({
+      ...options,
+      selectedCats: params.selectedCats,
+      selectedSizes: params.selectedSizes,
+      selectedColors: params.selectedColors,
+      toggleCat: actions.toggleCat,
+      toggleSize: actions.toggleSize,
+      toggleColor: actions.toggleColor,
+      onClear: actions.handleClearFilters,
+    }),
+    [options, params, actions],
+  );
 
   return (
     <PageTransition>
       <div className="min-h-screen bg-white selection:bg-black selection:text-white">
         <SEO
-          title={pageTitle}
-          description={`Discover and Buy ${baseTitle} from Krumeku. Premium quality oversized and embroidered streetwear.`}
+          title={`Buy ${displayTitle}`}
+          description={`Discover ${displayTitle} from Krumeku.`}
         />
 
-        {/* 🏷️ STICKY GENDER TABS */}
-        <div className="bg-white border-b border-zinc-100 sticky top-0 z-40">
-          <div className="max-w-[1600px] mx-auto px-4 md:px-12 flex gap-8">
-            {["All", "Men", "Women"].map((g) => (
-              <button
-                key={g}
-                onClick={() => {
-                  const params = new URLSearchParams(searchParams);
-                  if (g === "All") params.delete("gender");
-                  else params.set("gender", g);
-                  params.delete("newArrival");
-                  setSearchParams(params);
-                }}
-                className={`py-4 text-[10px] font-black uppercase tracking-[0.3em] transition-all relative ${
-                  genderParam === g || (!genderParam && g === "All")
-                    ? "text-black"
-                    : "text-zinc-300"
-                }`}
-              >
-                {g}
-                {(genderParam === g || (!genderParam && g === "All")) && (
-                  <span className="absolute bottom-0 left-0 w-full h-[2px] bg-black"></span>
-                )}
-              </button>
+        <nav className="bg-white border-b border-zinc-100 sticky top-0 z-40 overflow-x-auto no-scrollbar">
+          <div className="max-w-[1600px] mx-auto px-4 md:px-12 flex gap-8 whitespace-nowrap min-w-max">
+            {QUICK_TABS.map((tab) => (
+              <TabButton
+                key={tab.label}
+                tab={tab}
+                isActive={
+                  tab.type === "all"
+                    ? activeTabType === "all"
+                    : activeTabType === `${tab.type}:${tab.val}`
+                }
+                onClick={() => handleTabClick(tab)}
+              />
             ))}
           </div>
-        </div>
+        </nav>
 
-        {/* 🏢 SLEEK MINIMAL HEADER */}
         <div className="py-6 md:py-10 bg-white">
           <div className="max-w-[1600px] mx-auto px-4 md:px-12">
-            {(queryParam || newArrivalParam) && (
-              <div className="mb-4 flex items-center gap-2 text-red-600 animate-in fade-in">
-                <span className="w-1.5 h-1.5 bg-red-600 rounded-full animate-pulse"></span>
+            {(params.queryParam || params.newArrivalParam) && (
+              <div className="mb-4 flex items-center gap-2 text-red-600">
+                <span className="w-1.5 h-1.5 bg-red-600 rounded-full animate-pulse" />
                 <span className="text-[9px] font-black uppercase tracking-widest">
-                  {newArrivalParam ? "NEW DROPS" : `SEARCH: ${queryParam}`}
+                  {params.newArrivalParam
+                    ? "NEW DROPS"
+                    : `SEARCH: ${params.queryParam}`}
                 </span>
-                <X
-                  size={12}
-                  className="cursor-pointer text-zinc-300 hover:text-black"
-                  onClick={() => {
-                    searchParams.delete("q");
-                    searchParams.delete("newArrival");
-                    setSearchParams(searchParams);
-                  }}
-                />
+                <button
+                  onClick={actions.handleClearSearch}
+                  className="text-zinc-300 hover:text-black"
+                >
+                  <X size={12} />
+                </button>
               </div>
             )}
 
-            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-              <div className="flex items-baseline gap-4">
-                <h1 className="text-3xl md:text-5xl font-black uppercase tracking-tighter italic leading-none">
-                  {newArrivalParam
-                    ? "NEW DROPS"
-                    : queryParam
-                      ? "RESULTS"
-                      : categoryParam || genderParam || "ARCHIVE"}
-                </h1>
-                <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest hidden md:block">
-                  / {isLoading ? "..." : filteredProducts.length} PIECES
-                </span>
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+              <div className="flex flex-col gap-1">
+                <div className="flex items-baseline gap-4">
+                  <h1 className="text-3xl md:text-5xl font-black uppercase tracking-tighter italic leading-none">
+                    {displayTitle}
+                  </h1>
+                  <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest hidden md:block">
+                    / {totalPieces} PIECES
+                  </span>
+                </div>
+                {params.subCategoryParam === "Embroidered" && (
+                  <p className="text-[10px] md:text-xs font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-2 mt-2">
+                    <Scissors size={12} className="text-black" /> 100% IN-HOUSE
+                    MACHINE EMBROIDERED
+                  </p>
+                )}
+                {activeFilterCount > 0 && (
+                  <p className="text-[9px] font-black text-red-600 uppercase tracking-widest mt-1">
+                    {activeFilterCount} filter{activeFilterCount > 1 ? "s" : ""}{" "}
+                    active ·{" "}
+                    <button
+                      onClick={actions.handleClearFilters}
+                      className="underline"
+                    >
+                      Clear
+                    </button>
+                  </p>
+                )}
               </div>
 
               <div className="w-full md:w-auto flex gap-2">
-                <div className="md:hidden flex-1 bg-zinc-50 rounded-lg flex items-center justify-center text-[9px] font-black text-zinc-400 uppercase tracking-widest">
-                  {filteredProducts.length} ITEMS
-                </div>
                 <div className="relative flex-1 md:flex-none">
                   <select
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value)}
-                    className="w-full md:min-w-[180px] bg-white text-black py-2.5 px-4 text-[9px] font-black uppercase tracking-widest appearance-none border border-zinc-200 rounded-lg outline-none"
+                    value={params.sortParam}
+                    onChange={handleSortChange}
+                    className="w-full md:min-w-[180px] bg-white text-black py-2.5 px-4 text-[9px] font-black uppercase tracking-widest border border-zinc-200 rounded-lg appearance-none outline-none cursor-pointer"
                   >
-                    <option value="newest">Sort: Newest</option>
-                    <option value="low-high">Price: Low-High</option>
-                    <option value="high-low">Price: High-Low</option>
+                    {SORT_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
                   </select>
                   <ChevronDown
                     size={12}
@@ -259,69 +291,90 @@ const Clothes = () => {
           </div>
         </div>
 
-        {/* 🛒 MAIN CONTENT */}
         <div className="max-w-[1600px] mx-auto px-4 md:px-12 pb-20 flex gap-12">
           <aside className="hidden lg:block w-64 shrink-0 sticky top-24 h-fit">
             <FilterSidebar {...filterProps} />
           </aside>
 
-          <main className="flex-1">
-            <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-x-4 md:gap-x-8 gap-y-10 md:gap-y-16">
-              {isLoading
-                ? [...Array(6)].map((_, i) => <ProductSkeleton key={i} />)
-                : filteredProducts.map((p) => (
-                    <ProductCard key={p._id} product={p} />
-                  ))}
-            </div>
-
-            {!isLoading && filteredProducts.length === 0 && (
-              <div className="py-20 text-center border-2 border-dashed border-zinc-100 rounded-3xl">
-                <p className="text-[10px] font-black uppercase text-zinc-400 tracking-widest mb-4">
-                  No matching pieces
-                </p>
-                <button
-                  onClick={filterProps.onClear}
-                  className="text-[10px] font-black uppercase border-b-2 border-black pb-1"
+          <main className="flex-1 min-w-0">
+            {state.isError && !state.isLoading && (
+              <ErrorBlock onRetry={() => actions.fetchProducts(1)} />
+            )}
+            <ProductGrid
+              products={state.allProducts}
+              isLoading={state.isLoading}
+              isFetchingMore={state.isFetchingMore}
+            />
+            {!state.isLoading &&
+              !state.isError &&
+              state.allProducts.length === 0 && (
+                <EmptyState
+                  hasFilters={activeFilterCount > 0}
+                  onClear={actions.handleClearFilters}
+                />
+              )}
+            {state.meta?.hasMore && state.allProducts.length > 0 && (
+              <div className="mt-16 text-center">
+                <Button
+                  variant="outline"
+                  className="px-10 py-4 uppercase tracking-[0.2em] font-black text-[10px]"
+                  disabled={state.isFetchingMore || state.isLoading}
+                  onClick={() =>
+                    actions.fetchProducts((state.meta?.page ?? 1) + 1)
+                  }
                 >
-                  Reset Filters
-                </button>
+                  {state.isFetchingMore ? (
+                    <Loader2 className="animate-spin w-4 h-4 mx-auto" />
+                  ) : (
+                    "Load More"
+                  )}
+                </Button>
               </div>
             )}
           </main>
         </div>
 
-        {/* 📱 MOBILE FLOATING FILTER */}
+        {/* 📱 MOBILE FILTER TRIGGER */}
         <div className="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
-          <button
+          <Button
+            variant="primary"
+            className="rounded-full shadow-2xl px-8 py-4"
+            icon={SlidersHorizontal}
             onClick={() => setMobileFilterOpen(true)}
-            className="bg-black text-white px-8 py-4 shadow-2xl flex items-center gap-3 text-[10px] font-black uppercase tracking-widest rounded-full active:scale-95 transition-all"
           >
-            <SlidersHorizontal size={14} /> Refine
-          </button>
+            Refine{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
+          </Button>
         </div>
 
-        {/* 📱 MOBILE DRAWER */}
+        {/* 📱 MOBILE FILTER DRAWER */}
         {isMobileFilterOpen && (
           <div className="fixed inset-0 z-[100] flex justify-end">
             <div
               className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-in fade-in"
               onClick={() => setMobileFilterOpen(false)}
             />
-            <div className="relative bg-white w-[85%] h-full p-8 overflow-y-auto animate-in slide-in-from-right duration-300 rounded-l-3xl">
+            <div className="relative bg-white w-[85%] h-full p-8 overflow-y-auto animate-in slide-in-from-right duration-300 rounded-l-3xl flex flex-col">
               <div className="flex justify-between items-center mb-8">
-                <h3 className="text-xl font-black uppercase italic">Refine</h3>
-                <X size={20} onClick={() => setMobileFilterOpen(false)} />
+                <h2 className="text-xl font-black uppercase italic">Refine</h2>
+                <button
+                  onClick={() => setMobileFilterOpen(false)}
+                  className="hover:text-red-600 transition-colors"
+                >
+                  <X size={20} />
+                </button>
               </div>
-              <FilterSidebar {...filterProps} />
-              <button
-                onClick={() => {
-                  filterProps.onClear();
-                  setMobileFilterOpen(false);
-                }}
-                className="w-full mt-8 py-4 bg-black text-white text-[10px] font-black uppercase rounded-xl"
-              >
-                Clear All
-              </button>
+              <div className="flex-1 overflow-y-auto no-scrollbar">
+                <FilterSidebar {...filterProps} />
+              </div>
+              <div className="pt-6 border-t border-zinc-100 mt-4 flex flex-col gap-3">
+                <Button
+                  variant="primary"
+                  className="w-full h-14"
+                  onClick={() => setMobileFilterOpen(false)}
+                >
+                  Show Results
+                </Button>
+              </div>
             </div>
           </div>
         )}

@@ -1,12 +1,25 @@
 const User = require("../Models/userSchema");
+const Product = require("../Models/ProductSchema");
 const asyncHandler = require("express-async-handler");
+const { ApiError } = require("../Middleware/errorMiddleware");
+const calculatePricing = require("../Utils/calculatePricing");
 
-// ------------------------------------------------------------------
-// 🟢 ADD TO WISHLIST
-// ------------------------------------------------------------------
+const WISHLIST_SELECT =
+  "productName price discountPercent discountPrice finalPriceWithTax images slug inStock countInStock colors sizes category subCategory";
+
+// ── Add to Wishlist ──────────────────────────────────────────
 const addToWishlist = asyncHandler(async (req, res) => {
   const { productId } = req.body;
   const userId = req.user._id;
+
+  if (!productId) {
+    throw new ApiError(400, "Product ID is required");
+  }
+
+  const productExists = await Product.findById(productId).select("_id").lean();
+  if (!productExists) {
+    throw new ApiError(404, "Product not found");
+  }
 
   const user = await User.findByIdAndUpdate(
     userId,
@@ -14,50 +27,59 @@ const addToWishlist = asyncHandler(async (req, res) => {
     { new: true },
   );
 
+  if (!user) throw new ApiError(404, "User not found");
+
   res.status(200).json({
     success: true,
     message: "Added to Wishlist",
-    wishlist: user.wishlist,
+    data: user.wishlist,
   });
 });
 
-// ------------------------------------------------------------------
-// 🔴 REMOVE FROM WISHLIST
-// ------------------------------------------------------------------
+// ── Remove from Wishlist ─────────────────────────────────────
 const removeFromWishlist = asyncHandler(async (req, res) => {
   const { productId } = req.body;
   const userId = req.user._id;
 
-  // $pull: Array me se nikaal dega
+  if (!productId) {
+    throw new ApiError(400, "Product ID is required");
+  }
+
   const user = await User.findByIdAndUpdate(
     userId,
     { $pull: { wishlist: productId } },
     { new: true },
   );
 
+  if (!user) throw new ApiError(404, "User not found");
+
   res.status(200).json({
     success: true,
     message: "Removed from Wishlist",
-    wishlist: user.wishlist,
+    data: user.wishlist,
   });
 });
 
-// ------------------------------------------------------------------
-// 🔵 GET MY WISHLIST (Populated)
-// ------------------------------------------------------------------
+// ── Get My Wishlist ──────────────────────────────────────────
 const getMyWishlist = asyncHandler(async (req, res) => {
-  const userId = req.user._id;
-
-  const user = await User.findById(userId).populate({
+  const user = await User.findById(req.user._id).populate({
     path: "wishlist",
-    select: "productName price finalPriceWithTax images slug inStock",
+    select: WISHLIST_SELECT,
   });
 
-  if (!user) {
-    return res.status(404).json({ success: false, message: "User not found" });
-  }
+  if (!user) throw new ApiError(404, "User not found");
 
-  res.status(200).json({ success: true, data: user.wishlist });
+  const wishlistWithPricing = user.wishlist
+    .filter((item) => item != null)
+    .map((item) => {
+      const product = item.toObject ? item.toObject() : item;
+      return {
+        ...product,
+        pricing: calculatePricing(product),
+      };
+    });
+
+  res.status(200).json({ success: true, data: wishlistWithPricing });
 });
 
 module.exports = { addToWishlist, removeFromWishlist, getMyWishlist };

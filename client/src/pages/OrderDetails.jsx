@@ -1,12 +1,11 @@
-import React, { useEffect } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import React, { useEffect, useMemo, useCallback } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import {
   getOrderDetails,
   cancelOrderUser,
 } from "../features/orders/orderSlice";
 import {
-  Loader2,
   ArrowLeft,
   Package,
   MapPin,
@@ -20,9 +19,22 @@ import {
   Banknote,
   Printer,
   MessageCircleQuestion,
-  ExternalLink,
 } from "lucide-react";
 import SEO from "../components/SEO";
+import { cldImage } from "../utils/imageHelper";
+import { formatDate, formatId, formatPrice } from "../utils/formatters";
+import StatusBadge from "../components/ui/StatusBadge";
+import { OrderDetailsSkeleton } from "../components/Skeletons";
+import Button from "../components/ui/Button";
+
+const checkEligibility = (deliveryDate) => {
+  if (!deliveryDate) return false;
+  const delivered = new Date(deliveryDate);
+  const diffDays = Math.ceil(
+    Math.abs(new Date() - delivered) / (1000 * 60 * 60 * 24),
+  );
+  return diffDays <= 7;
+};
 
 export default function OrderDetails() {
   const { id } = useParams();
@@ -40,253 +52,253 @@ export default function OrderDetails() {
     }
   }, [id, dispatch]);
 
-  const checkEligibility = (deliveryDate) => {
-    if (!deliveryDate) return false;
-    const delivered = new Date(deliveryDate);
-    const today = new Date();
-    const diffDays = Math.ceil(
-      Math.abs(today - delivered) / (1000 * 60 * 60 * 24),
-    );
-    return diffDays <= 7;
-  };
-
-  const getImgUrl = (imgId) => {
-    if (!imgId)
-      return "https://placehold.co/400x600/000000/FFFFFF?text=No+Image";
-    if (imgId.startsWith("http")) return imgId;
-    return `https://res.cloudinary.com/dftticvtc/image/upload/c_fill,w_400,q_auto,f_auto/${imgId}`;
-  };
-
-  const handleCancel = () => {
+  const handleCancel = useCallback(() => {
     if (window.confirm("Are you sure you want to cancel this order?")) {
       dispatch(cancelOrderUser(id));
     }
-  };
+  }, [dispatch, id]);
 
-  if (isLoading)
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
-        <SEO title="Loading Order..." />
-        <Loader2 className="animate-spin text-black w-10 h-10" />
-      </div>
-    );
+  const handlePrint = useCallback(() => window.print(), []);
 
-  if (isError || id === "super" || !order)
+  const trackerData = useMemo(() => {
+    if (!order) return { width: "0%", color: "bg-black", steps: [] };
+
+    const isReturnRequested = order.returnInfo?.isReturnRequested;
+    const returnStatus = order.returnInfo?.status || "None";
+
+    let width = "0%",
+      color = "bg-black",
+      steps = [];
+
+    if (isReturnRequested) {
+      const typeLabel =
+        order.returnInfo?.type === "Exchange" ? "Exchanged" : "Refunded";
+
+      if (returnStatus === "Rejected") {
+        width = "50%";
+        color = "bg-red-500";
+        steps = [
+          {
+            label: "Requested",
+            icon: RotateCcw,
+            color: "bg-orange-500 border-orange-500 text-white",
+            textColor: "text-orange-500",
+          },
+          {
+            label: "Rejected",
+            icon: XCircle,
+            color: "bg-red-500 border-red-500 text-white scale-110 shadow-md",
+            textColor: "text-red-500",
+          },
+          {
+            label: typeLabel,
+            icon: Banknote,
+            color: "bg-white border-zinc-200 text-zinc-300",
+            textColor: "text-zinc-400",
+          },
+        ];
+      } else {
+        const isAppr =
+          returnStatus === "Approved" || returnStatus === "Refunded";
+        const isRef = returnStatus === "Refunded";
+        width = isRef ? "100%" : isAppr ? "50%" : "0%";
+        color = isRef
+          ? "bg-green-500"
+          : isAppr
+            ? "bg-blue-500"
+            : "bg-orange-500";
+
+        steps = [
+          {
+            label: "Requested",
+            icon: RotateCcw,
+            color: "bg-orange-500 border-orange-500 text-white",
+            textColor: "text-orange-500",
+          },
+          {
+            label: "Approved",
+            icon: CheckCircle2,
+            color: isAppr
+              ? "bg-blue-500 border-blue-500 text-white"
+              : "bg-white border-zinc-200 text-zinc-300",
+            textColor: isAppr ? "text-blue-500" : "text-zinc-400",
+          },
+          {
+            label: typeLabel,
+            icon: Banknote,
+            color: isRef
+              ? "bg-green-500 border-green-500 text-white"
+              : "bg-white border-zinc-200 text-zinc-300",
+            textColor: isRef ? "text-green-500" : "text-zinc-400",
+          },
+        ];
+      }
+    } else {
+      const isShip =
+        order.orderStatus === "Shipped" || order.orderStatus === "Delivered";
+      const isDel = order.orderStatus === "Delivered";
+      width = isDel ? "100%" : isShip ? "50%" : "0%";
+
+      steps = [
+        {
+          label: "Confirmed",
+          icon: Clock,
+          color: "bg-black border-black text-white",
+          textColor: "text-black",
+        },
+        {
+          label: "Shipped",
+          icon: Truck,
+          color: isShip
+            ? "bg-black border-black text-white"
+            : "bg-white border-zinc-200 text-zinc-300",
+          textColor: isShip ? "text-black" : "text-zinc-400",
+        },
+        {
+          label: "Delivered",
+          icon: CheckCircle2,
+          color: isDel
+            ? "bg-black border-black text-white"
+            : "bg-white border-zinc-200 text-zinc-300",
+          textColor: isDel ? "text-black" : "text-zinc-400",
+        },
+      ];
+    }
+    return { width, color, steps };
+  }, [order]);
+
+  if (isLoading) return <OrderDetailsSkeleton />;
+
+  if (isError || id === "super" || !order) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-white p-6 text-center">
         <SEO title="Order Not Found" />
-        <AlertCircle className="text-red-500 mb-4" size={40} />
-        <p className="font-black uppercase italic tracking-widest text-lg">
+        <AlertCircle
+          className="text-red-500 mb-4"
+          size={40}
+          aria-hidden="true"
+        />
+        <p
+          className="font-black uppercase italic tracking-widest text-lg"
+          role="alert"
+        >
           {message || "Order Not Found"}
         </p>
-        <button
+        <Button
+          variant="outline"
           onClick={() => navigate("/orders")}
-          className="mt-6 border-b-2 border-black pb-1 text-xs font-black uppercase tracking-widest"
+          className="mt-6"
         >
           Return to My Orders
-        </button>
+        </Button>
       </div>
     );
-
-  const isDelivered = order.orderStatus === "Delivered";
-  const isReturnRequested = order.returnInfo?.isReturnRequested;
-  const returnStatus = order.returnInfo?.status || "None";
-  const isEligibleForReturn =
-    isDelivered &&
-    !isReturnRequested &&
-    (order.deliveredAt ? checkEligibility(order.deliveredAt) : true);
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case "Delivered":
-        return "bg-black text-white";
-      case "Cancelled":
-        return "bg-red-600 text-white";
-      case "Return Requested":
-        return "bg-orange-500 text-white";
-      case "Return Approved":
-        return "bg-green-600 text-white";
-      case "Returned":
-      case "Refunded":
-        return "bg-zinc-500 text-white";
-      default:
-        return "bg-zinc-100 text-zinc-800";
-    }
-  };
-
-  // Tracking Progress Logic
-  let progressWidth = "0%",
-    progressColor = "bg-black",
-    trackerSteps = [];
-  if (isReturnRequested) {
-    const typeLabel =
-      order.returnInfo?.type === "Exchange" ? "Exchanged" : "Refunded";
-    if (returnStatus === "Rejected") {
-      progressWidth = "50%";
-      progressColor = "bg-red-500";
-      trackerSteps = [
-        {
-          label: "Requested",
-          icon: RotateCcw,
-          color: "bg-orange-500 border-orange-500 text-white",
-          textColor: "text-orange-500",
-        },
-        {
-          label: "Rejected",
-          icon: XCircle,
-          color: "bg-red-500 border-red-500 text-white scale-110 shadow-md",
-          textColor: "text-red-500",
-        },
-        {
-          label: typeLabel,
-          icon: Banknote,
-          color: "bg-white border-zinc-200 text-zinc-300",
-          textColor: "text-zinc-400",
-        },
-      ];
-    } else {
-      const isAppr = returnStatus === "Approved" || returnStatus === "Refunded";
-      const isRef = returnStatus === "Refunded";
-      progressWidth = isRef ? "100%" : isAppr ? "50%" : "0%";
-      progressColor = isRef
-        ? "bg-green-500"
-        : isAppr
-          ? "bg-blue-500"
-          : "bg-orange-500";
-      trackerSteps = [
-        {
-          label: "Requested",
-          icon: RotateCcw,
-          color: "bg-orange-500 border-orange-500 text-white",
-          textColor: "text-orange-500",
-        },
-        {
-          label: "Approved",
-          icon: CheckCircle2,
-          color: isAppr
-            ? "bg-blue-500 border-blue-500 text-white"
-            : "bg-white border-zinc-200 text-zinc-300",
-          textColor: isAppr ? "text-blue-500" : "text-zinc-400",
-        },
-        {
-          label: typeLabel,
-          icon: Banknote,
-          color: isRef
-            ? "bg-green-500 border-green-500 text-white"
-            : "bg-white border-zinc-200 text-zinc-300",
-          textColor: isRef ? "text-green-500" : "text-zinc-400",
-        },
-      ];
-    }
-  } else {
-    const isShip =
-      order.orderStatus === "Shipped" || order.orderStatus === "Delivered";
-    const isDel = order.orderStatus === "Delivered";
-    progressWidth = isDel ? "100%" : isShip ? "50%" : "0%";
-    trackerSteps = [
-      {
-        label: "Confirmed",
-        icon: Clock,
-        color: "bg-black border-black text-white",
-        textColor: "text-black",
-      },
-      {
-        label: "Shipped",
-        icon: Truck,
-        color: isShip
-          ? "bg-black border-black text-white"
-          : "bg-white border-zinc-200 text-zinc-300",
-        textColor: isShip ? "text-black" : "text-zinc-400",
-      },
-      {
-        label: "Delivered",
-        icon: CheckCircle2,
-        color: isDel
-          ? "bg-black border-black text-white"
-          : "bg-white border-zinc-200 text-zinc-300",
-        textColor: isDel ? "text-black" : "text-zinc-400",
-      },
-    ];
   }
 
+  const isEligibleForReturn =
+    order.orderStatus === "Delivered" &&
+    !order.returnInfo?.isReturnRequested &&
+    (order.deliveredAt ? checkEligibility(order.deliveredAt) : true);
+
   return (
-    <div className="min-h-screen bg-white pt-8 md:pt-16 pb-20 selection:bg-black selection:text-white">
+    <div className="min-h-screen bg-white pt-8 md:pt-16 pb-20 selection:bg-black selection:text-white animate-in fade-in duration-500">
       <SEO
-        title={`Order #${order._id?.slice(-6)}`}
+        title={`Order ${formatId(order._id)}`}
         description="Track your order status and view delivery details at Krumeku."
       />
 
       <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Header Actions */}
         <div className="flex justify-between items-center mb-8 md:mb-10 print:hidden">
           <button
+            type="button"
             onClick={() => navigate(-1)}
-            className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500 hover:text-black transition-all"
+            className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500 hover:text-black transition-all outline-none focus-visible:ring-2 focus-visible:ring-black rounded px-1"
           >
-            <ArrowLeft size={16} /> Back to My Orders
+            <ArrowLeft size={16} aria-hidden="true" /> Back to My Orders
           </button>
-          <button
-            onClick={() => window.print()}
-            className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.3em] bg-zinc-50 hover:bg-zinc-100 px-4 py-2 rounded-full transition-all text-black"
+          <Button
+            variant="ghost"
+            onClick={handlePrint}
+            icon={Printer}
+            className="rounded-full bg-zinc-50 hover:bg-zinc-100"
           >
-            <Printer size={14} /> Print Invoice
-          </button>
+            Print Invoice
+          </Button>
         </div>
 
+        {/* Order Title & Status */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-end border-b-2 border-black/10 pb-8 md:pb-10 mb-8 md:mb-12">
           <div>
             <h1 className="text-3xl sm:text-5xl md:text-7xl font-black uppercase italic tracking-tighter leading-none">
-              Order{" "}
-              <span className="text-gray-300">#{order._id?.slice(-6)}</span>
+              Order
+              <span className="text-gray-300 ml-3">{formatId(order._id)}</span>
             </h1>
             <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 mt-4">
-              Placed on{" "}
-              <span className="text-black">
-                {new Date(order.createdAt).toLocaleDateString("en-IN", {
-                  day: "2-digit",
-                  month: "short",
-                  year: "numeric",
-                })}
+              Placed on
+              <span className="text-black ml-2">
+                {formatDate(order.createdAt)}
               </span>
             </p>
           </div>
 
           <div className="flex flex-col items-start md:items-end gap-3 mt-6 md:mt-0 w-full md:w-auto print:hidden">
-            <div
-              className={`px-4 md:px-6 py-2.5 text-[10px] font-black uppercase tracking-widest italic rounded-md ${getStatusColor(order.orderStatus)}`}
-            >
-              {order.orderStatus}
-            </div>
+            <StatusBadge
+              status={order.orderStatus}
+              className="px-4 py-2.5 text-[11px]"
+            />
             {isEligibleForReturn && (
-              <button
-                onClick={() => navigate("/orders")}
-                className="flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest bg-zinc-100 px-4 py-2.5 hover:bg-black hover:text-white transition-all italic border border-black/5 rounded-md w-full md:w-auto"
+              <Button
+                variant="ghost"
+                onClick={() =>
+                  navigate("/orders", {
+                    state: { openReturn: order._id },
+                  })
+                }
+                icon={RotateCcw}
+                className="w-full md:w-auto border border-black/5"
               >
-                <RotateCcw size={14} /> Request Return
-              </button>
+                Request Return
+              </Button>
             )}
             {order.orderStatus === "Processing" && (
-              <button
+              <Button
+                variant="danger"
                 onClick={handleCancel}
-                className="flex items-center justify-center gap-2 text-[10px] font-black uppercase text-red-600 bg-red-50 px-4 py-2 rounded-md transition-colors w-full md:w-auto"
+                icon={XCircle}
+                className="w-full md:w-auto"
               >
-                <XCircle size={14} /> Cancel Order
-              </button>
+                Cancel Order
+              </Button>
             )}
           </div>
         </div>
 
-        {/* Tracker */}
+        {/* Progress Tracker */}
         <div className="mb-12 md:mb-16 bg-zinc-50 p-6 md:p-10 rounded-xl border border-zinc-100 overflow-x-auto scrollbar-hide print:hidden">
-          <div className="flex justify-between items-center relative min-w-[500px] max-w-3xl mx-auto">
-            <div className="absolute top-1/2 left-0 w-full h-[2px] bg-zinc-200 -translate-y-1/2 z-0"></div>
+          <div
+            className="flex justify-between items-center relative min-w-[500px] max-w-3xl mx-auto"
+            role="progressbar"
+            aria-valuenow={parseInt(trackerData.width)}
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-label="Order Progress"
+          >
             <div
-              className={`absolute top-1/2 left-0 h-[2px] ${progressColor} -translate-y-1/2 transition-all duration-1000 z-0`}
-              style={{ width: progressWidth }}
+              className="absolute top-1/2 left-0 w-full h-[2px] bg-zinc-200 -translate-y-1/2 z-0"
+              aria-hidden="true"
             ></div>
-            {trackerSteps.map((step, idx) => (
+            <div
+              className={`absolute top-1/2 left-0 h-[2px] ${trackerData.color} -translate-y-1/2 transition-all duration-1000 z-0`}
+              style={{ width: trackerData.width }}
+              aria-hidden="true"
+            ></div>
+
+            {trackerData.steps.map((step, idx) => (
               <div
                 key={idx}
                 className="relative z-10 flex flex-col items-center gap-3 bg-zinc-50 px-2"
+                aria-hidden="true"
               >
                 <div
                   className={`p-2.5 rounded-full border-2 transition-all duration-500 ${step.color}`}
@@ -300,71 +312,108 @@ export default function OrderDetails() {
                 </span>
               </div>
             ))}
+
+            <span className="sr-only">
+              Current status:{" "}
+              {order.returnInfo?.isReturnRequested
+                ? order.returnInfo.status
+                : order.orderStatus}
+            </span>
           </div>
         </div>
 
+        {/* Details Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 md:gap-16">
           <div className="lg:col-span-8 space-y-8">
             <div className="bg-white">
-              <h3 className="text-[11px] font-black uppercase tracking-[0.2em] border-b border-zinc-200 pb-3 flex items-center gap-2 text-zinc-500">
-                <Package size={16} /> Order Items ({order.orderItems?.length})
-              </h3>
-              {order.orderItems?.map((item, index) => (
-                <div
-                  key={index}
-                  className="flex flex-row gap-4 md:gap-6 py-6 border-b border-zinc-100 group"
-                >
-                  <div className="w-24 h-32 md:w-28 md:h-40 bg-zinc-50 overflow-hidden flex-shrink-0 border border-zinc-100 rounded-xl">
-                    <img
-                      src={getImgUrl(item.image)}
-                      className="w-full h-full object-cover transition-all duration-500 group-hover:scale-105"
-                      alt="Product"
-                    />
-                  </div>
-                  <div className="flex-1 flex flex-col justify-center min-w-0">
-                    <h4 className="text-base md:text-xl font-black uppercase italic leading-tight truncate">
-                      {item.productName || "Premium Piece"}
-                    </h4>
-                    <p className="text-[10px] font-medium text-zinc-500 mt-1 uppercase tracking-wider">
-                      Color: {item.color || "Standard"} | Size: {item.size}
-                    </p>
-                    <p className="font-black text-lg italic mt-4">
-                      ₹{item.price?.toLocaleString("en-IN")}
-                    </p>
-                  </div>
-                </div>
-              ))}
+              <h2 className="text-[11px] font-black uppercase tracking-[0.2em] border-b border-zinc-200 pb-3 flex items-center gap-2 text-zinc-500">
+                <Package size={16} aria-hidden="true" /> Order Items (
+                {order.orderItems?.length})
+              </h2>
+
+              <div role="list" className="divide-y divide-zinc-100">
+                {order.orderItems?.map((item) => {
+                  const pName = item.productName || "Premium Piece";
+                  return (
+                    <div
+                      key={item._id}
+                      role="listitem"
+                      className="flex flex-row gap-4 md:gap-6 py-6 group"
+                    >
+                      <div className="w-24 h-32 md:w-28 md:h-40 bg-zinc-50 overflow-hidden flex-shrink-0 border border-zinc-100 rounded-xl">
+                        <img
+                          src={cldImage(item.image, 400)}
+                          className="w-full h-full object-cover transition-all duration-500 group-hover:scale-105"
+                          alt={pName}
+                          loading="lazy"
+                          decoding="async"
+                        />
+                      </div>
+                      <div className="flex-1 flex flex-col justify-center min-w-0">
+                        <h3 className="text-base md:text-xl font-black uppercase italic leading-tight truncate">
+                          {pName}
+                        </h3>
+                        <p className="text-[10px] font-medium text-zinc-500 mt-1 uppercase tracking-wider">
+                          Color: {item.color || "Standard"}{" "}
+                          <span aria-hidden="true">|</span> Size: {item.size}
+                        </p>
+                        <p className="font-black text-lg italic mt-4">
+                          {formatPrice(item.price)}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
 
-            <div className="bg-zinc-900 text-white rounded-2xl p-6 md:p-8 print:hidden flex flex-col sm:flex-row items-center justify-between gap-6">
+            {/* Help Section */}
+            <section
+              className="bg-zinc-900 text-white rounded-2xl p-6 md:p-8 print:hidden flex flex-col sm:flex-row items-center justify-between gap-6"
+              aria-labelledby="help-heading"
+            >
               <div className="flex items-start gap-4">
-                <div className="bg-zinc-800 p-3 rounded-full">
+                <div
+                  className="bg-zinc-800 p-3 rounded-full"
+                  aria-hidden="true"
+                >
                   <MessageCircleQuestion size={24} className="text-zinc-300" />
                 </div>
                 <div>
-                  <h4 className="text-sm font-black uppercase tracking-widest italic mb-1">
+                  <h3
+                    id="help-heading"
+                    className="text-sm font-black uppercase tracking-widest italic mb-1"
+                  >
                     Need Help?
-                  </h4>
+                  </h3>
                   <p className="text-[10px] text-zinc-400 font-medium uppercase">
                     Contact us for any questions about this order.
                   </p>
                 </div>
               </div>
               <a
-                href="mailto:support@krumeku.com"
-                className="w-full sm:w-auto text-center bg-white text-black text-[10px] font-black uppercase tracking-[0.2em] py-3 px-6 rounded-lg"
+                href={`mailto:support@krumeku.com?subject=Help with Order ${formatId(order._id)}`}
+                className="w-full sm:w-auto text-center bg-white text-black hover:bg-zinc-200 transition-colors text-[10px] font-black uppercase tracking-[0.2em] py-3 px-6 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900"
               >
                 Email Support
               </a>
-            </div>
+            </section>
           </div>
 
+          {/* ── Sidebar ── */}
           <div className="lg:col-span-4 space-y-6">
-            <div className="bg-white border border-zinc-200 p-6 rounded-2xl shadow-sm">
-              <h3 className="text-[11px] font-black uppercase tracking-[0.2em] flex items-center gap-2 text-zinc-500 border-b border-zinc-100 pb-4 mb-4">
-                <MapPin size={16} /> Address
-              </h3>
-              <div className="text-[11px] font-bold text-zinc-500 leading-relaxed uppercase space-y-1">
+            {/* Address */}
+            <section
+              className="bg-white border border-zinc-200 p-6 rounded-2xl shadow-sm"
+              aria-labelledby="address-heading"
+            >
+              <h2
+                id="address-heading"
+                className="text-[11px] font-black uppercase tracking-[0.2em] flex items-center gap-2 text-zinc-500 border-b border-zinc-100 pb-4 mb-4"
+              >
+                <MapPin size={16} aria-hidden="true" /> Address
+              </h2>
+              <address className="text-[11px] font-bold text-zinc-500 leading-relaxed uppercase space-y-1 not-italic">
                 <p className="text-black mb-2 font-black text-sm">
                   {order.shippingAddress?.fullName || user?.fullName}
                 </p>
@@ -372,20 +421,28 @@ export default function OrderDetails() {
                   {order.shippingAddress?.address},{" "}
                   {order.shippingAddress?.city}
                 </p>
+                {/* ✅ FIX: postalCode → pincode (matches backend schema) */}
                 <p>
                   {order.shippingAddress?.state} -{" "}
-                  {order.shippingAddress?.postalCode}
+                  {order.shippingAddress?.pincode}
                 </p>
                 <p className="mt-4 pt-4 border-t border-zinc-100 text-black">
                   +91 {order.shippingAddress?.phone}
                 </p>
-              </div>
-            </div>
+              </address>
+            </section>
 
-            <div className="bg-zinc-50 border border-zinc-200 p-6 rounded-2xl shadow-sm">
-              <h3 className="text-[11px] font-black uppercase tracking-[0.2em] border-b border-zinc-200 pb-4 mb-5 flex items-center gap-2 text-zinc-500">
-                <ReceiptText size={16} /> Summary
-              </h3>
+            {/* Order Summary */}
+            <section
+              className="bg-zinc-50 border border-zinc-200 p-6 rounded-2xl shadow-sm"
+              aria-labelledby="summary-heading"
+            >
+              <h2
+                id="summary-heading"
+                className="text-[11px] font-black uppercase tracking-[0.2em] border-b border-zinc-200 pb-4 mb-5 flex items-center gap-2 text-zinc-500"
+              >
+                <ReceiptText size={16} aria-hidden="true" /> Summary
+              </h2>
               <div className="space-y-4 text-[11px] font-bold uppercase text-zinc-500">
                 <div className="flex justify-between">
                   <span>Payment</span>
@@ -394,15 +451,13 @@ export default function OrderDetails() {
                 <div className="flex justify-between">
                   <span>MRP</span>
                   <span className="text-black">
-                    ₹{order.itemsPrice?.toLocaleString("en-IN")}
+                    {formatPrice(order.itemsPrice)}
                   </span>
                 </div>
                 {order.discountPrice > 0 && (
                   <div className="flex justify-between text-green-600">
                     <span>Discount</span>
-                    <span>
-                      - ₹{order.discountPrice?.toLocaleString("en-IN")}
-                    </span>
+                    <span>- {formatPrice(order.discountPrice)}</span>
                   </div>
                 )}
                 <div className="flex justify-between">
@@ -416,17 +471,17 @@ export default function OrderDetails() {
                   >
                     {order.shippingPrice === 0
                       ? "FREE"
-                      : `₹${order.shippingPrice}`}
+                      : formatPrice(order.shippingPrice)}
                   </span>
                 </div>
                 <div className="flex justify-between items-center border-t border-zinc-200 pt-5 mt-2">
                   <span className="text-black font-black">Total</span>
                   <span className="text-2xl font-black italic text-black">
-                    ₹{order.totalPrice?.toLocaleString("en-IN")}
+                    {formatPrice(order.totalPrice)}
                   </span>
                 </div>
               </div>
-            </div>
+            </section>
           </div>
         </div>
       </div>

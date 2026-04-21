@@ -1,152 +1,233 @@
+const asyncHandler = require("express-async-handler");
 const Coupon = require("../Models/couponModel");
 const Cart = require("../Models/CartSchema");
-const asyncHandler = require("express-async-handler");
+const { ApiError } = require("../Middleware/errorMiddleware");
 const { calculateBill } = require("../Utils/cartCalculator");
+const calculatePricing = require("../Utils/calculatePricing");
 
-// ============================================================
-// 1. APPLY COUPON (Modified for Persistence & Sync)
-// ============================================================
+const PRODUCT_SELECT =
+  "productName price discountPercent discountPrice discountAmount gstRate gstAmount finalPriceWithTax images category subCategory colors sizes countInStock inStock";
+
+const COUPON_FIELDS = [
+  "code",
+  "discountType",
+  "discountValue",
+  "minOrderAmount",
+  "maxDiscountAmount",
+  "expiresAt",
+  "isActive",
+  "usageLimit",
+];
+
+// ── Helpers ──────────────────────────────────────────────────
+
+const pickFields = (body) =>
+  COUPON_FIELDS.reduce((acc, key) => {
+    if (body[key] !== undefined) acc[key] = body[key];
+    return acc;
+  }, {});
+
+const buildItemsWithPricing = (items = []) =>
+  items
+    .filter((item) => item.product != null)
+    .map((item) => {
+      const prod = item.product;
+      const pricing = calculatePricing(prod);
+      const basePrice = pricing.discountPrice || prod.price;
+      const finalPrice = pricing.finalPriceWithTax || basePrice;
+
+      return {
+        _id: item._id,
+        product: prod,
+        size: item.size,
+        color: item.color,
+        quantity: item.quantity,
+        basePrice,
+        finalPriceWithTax: finalPrice,
+        itemTotalWithTax: finalPrice * item.quantity,
+      };
+    });
+
+const buildCartResponse = (cart, coupon = null) => {
+  const items = buildItemsWithPricing(cart.items);
+  const billDetails = calculateBill(cart.items, coupon);
+
+  return {
+    items,
+    appliedCoupon: coupon || null,
+    billDetails,
+  };
+};
+
+const removeCouponFromCarts = async (couponId) => {
+  await Cart.updateMany(
+    { appliedCoupon: couponId },
+    { $set: { appliedCoupon: null } },
+  );
+};
+
+// ── User Methods ─────────────────────────────────────────────
+
 exports.applyCoupon = asyncHandler(async (req, res) => {
   const { code } = req.body;
   const userId = req.user._id;
 
-  // 1. Cart aur Coupon fetch karo
-  const cart = await Cart.findOne({ user: userId }).populate("items.product");
+  if (!code?.trim()) {
+    throw new ApiError(400, "Coupon code is required");
+  }
+
+  const cart = await Cart.findOne({ user: userId }).populate(
+    "items.product",
+    PRODUCT_SELECT,
+  );
+
+  if (!cart || cart.items.length === 0) {
+    throw new ApiError(400, "Cart is empty");
+  }
+
   const coupon = await Coupon.findOne({
-    code: code.toUpperCase(),
+    code: code.toUpperCase().trim(),
     isActive: true,
   });
 
   if (!coupon) {
-    res.status(400);
-    throw new Error("Invalid Coupon Code");
+    throw new ApiError(400, "Invalid or inactive coupon code");
   }
 
-  // 2. Bill Calculate karo (Validation ke liye)
-  const billDetails = calculateBill(cart.items, coupon);
-
-  // 🔥 STRICT CHECK: Numbers compare karo (Fixes 999 limit bug)
-  const subtotal = Number(billDetails.cartTotalExclTax);
-  const minRequired = Number(coupon.minOrderAmount);
-
-  if (subtotal < minRequired) {
-    const diff = minRequired - subtotal; // 🔥 Kitna balance kam hai
-    res.status(400);
-    throw new Error(
-      `Is coupon ke liye ₹${diff} ki shopping aur karein. (Min Order: ₹${minRequired})`,
-    );
+  if (cart.appliedCoupon?.toString() === coupon._id.toString()) {
+    return res.status(200).json({
+      success: true,
+      message: "Coupon already applied",
+      data: buildCartResponse(cart, coupon),
+    });
   }
 
-  // 🔥 PERSISTENCE: Database mein coupon save karo
-  // Isse refresh karne par bhi coupon laga rahega
+  const subtotal = Number(calculateBill(cart.items).cartTotalExclTax);
+  const validation = coupon.isValid(userId, subtotal);
+
+  if (!validation.valid) {
+    throw new ApiError(400, validation.message);
+  }
+
   cart.appliedCoupon = coupon._id;
   await cart.save();
 
-  // 3. Consistency Response (Same as getCart structure)
   res.status(200).json({
     success: true,
-    message: "Coupon Applied!",
-    data: {
-      appliedCoupon: coupon,
-      billDetails: {
-        ...billDetails,
-
-        minOrderLimit: coupon.minOrderAmount,
-      },
-    },
+    message: "Coupon applied!",
+    data: buildCartResponse(cart, coupon),
   });
 });
 
-// ============================================================
-// 2. REMOVE COUPON (New - Industry Standard)
-// ============================================================
 exports.removeCoupon = asyncHandler(async (req, res) => {
   const userId = req.user._id;
-  const cart = await Cart.findOne({ user: userId }).populate("items.product");
 
-  if (cart) {
-    cart.appliedCoupon = null; // Database se hatao
-    await cart.save();
+  const cart = await Cart.findOne({ user: userId }).populate(
+    "items.product",
+    PRODUCT_SELECT,
+  );
+
+  if (!cart) {
+    return res.status(200).json({
+      success: true,
+      message: "Coupon removed",
+      data: {
+        items: [],
+        appliedCoupon: null,
+        billDetails: {
+          totalItems: 0,
+          cartTotalExclTax: 0,
+          discountAmount: 0,
+          gstAmount: 0,
+          shipping: 0,
+          finalTotal: 0,
+        },
+      },
+    });
   }
 
-  const billDetails = calculateBill(cart.items, null);
+  cart.appliedCoupon = null;
+  await cart.save();
 
   res.status(200).json({
     success: true,
-    message: "Coupon Removed",
-    data: {
-      appliedCoupon: null,
-      billDetails,
-    },
+    message: "Coupon removed",
+    data: buildCartResponse(cart, null),
   });
 });
 
-// ============================================================
-// 1. CREATE COUPON (Admin Only)
-// ============================================================
+// ── Admin Methods ────────────────────────────────────────────
+
 exports.createCoupon = asyncHandler(async (req, res) => {
-  const { code } = req.body;
+  const data = pickFields(req.body);
 
-  // Check if coupon with same code exists
-  const exists = await Coupon.findOne({ code: code.toUpperCase() });
-  if (exists) {
-    res.status(400);
-    throw new Error("Coupon code already exists");
+  if (!data.code?.trim()) {
+    throw new ApiError(400, "Coupon code is required");
   }
 
-  const coupon = await Coupon.create(req.body);
-  res.status(201).json({ success: true, coupon });
+  const exists = await Coupon.findOne({
+    code: data.code.toUpperCase().trim(),
+  }).lean();
+  if (exists) throw new ApiError(400, "Coupon code already exists");
+
+  const coupon = await Coupon.create({
+    ...data,
+    code: data.code.toUpperCase().trim(),
+  });
+
+  res.status(201).json({ success: true, data: coupon });
 });
 
-// ============================================================
-// 3. GET ALL COUPONS (Admin Only)
-// ============================================================
 exports.getAllCoupons = asyncHandler(async (req, res) => {
-  const coupons = await Coupon.find({}).sort({ createdAt: -1 });
-  res.status(200).json({ success: true, coupons });
-});
-
-// ============================================================
-// 4. DELETE COUPON (Admin Only)
-// ============================================================
-exports.deleteCoupon = asyncHandler(async (req, res) => {
-  const coupon = await Coupon.findById(req.params.id);
-  if (!coupon) {
-    res.status(404);
-    throw new Error("Coupon not found");
-  }
-  await coupon.deleteOne();
-  res.status(200).json({ success: true, message: "Coupon deleted" });
-});
-
-// ============================================================
-// 5. UPDATE COUPON STATUS (Admin Only - Toggle Active/Inactive)
-// ============================================================
-exports.updateCouponStatus = asyncHandler(async (req, res) => {
-  const coupon = await Coupon.findById(req.params.id);
-  if (!coupon) {
-    res.status(404);
-    throw new Error("Coupon not found");
-  }
-  coupon.isActive = !coupon.isActive;
-  await coupon.save();
-  res.status(200).json({ success: true, coupon });
+  const coupons = await Coupon.find({}).sort({ createdAt: -1 }).lean();
+  res.status(200).json({ success: true, data: coupons });
 });
 
 exports.updateCoupon = asyncHandler(async (req, res) => {
-  const coupon = await Coupon.findById(req.params.id);
+  const data = pickFields(req.body);
+  if (data.code) data.code = data.code.toUpperCase().trim();
 
-  if (!coupon) {
-    res.status(404);
-    throw new Error("Coupon not found");
-  }
-
-  // Jo fields body mein aayi hain unhe update karo
-  const updatedCoupon = await Coupon.findByIdAndUpdate(
+  const coupon = await Coupon.findByIdAndUpdate(
     req.params.id,
-    { $set: req.body },
+    { $set: data },
     { new: true, runValidators: true },
   );
 
-  res.status(200).json({ success: true, coupon: updatedCoupon });
+  if (!coupon) throw new ApiError(404, "Coupon not found");
+
+  const criticalChanged =
+    data.minOrderAmount !== undefined ||
+    data.expiresAt !== undefined ||
+    data.isActive !== undefined ||
+    data.usageLimit !== undefined;
+
+  if (criticalChanged) {
+    await removeCouponFromCarts(coupon._id);
+  }
+
+  res.status(200).json({ success: true, data: coupon });
+});
+
+exports.updateCouponStatus = asyncHandler(async (req, res) => {
+  const coupon = await Coupon.findById(req.params.id);
+  if (!coupon) throw new ApiError(404, "Coupon not found");
+
+  coupon.isActive = !coupon.isActive;
+  await coupon.save();
+
+  if (!coupon.isActive) {
+    await removeCouponFromCarts(coupon._id);
+  }
+
+  res.status(200).json({ success: true, data: coupon });
+});
+
+exports.deleteCoupon = asyncHandler(async (req, res) => {
+  const coupon = await Coupon.findById(req.params.id);
+  if (!coupon) throw new ApiError(404, "Coupon not found");
+
+  await removeCouponFromCarts(coupon._id);
+
+  await coupon.deleteOne();
+  res.status(200).json({ success: true, message: "Coupon deleted" });
 });

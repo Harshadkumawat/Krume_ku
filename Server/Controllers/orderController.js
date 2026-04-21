@@ -1,108 +1,208 @@
 const asyncHandler = require("express-async-handler");
 const Order = require("../Models/orderModel");
 const Product = require("../Models/ProductSchema");
+const User = require("../Models/userSchema");
 const Coupon = require("../Models/couponModel");
+const Cart = require("../Models/CartSchema");
+const { ApiError } = require("../Middleware/errorMiddleware");
 const sendOrderEmail = require("../Utils/sendEmail");
 const { getShiprocketToken } = require("./shippingController");
 const syncOrderToShiprocket = require("../Utils/shiprocketOrder");
 const axios = require("axios");
+const { calculateBill } = require("../Utils/cartCalculator");
+const calculatePricing = require("../Utils/calculatePricing");
 
-// -------------------- 1. ADMIN ANALYTICS --------------------
-const getAdminDashboardStats = asyncHandler(async (req, res) => {
-  const { range = "daily" } = req.query;
-  let groupFormat, matchDate;
+const PRODUCT_SELECT =
+  "productName price discountPercent discountPrice discountAmount gstRate gstAmount finalPriceWithTax images category subCategory colors sizes countInStock inStock";
 
-  if (range === "daily") {
-    groupFormat = "%Y-%m-%d";
-    matchDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-  } else if (range === "weekly") {
-    groupFormat = "%U";
-    matchDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-  } else if (range === "monthly") {
-    groupFormat = "%Y-%m";
-    matchDate = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000);
+const VALID_TRANSITIONS = {
+  Processing: ["Confirmed", "Cancelled"],
+  Confirmed: ["Shipped", "Cancelled"],
+  Shipped: ["Out for Delivery", "Cancelled"],
+  "Out for Delivery": ["Delivered", "Cancelled"],
+  Delivered: ["Return Requested"],
+  "Return Requested": ["Return Approved", "Delivered"],
+  "Return Approved": ["Returned"],
+  Cancelled: [],
+  Returned: [],
+};
+
+const USER_CANCELLABLE = ["Processing", "Confirmed"];
+
+const updateProductStock = async (orderItems, action = "decrease") => {
+  for (const item of orderItems) {
+    const product = await Product.findById(item.product);
+    if (!product) continue;
+
+    const qty = item.quantity;
+
+    if (action === "decrease") {
+      product.soldCount = (product.soldCount || 0) + qty;
+    } else {
+      product.soldCount = Math.max(0, (product.soldCount || 0) - qty);
+    }
+
+    const sizeIndex = product.sizes.findIndex((s) => s.label === item.size);
+
+    if (sizeIndex !== -1) {
+      if (action === "decrease") {
+        product.sizes[sizeIndex].stock = Math.max(
+          0,
+          product.sizes[sizeIndex].stock - qty,
+        );
+      } else {
+        product.sizes[sizeIndex].stock += qty;
+      }
+      product.markModified("sizes");
+    } else {
+      console.warn(
+        `⚠️ Size "${item.size}" not found in product ${product._id}. Stock not adjusted for this item.`,
+      );
+    }
+
+    await product.save();
   }
+};
 
-  const salesData = await Order.aggregate([
-    {
-      $match: {
-        createdAt: { $gte: matchDate },
-        orderStatus: { $nin: ["Cancelled", "Returned"] },
-      },
-    },
-    {
-      $group: {
-        _id: { $dateToString: { format: groupFormat, date: "$createdAt" } },
-        revenue: { $sum: "$totalPrice" },
-        orders: { $sum: 1 },
-      },
-    },
-    { $sort: { _id: 1 } },
-  ]);
+const cancelShiprocketOrder = async (shiprocketOrderId) => {
+  try {
+    const token = await getShiprocketToken();
+    if (token && shiprocketOrderId) {
+      await axios.post(
+        "https://apiv2.shiprocket.in/v1/external/orders/cancel",
+        { ids: [shiprocketOrderId] },
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+    }
+  } catch (error) {
+    console.error("⚠️ Shiprocket Cancel Error:", error.message);
+  }
+};
 
-  const totalSales = await Order.aggregate([
-    { $match: { orderStatus: { $nin: ["Cancelled", "Returned"] } } },
-    { $group: { _id: null, total: { $sum: "$totalPrice" } } },
-  ]);
+const verifyOrderOwnership = (order, userId) => {
+  if (order.user.toString() !== userId.toString()) {
+    throw new ApiError(403, "Not authorized to access this order");
+  }
+};
 
-  const totalOrders = await Order.countDocuments();
-  const returnRequests = await Order.countDocuments({
-    "returnInfo.status": "Pending",
-  });
+const restoreCouponUsage = async (order) => {
+  if (order.appliedCoupon) {
+    await Coupon.findByIdAndUpdate(order.appliedCoupon, {
+      $pull: { usedBy: order.user },
+    });
+  }
+};
 
-  const lowStockProducts = await Product.find({
-    countInStock: { $lte: 5 },
-    inStock: true,
-  }).select("productName countInStock images category");
+const handleCancellation = async (order) => {
+  await updateProductStock(order.orderItems, "restore");
+  await cancelShiprocketOrder(order.shiprocketOrderId);
+  await restoreCouponUsage(order);
+};
 
-  const latestOrders = await Order.find({})
-    .populate("user", "fullName email")
-    .sort({ createdAt: -1 })
-    .limit(5);
-
-  res.status(200).json({
-    success: true,
-    data: {
-      salesData,
-      lowStockProducts,
-      latestOrders,
-      totalSales: totalSales[0]?.total || 0,
-      totalOrders,
-      returnRequests,
-    },
-  });
-});
-
-// -------------------- 2. ORDER MANAGEMENT --------------------
 const addOrderItems = asyncHandler(async (req, res) => {
-  const {
-    orderItems,
-    shippingAddress,
-    paymentMethod,
-    itemsPrice,
-    taxPrice,
-    shippingPrice,
-    totalPrice,
-    couponCode,
-    isPaid,
-    paidAt,
-    paymentResult,
-  } = req.body;
+  const { shippingAddress, paymentMethod, isPaid, paidAt, paymentResult } =
+    req.body;
 
-  if (orderItems && orderItems.length === 0) {
-    return res.status(400).json({ success: false, message: "No order items" });
+  if (
+    !shippingAddress?.fullName ||
+    !shippingAddress?.phone ||
+    !shippingAddress?.address ||
+    !shippingAddress?.city ||
+    !shippingAddress?.state ||
+    !shippingAddress?.pincode
+  ) {
+    throw new ApiError(400, "Complete shipping address is required");
   }
+
+  const cart = await Cart.findOne({ user: req.user._id })
+    .populate({ path: "items.product", select: PRODUCT_SELECT })
+    .populate("appliedCoupon");
+
+  if (!cart || cart.items.length === 0) {
+    throw new ApiError(400, "Cart is empty — add items before ordering");
+  }
+
+  const validItems = cart.items.filter((item) => item.product != null);
+  if (validItems.length === 0) {
+    throw new ApiError(
+      400,
+      "All products in your cart are no longer available",
+    );
+  }
+
+  for (const item of validItems) {
+    const product = item.product;
+
+    if (!product.inStock || product.countInStock < item.quantity) {
+      throw new ApiError(
+        400,
+        `"${product.productName}" ${!product.inStock ? "is out of stock" : `only has ${product.countInStock} units available`}`,
+      );
+    }
+
+    const sizeObj = product.sizes?.find((s) => s.label === item.size);
+    if (sizeObj && sizeObj.stock < item.quantity) {
+      throw new ApiError(
+        400,
+        `"${product.productName}" in size ${item.size} only has ${sizeObj.stock} units available`,
+      );
+    }
+  }
+
+  const coupon = cart.appliedCoupon;
+  const billDetails = calculateBill(validItems, coupon);
+
+  if (coupon?._id) {
+    const freshCoupon = await Coupon.findById(coupon._id);
+
+    if (!freshCoupon || !freshCoupon.isActive) {
+      cart.appliedCoupon = null;
+      await cart.save();
+      throw new ApiError(
+        400,
+        "Applied coupon is no longer available. Please review your cart and try again.",
+      );
+    }
+
+    const recheck = freshCoupon.isValid(
+      req.user._id,
+      billDetails.cartTotalExclTax,
+    );
+
+    if (!recheck.valid) {
+      cart.appliedCoupon = null;
+      await cart.save();
+      throw new ApiError(
+        400,
+        `Coupon "${freshCoupon.code}": ${recheck.message}. Please place order again.`,
+      );
+    }
+  }
+
+  const orderItems = validItems.map((item) => {
+    const pricing = calculatePricing(item.product);
+    return {
+      productName: item.product.productName,
+      quantity: item.quantity,
+      image: item.product.images?.[0]?.public_id || "",
+      price: pricing.discountPrice || item.product.price,
+      product: item.product._id,
+      size: item.size || "M",
+      color: item.color || "Standard",
+    };
+  });
 
   const order = new Order({
     orderItems,
     user: req.user._id,
     shippingAddress,
-    paymentMethod,
-    itemsPrice,
-    taxPrice,
-    shippingPrice,
-    totalPrice,
-    couponCode,
+    paymentMethod: paymentMethod || "COD",
+    itemsPrice: billDetails.cartTotalExclTax,
+    taxPrice: billDetails.gstAmount,
+    shippingPrice: billDetails.shipping,
+    discountPrice: billDetails.discountAmount,
+    totalPrice: billDetails.finalTotal,
+    appliedCoupon: coupon?._id || null,
     isPaid: isPaid || false,
     paidAt: paidAt || null,
     paymentResult: paymentResult || {},
@@ -110,34 +210,32 @@ const addOrderItems = asyncHandler(async (req, res) => {
 
   const createdOrder = await order.save();
 
-  // 🔥 UPDATE STOCK & Bestseller (soldCount)
-  for (const item of orderItems) {
-    const product = await Product.findById(item.product);
-    if (product) {
-      product.countInStock = Math.max(0, product.countInStock - item.quantity);
-      product.soldCount = (product.soldCount || 0) + item.quantity; // 🔥 Naya jadoo: Bestseller Tracking
-
-      const sizeIndex = product.sizes.findIndex((s) => s.label === item.size);
-      if (sizeIndex !== -1) {
-        product.sizes[sizeIndex].stock = Math.max(
-          0,
-          product.sizes[sizeIndex].stock - item.quantity,
-        );
-      }
-      await product.save();
+  try {
+    const user = await User.findById(req.user._id);
+    if (user && (!user.addresses || user.addresses.length === 0)) {
+      user.addresses.push({
+        ...shippingAddress,
+        addressType: "Home",
+        isDefault: true,
+      });
+      await user.save();
     }
+  } catch (error) {
+    console.error("⚠️ Address Auto-Save Failed:", error.message);
   }
 
-  if (couponCode) {
-    await Coupon.findOneAndUpdate(
-      { code: couponCode.toUpperCase() },
-      { $inc: { usedCount: 1 }, $push: { usersUsed: req.user._id } },
-    );
+  await updateProductStock(orderItems, "decrease");
+
+  if (coupon?._id) {
+    await Coupon.findByIdAndUpdate(coupon._id, {
+      $addToSet: { usedBy: req.user._id },
+    });
   }
 
-  res.status(201).json(createdOrder);
+  await Cart.findOneAndDelete({ user: req.user._id });
 
-  // Background Tasks
+  res.status(201).json({ success: true, data: createdOrder });
+
   (async () => {
     try {
       const token = await getShiprocketToken();
@@ -149,9 +247,10 @@ const addOrderItems = asyncHandler(async (req, res) => {
           req.user.fullName,
         );
         if (shiprocketRes) {
-          createdOrder.shiprocketOrderId = shiprocketRes.order_id;
-          createdOrder.shiprocketShipmentId = shiprocketRes.shipment_id;
-          await createdOrder.save();
+          await Order.findByIdAndUpdate(createdOrder._id, {
+            shiprocketOrderId: shiprocketRes.order_id,
+            shiprocketShipmentId: shiprocketRes.shipment_id,
+          });
         }
       }
     } catch (error) {
@@ -161,40 +260,34 @@ const addOrderItems = asyncHandler(async (req, res) => {
 
   (async () => {
     try {
-      const orderDetails = {
+      await sendOrderEmail(req.user.email, {
         orderId: createdOrder._id.toString(),
         totalAmount: createdOrder.totalPrice,
-        address: `${createdOrder.shippingAddress.address}, ${createdOrder.shippingAddress.city} - ${createdOrder.shippingAddress.postalCode}`,
-        items: createdOrder.orderItems.map((item) => ({
+        address: `${shippingAddress.address}, ${shippingAddress.city} - ${shippingAddress.pincode}`,
+        items: orderItems.map((item) => ({
           name: item.productName,
           quantity: item.quantity,
           price: item.price,
           image: item.image,
           size: item.size || "N/A",
         })),
-      };
-      await sendOrderEmail(req.user.email, orderDetails);
+      });
     } catch (error) {
       console.error("⚠️ Email Error:", error.message);
     }
   })();
 });
 
-// -------------------- 3. RETURN & EXCHANGE --------------------
 const requestReturn = asyncHandler(async (req, res) => {
   const { reason, comments, type } = req.body;
   const order = await Order.findById(req.params.id);
 
-  if (!order)
-    return res.status(404).json({ success: false, message: "Order not found" });
+  if (!order) throw new ApiError(404, "Order not found");
+
+  verifyOrderOwnership(order, req.user._id);
 
   if (order.orderStatus !== "Delivered") {
-    return res
-      .status(400)
-      .json({
-        success: false,
-        message: "Order must be delivered to initiate return",
-      });
+    throw new ApiError(400, "Order must be delivered to initiate return");
   }
 
   const deliveryDate = new Date(order.deliveredAt);
@@ -202,43 +295,39 @@ const requestReturn = asyncHandler(async (req, res) => {
     Math.abs(new Date() - deliveryDate) / (1000 * 60 * 60 * 24),
   );
 
-  if (diffDays > 7) {
-    return res
-      .status(400)
-      .json({
-        success: false,
-        message: "Return window closed (7 days exceeded)",
-      });
-  }
-
-  if (order.returnInfo && order.returnInfo.isReturnRequested) {
-    return res
-      .status(400)
-      .json({ success: false, message: "Return request already submitted" });
-  }
+  if (diffDays > 7)
+    throw new ApiError(400, "Return window closed (7 days exceeded)");
+  if (order.returnInfo?.isReturnRequested)
+    throw new ApiError(400, "Return request already submitted");
 
   order.returnInfo = {
     isReturnRequested: true,
-    reason,
-    comments,
+    reason: reason || "",
+    comments: comments || "",
     type: type
       ? type.charAt(0).toUpperCase() + type.slice(1).toLowerCase()
       : "Refund",
-    requestedAt: Date.now(),
+    requestedAt: new Date(),
     status: "Pending",
   };
 
   order.orderStatus = "Return Requested";
   await order.save();
-  res.status(200).json({ success: true, message: "Return Request Initiated" });
+
+  res.status(200).json({
+    success: true,
+    message: "Return request submitted",
+    data: order,
+  });
 });
 
 const handleReturnStatus = asyncHandler(async (req, res) => {
   const { status, adminComment } = req.body;
   const order = await Order.findById(req.params.id);
 
-  if (!order)
-    return res.status(404).json({ success: false, message: "Order not found" });
+  if (!order) throw new ApiError(404, "Order not found");
+  if (!["Approved", "Rejected", "Refunded"].includes(status))
+    throw new ApiError(400, "Invalid return status");
 
   order.returnInfo.status = status;
   if (adminComment) order.returnInfo.adminComment = adminComment;
@@ -249,20 +338,25 @@ const handleReturnStatus = asyncHandler(async (req, res) => {
     if (order.shiprocketOrderId) {
       try {
         const token = await getShiprocketToken();
+        const totalQty = order.orderItems.reduce(
+          (acc, item) => acc + item.quantity,
+          0,
+        );
+
         const returnPayload = {
           order_id: order.shiprocketOrderId,
           order_date: order.createdAt.toISOString().split("T")[0],
-          pickup_customer_name:
-            order.shippingAddress.fullName || order.user.fullName,
+          pickup_customer_name: order.shippingAddress.fullName,
           pickup_address: order.shippingAddress.address,
+          pickup_address_2: order.shippingAddress.landmark || "",
           pickup_city: order.shippingAddress.city,
           pickup_state: order.shippingAddress.state || "",
           pickup_country: "India",
-          pickup_pincode: order.shippingAddress.postalCode,
+          pickup_pincode: order.shippingAddress.pincode,
           pickup_email: "admin@krumeku.com",
           pickup_phone: order.shippingAddress.phone,
           order_items: order.orderItems.map((item) => ({
-            name: item.productName || item.name,
+            name: item.productName,
             sku: item.product.toString(),
             units: item.quantity,
             selling_price: item.price,
@@ -272,7 +366,7 @@ const handleReturnStatus = asyncHandler(async (req, res) => {
           length: 10,
           breadth: 10,
           height: 10,
-          weight: 0.5,
+          weight: totalQty * 0.5,
         };
 
         const response = await axios.post(
@@ -282,55 +376,55 @@ const handleReturnStatus = asyncHandler(async (req, res) => {
         );
         order.returnInfo.shiprocketReturnId = response.data.return_order_id;
       } catch (error) {
-        console.error("❌ Shiprocket Return API Failed:", error.message);
+        console.error("❌ Shiprocket Return Failed:", error.message);
       }
     }
   } else if (status === "Refunded") {
     order.orderStatus = "Returned";
     order.isPaid = false;
-
-    for (const item of order.orderItems) {
-      const product = await Product.findById(item.product);
-      if (product) {
-        product.countInStock += item.quantity;
-        product.soldCount = Math.max(
-          0,
-          (product.soldCount || 0) - item.quantity,
-        ); // 🔥 Return hone par bestseller se minus bhi karo
-
-        const sizeIndex = product.sizes.findIndex((s) => s.label === item.size);
-        if (sizeIndex !== -1) {
-          product.sizes[sizeIndex].stock += item.quantity;
-        }
-        await product.save();
-      }
-    }
+    await updateProductStock(order.orderItems, "restore");
+    await restoreCouponUsage(order);
   } else if (status === "Rejected") {
     order.orderStatus = "Delivered";
   }
 
   await order.save();
-  res.status(200).json({ success: true, message: `Return request ${status}` });
+
+  res.status(200).json({
+    success: true,
+    message: `Return ${status.toLowerCase()}`,
+    data: order,
+  });
 });
 
-// -------------------- 4. STANDARD CONTROLLERS --------------------
 const updateOrderStatus = asyncHandler(async (req, res) => {
   const order = await Order.findById(req.params.id);
-  if (!order)
-    return res.status(404).json({ success: false, message: "Order not found" });
+
+  if (!order) throw new ApiError(404, "Order not found");
 
   const newStatus = req.body.status || req.body.orderStatus;
-  if (order.orderStatus === "Cancelled") {
-    return res
-      .status(400)
-      .json({ success: false, message: "Cannot update cancelled order" });
+  if (!newStatus) throw new ApiError(400, "Status is required");
+
+  const allowedNext = VALID_TRANSITIONS[order.orderStatus] || [];
+  if (!allowedNext.includes(newStatus)) {
+    throw new ApiError(
+      400,
+      `Cannot change status from "${order.orderStatus}" to "${newStatus}". Allowed: ${
+        allowedNext.length > 0 ? allowedNext.join(", ") : "none"
+      }`,
+    );
   }
 
   order.orderStatus = newStatus;
+
   if (newStatus === "Delivered") {
-    order.deliveredAt = Date.now();
+    order.deliveredAt = new Date();
     order.isDelivered = true;
     order.isPaid = true;
+  }
+
+  if (newStatus === "Cancelled") {
+    await handleCancellation(order);
   }
 
   await order.save();
@@ -338,82 +432,78 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
 });
 
 const getOrderById = asyncHandler(async (req, res) => {
-  const order = await Order.findById(req.params.id).populate(
-    "user",
-    "fullName email phone",
-  );
-  if (order) res.json(order);
-  else res.status(404).json({ success: false, message: "Order not found" });
+  const order = await Order.findById(req.params.id)
+    .populate("user", "fullName email phone")
+    .lean();
+
+  if (!order) throw new ApiError(404, "Order not found");
+
+  if (
+    req.user.role !== "admin" &&
+    order.user._id.toString() !== req.user._id.toString()
+  ) {
+    throw new ApiError(403, "Not authorized to view this order");
+  }
+
+  res.status(200).json({ success: true, data: order });
 });
 
 const getMyOrders = asyncHandler(async (req, res) => {
-  const orders = await Order.find({ user: req.user._id }).sort({
-    createdAt: -1,
-  });
-  res.json(orders);
+  const orders = await Order.find({ user: req.user._id })
+    .sort({ createdAt: -1 })
+    .lean();
+  res.status(200).json({ success: true, data: orders });
 });
 
 const cancelOrder = asyncHandler(async (req, res) => {
   const order = await Order.findById(req.params.id);
-  if (!order)
-    return res.status(404).json({ success: false, message: "Order not found" });
 
-  if (order.orderStatus !== "Processing") {
-    return res
-      .status(400)
-      .json({
-        success: false,
-        message: "Cannot cancel shipped/delivered orders",
-      });
+  if (!order) throw new ApiError(404, "Order not found");
+  verifyOrderOwnership(order, req.user._id);
+
+  if (!USER_CANCELLABLE.includes(order.orderStatus)) {
+    throw new ApiError(
+      400,
+      `Cannot cancel — order is "${order.orderStatus}". Contact support for cancellation.`,
+    );
   }
 
-  for (const item of order.orderItems) {
-    const product = await Product.findById(item.product);
-    if (product) {
-      product.countInStock += item.quantity;
-      product.soldCount = Math.max(0, (product.soldCount || 0) - item.quantity); // 🔥 Cancel hone par bestseller se minus
-
-      const sizeIndex = product.sizes.findIndex((s) => s.label === item.size);
-      if (sizeIndex !== -1) {
-        product.sizes[sizeIndex].stock += item.quantity;
-      }
-      await product.save();
-    }
-  }
-
-  if (order.shiprocketOrderId) {
-    try {
-      const token = await getShiprocketToken();
-      await axios.post(
-        "https://apiv2.shiprocket.in/v1/external/orders/cancel",
-        { ids: [order.shiprocketOrderId] },
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
-    } catch (error) {
-      console.error("⚠️ Shiprocket Cancel Error:", error.message);
-    }
-  }
-
+  await handleCancellation(order);
   order.orderStatus = "Cancelled";
   await order.save();
-  res
-    .status(200)
-    .json({ success: true, message: "Order cancelled successfully" });
+
+  res.status(200).json({
+    success: true,
+    message: "Order cancelled successfully",
+    data: order,
+  });
 });
 
 const getAllOrders = asyncHandler(async (req, res) => {
-  const orders = await Order.find({})
+  const filter = {};
+
+  if (req.query.returnRequested === "true") {
+    filter["returnInfo.isReturnRequested"] = true;
+  }
+
+  if (req.query.status) {
+    filter.orderStatus = req.query.status;
+  }
+
+  const orders = await Order.find(filter)
     .populate("user", "fullName email")
-    .sort({ createdAt: -1 });
+    .sort({ createdAt: -1 })
+    .lean();
+
   res.status(200).json({ success: true, count: orders.length, data: orders });
 });
 
 const deleteOrder = asyncHandler(async (req, res) => {
   const order = await Order.findById(req.params.id);
-  if (!order)
-    return res.status(404).json({ success: false, message: "Order not found" });
+  if (!order) throw new ApiError(404, "Order not found");
+
   await order.deleteOne();
-  res.status(200).json({ success: true, message: "Order Removed" });
+  res.status(200).json({ success: true, message: "Order removed" });
 });
 
 module.exports = {
@@ -424,7 +514,6 @@ module.exports = {
   getAllOrders,
   updateOrderStatus,
   deleteOrder,
-  getAdminDashboardStats,
   requestReturn,
   handleReturnStatus,
 };

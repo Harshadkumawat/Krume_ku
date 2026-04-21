@@ -1,27 +1,20 @@
 const express = require("express");
+const router = express.Router();
+
 const {
   getProducts,
   getHomeProducts,
-
   getSingleProduct,
   fixProductData,
 } = require("../Controllers/productController");
+const { protect, admin } = require("../Middleware/authMiddleware");
 
-const router = express.Router();
+// ── Public Routes ───────────────────────────────────
+router.get("/home", getHomeProducts); // GET /api/products/home
+router.get("/", getProducts); // GET /api/products
+router.get("/:id", getSingleProduct); // GET /api/products/:id
 
-// 1. Utility Routes 
-
-router.get("/fix-data", fixProductData);
-
-// 2. Home Page Route 
-router.get("/home", getHomeProducts);   
-
-// 3. Shop Page (Saare Products)
-
-router.get("/", getProducts);           
-
-// 4. Single Product 
-
-router.get("/:id", getSingleProduct);   
+// ── Admin Routes ────────────────────────────────────
+router.post("/fix-data", protect, admin, fixProductData); // POST /api/products/fix-data
 
 module.exports = router;

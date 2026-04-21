@@ -44,7 +44,7 @@ jobs:
             # 0. EC2 Server login to Docker Hub
             echo "${{ secrets.DOCKER_PASSWORD }}" | sudo docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
-            # NOTE: Step 1 (Generate .env) hata diya hai taaki server ki file safe rahe.
+           
 
             # 1. Pull latest image
             sudo docker pull ${{ secrets.DOCKER_USERNAME }}/krumeku-backend:latest

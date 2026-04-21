@@ -1,71 +1,119 @@
 const asyncHandler = require("express-async-handler");
 const axios = require("axios");
+const { ApiError } = require("../Middleware/errorMiddleware");
 
-// 1. Shiprocket Token
+let cachedToken = null;
+let tokenExpiry = null;
+let tokenPromise = null;
+
+/**
+ * Shiprocket Token - with cache & race condition prevention
+ */
 const getShiprocketToken = async () => {
-  try {
-    const res = await axios.post(
-      "https://apiv2.shiprocket.in/v1/external/auth/login",
-      {
-        email: process.env.SHIPROCKET_EMAIL,
-        password: process.env.SHIPROCKET_PASSWORD,
-      },
-    );
-    return res.data.token;
-  } catch (error) {
-    console.error(
-      "❌ Shiprocket Auth Fail:",
-      error.response?.data || error.message,
-    );
-    return null;
+  if (cachedToken && tokenExpiry && Date.now() < tokenExpiry) {
+    return cachedToken;
   }
+
+  if (tokenPromise) return tokenPromise;
+
+  tokenPromise = (async () => {
+    try {
+      const res = await axios.post(
+        "https://apiv2.shiprocket.in/v1/external/auth/login",
+        {
+          email: process.env.SHIPROCKET_EMAIL,
+          password: process.env.SHIPROCKET_PASSWORD,
+        },
+        { timeout: 10000 },
+      );
+
+      cachedToken = res.data.token;
+      tokenExpiry = Date.now() + 23 * 60 * 60 * 1000;
+      return cachedToken;
+    } catch (error) {
+      console.error(
+        "❌ Shiprocket Auth Fail:",
+        error.response?.data || error.message,
+      );
+      cachedToken = null;
+      tokenExpiry = null;
+      return null;
+    } finally {
+      tokenPromise = null;
+    }
+  })();
+
+  return tokenPromise;
 };
 
-// 2. Pincode Serviceability Check
+const clearShiprocketToken = () => {
+  cachedToken = null;
+  tokenExpiry = null;
+};
+
+/**
+ * Pincode Serviceability Check
+ */
 const checkPincode = asyncHandler(async (req, res) => {
   const rawPincode =
     req.params.pincode || req.body.pincode || req.query.pincode;
 
   if (!rawPincode) {
-    return res
-      .status(400)
-      .json({ success: false, message: "Pincode is missing from frontend!" });
+    throw new ApiError(400, "Pincode is missing!");
   }
 
-  const token = await getShiprocketToken();
+  const pincodeStr = String(rawPincode).trim();
+  if (!/^\d{6}$/.test(pincodeStr)) {
+    throw new ApiError(400, "Pincode must be exactly 6 digits");
+  }
 
+  const pickupPincode = Number(
+    String(process.env.WAREHOUSE_PINCODE || "").trim(),
+  );
+  if (isNaN(pickupPincode)) {
+    throw new ApiError(500, "Warehouse pincode not configured");
+  }
+
+  const weight = Number(req.query.weight) || 0.5;
+  const cod = req.query.cod !== undefined ? Number(req.query.cod) : 1;
+
+  let token = await getShiprocketToken();
   if (!token) {
-    return res.status(500).json({
-      success: false,
-      message: "Shipping service currently unavailable",
-    });
+    throw new ApiError(500, "Shipping service currently unavailable");
   }
 
-  try {
-    const pickupPincode = Number(
-      String(process.env.WAREHOUSE_PINCODE || "").trim(),
-    );
-    const deliveryPincode = Number(String(rawPincode).trim());
+  const deliveryPincode = Number(pincodeStr);
 
-    if (isNaN(pickupPincode) || isNaN(deliveryPincode)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid Pincode Format",
-      });
-    }
-
-    const response = await axios.get(
+  const makeRequest = async (authToken) => {
+    return await axios.get(
       "https://apiv2.shiprocket.in/v1/external/courier/serviceability/",
       {
         params: {
           pickup_postcode: pickupPincode,
           delivery_postcode: deliveryPincode,
-          weight: 0.5,
-          cod: 1,
+          weight,
+          cod,
         },
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${authToken}` },
+        timeout: 10000,
       },
     );
+  };
+
+  try {
+    let response;
+    try {
+      response = await makeRequest(token);
+    } catch (error) {
+      if (error.response?.status === 401) {
+        clearShiprocketToken();
+        token = await getShiprocketToken();
+        if (!token) throw new ApiError(500, "Shipping authentication failed");
+        response = await makeRequest(token);
+      } else {
+        throw error;
+      }
+    }
 
     const data = response.data.data;
 
@@ -74,32 +122,35 @@ const checkPincode = asyncHandler(async (req, res) => {
       !data.available_courier_companies ||
       data.available_courier_companies.length === 0
     ) {
-      return res.status(400).json({
-        success: false,
-        message: "Pincode not serviceable by Shiprocket",
-      });
+      throw new ApiError(
+        400,
+        "Pincode not serviceable by our shipping partners",
+      );
     }
 
-    const fastest = data.available_courier_companies[0];
+    const fastest = data.available_courier_companies.sort(
+      (a, b) =>
+        (a.estimated_delivery_days || 99) - (b.estimated_delivery_days || 99),
+    )[0];
 
     res.status(200).json({
       success: true,
       etd: fastest.etd,
+      estimatedDays: fastest.estimated_delivery_days,
       courier: fastest.courier_name,
       is_cod: data.is_cod_available,
     });
   } catch (error) {
+    if (error.statusCode) throw error;
+
     console.error(
       "❌ Shiprocket Serviceability API Error:",
-      JSON.stringify(error.response?.data || error.message, null, 2),
+      error.response?.data || error.message,
     );
-
-    res.status(400).json({
-      success: false,
-      message: "Invalid Pincode or Service Error",
-      shiprocketSaying: error.response?.data?.message || error.message,
-      shiprocketErrors: error.response?.data?.errors || null,
-    });
+    throw new ApiError(
+      400,
+      error.response?.data?.message || "Invalid Pincode or Service Error",
+    );
   }
 });
 

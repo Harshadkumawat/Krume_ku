@@ -1,50 +1,17 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import couponService from "./couponService";
 import { toast } from "react-toastify";
-import { getCart } from "../cart/cartSlice";
 
 const initialState = {
   coupons: [],
-  appliedCoupon: null,
   isLoading: false,
+  isMutating: false,
   isSuccess: false,
   isError: false,
   message: "",
 };
 
-// ==========================================
-// ⚡ ASYNC THUNKS
-// ==========================================
-
-export const applyCoupon = createAsyncThunk(
-  "coupon/apply",
-  async (couponData, thunkAPI) => {
-    try {
-      const response = await couponService.applyCoupon(couponData);
-      await thunkAPI.dispatch(getCart()); // Sync cart after applying
-      return response;
-    } catch (error) {
-      return thunkAPI.rejectWithValue(
-        error.response?.data?.message || error.message,
-      );
-    }
-  },
-);
-
-export const removeCoupon = createAsyncThunk(
-  "coupon/remove",
-  async (_, thunkAPI) => {
-    try {
-      const response = await couponService.removeCoupon();
-      await thunkAPI.dispatch(getCart()); // Sync cart after removal
-      return response;
-    } catch (error) {
-      return thunkAPI.rejectWithValue(
-        error.response?.data?.message || "Failed to remove coupon",
-      );
-    }
-  },
-);
+// ── Thunks ───────────────────────────────────────
 
 export const getAllCoupons = createAsyncThunk(
   "coupon/getAll",
@@ -111,9 +78,7 @@ export const deleteCoupon = createAsyncThunk(
   },
 );
 
-// ==========================================
-// 📦 SLICE LOGIC
-// ==========================================
+// ── Slice ────────────────────────────────────────
 
 export const couponSlice = createSlice({
   name: "coupon",
@@ -121,6 +86,7 @@ export const couponSlice = createSlice({
   reducers: {
     resetCouponState: (state) => {
       state.isLoading = false;
+      state.isMutating = false;
       state.isSuccess = false;
       state.isError = false;
       state.message = "";
@@ -128,51 +94,15 @@ export const couponSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      // --- APPLY COUPON ---
-      .addCase(applyCoupon.pending, (state) => {
-        state.isLoading = true;
-        state.isSuccess = false;
-        state.isError = false;
-      })
-      .addCase(applyCoupon.fulfilled, (state, action) => {
-        state.isLoading = false;
-        state.isSuccess = true;
-        state.appliedCoupon =
-          action.payload?.data?.appliedCoupon || action.payload?.appliedCoupon;
-        toast.success("Coupon Applied! 🎉");
-      })
-      .addCase(applyCoupon.rejected, (state, action) => {
-        state.isLoading = false;
-        state.isError = true;
-        state.isSuccess = false;
-        state.appliedCoupon = null;
-        state.message = action.payload;
-        toast.error(action.payload);
-      })
-
-      // --- REMOVE COUPON ---
-      .addCase(removeCoupon.pending, (state) => {
-        state.isLoading = true;
-      })
-      .addCase(removeCoupon.fulfilled, (state) => {
-        state.isLoading = false;
-        state.isSuccess = true;
-        state.appliedCoupon = null;
-        toast.info("Coupon removed");
-      })
-      .addCase(removeCoupon.rejected, (state, action) => {
-        state.isLoading = false;
-        state.isError = true;
-        state.message = action.payload;
-      })
-
-      // --- GET ALL (Admin) ---
+      // ── GET ALL (fetch → isLoading) ──
       .addCase(getAllCoupons.pending, (state) => {
         state.isLoading = true;
+        state.isError = false;
+        state.message = "";
       })
       .addCase(getAllCoupons.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.coupons = action.payload.coupons || action.payload.data || [];
+        state.coupons = action.payload.data || [];
       })
       .addCase(getAllCoupons.rejected, (state, action) => {
         state.isLoading = false;
@@ -180,64 +110,87 @@ export const couponSlice = createSlice({
         state.message = action.payload;
       })
 
-      // --- CREATE ---
+      // ── CREATE (mutation → isMutating) ──
       .addCase(createNewCoupon.pending, (state) => {
-        state.isLoading = true;
+        state.isMutating = true;
+        state.isError = false;
+        state.isSuccess = false;
       })
       .addCase(createNewCoupon.fulfilled, (state, action) => {
-        state.isLoading = false;
+        state.isMutating = false;
         state.isSuccess = true;
-        state.coupons.unshift(action.payload.coupon || action.payload.data);
+        const newCoupon = action.payload.data;
+        if (newCoupon) state.coupons.unshift(newCoupon);
         toast.success("Coupon Created! 🚀");
       })
       .addCase(createNewCoupon.rejected, (state, action) => {
-        state.isLoading = false;
+        state.isMutating = false;
         state.isError = true;
         state.message = action.payload;
+        toast.error(action.payload || "Failed to create coupon");
       })
 
-      // --- UPDATE ---
+      // ── UPDATE (mutation → isMutating) ──
       .addCase(updateExistingCoupon.pending, (state) => {
-        state.isLoading = true;
+        state.isMutating = true;
+        state.isError = false;
+        state.isSuccess = false;
       })
       .addCase(updateExistingCoupon.fulfilled, (state, action) => {
-        state.isLoading = false;
+        state.isMutating = false;
         state.isSuccess = true;
-        const updated = action.payload.coupon || action.payload.data;
-        const index = state.coupons.findIndex((c) => c._id === updated._id);
-        if (index !== -1) state.coupons[index] = updated;
+        const updated = action.payload.data;
+        if (updated?._id) {
+          const index = state.coupons.findIndex((c) => c._id === updated._id);
+          if (index !== -1) state.coupons[index] = updated;
+        }
         toast.success("Coupon Updated! 🔥");
       })
       .addCase(updateExistingCoupon.rejected, (state, action) => {
-        state.isLoading = false;
+        state.isMutating = false;
         state.isError = true;
         state.message = action.payload;
+        toast.error(action.payload || "Update failed");
       })
 
-      // --- STATUS TOGGLE ---
+      // ── STATUS TOGGLE (mutation → isMutating) ──
+      .addCase(updateCouponStatus.pending, (state) => {
+        state.isMutating = true;
+      })
       .addCase(updateCouponStatus.fulfilled, (state, action) => {
-        const updated = action.payload.coupon || action.payload.data;
-        const index = state.coupons.findIndex((c) => c._id === updated._id);
-        if (index !== -1) state.coupons[index].isActive = updated.isActive;
+        state.isMutating = false;
+        const updated = action.payload.data;
+        if (updated?._id) {
+          const index = state.coupons.findIndex((c) => c._id === updated._id);
+          if (index !== -1) state.coupons[index] = updated;
+        }
         toast.success(
-          `Coupon ${updated.isActive ? "Activated" : "Deactivated"}`,
+          `Coupon ${updated?.isActive ? "Activated" : "Deactivated"}`,
         );
       })
+      .addCase(updateCouponStatus.rejected, (state, action) => {
+        state.isMutating = false;
+        state.isError = true;
+        state.message = action.payload;
+        toast.error(action.payload || "Status toggle failed");
+      })
 
-      // --- DELETE ---
+      // ── DELETE (mutation → isMutating) ──
       .addCase(deleteCoupon.pending, (state) => {
-        state.isLoading = true;
+        state.isMutating = true;
+        state.isError = false;
       })
       .addCase(deleteCoupon.fulfilled, (state, action) => {
-        state.isLoading = false;
+        state.isMutating = false;
         state.isSuccess = true;
         state.coupons = state.coupons.filter((c) => c._id !== action.meta.arg);
         toast.success("Coupon Deleted");
       })
       .addCase(deleteCoupon.rejected, (state, action) => {
-        state.isLoading = false;
+        state.isMutating = false;
         state.isError = true;
         state.message = action.payload;
+        toast.error(action.payload || "Delete failed");
       });
   },
 });

@@ -1,6 +1,12 @@
 const jwt = require("jsonwebtoken");
 const User = require("../Models/userSchema");
 const asyncHandler = require("express-async-handler");
+const { ApiError } = require("./errorMiddleware");
+
+if (!process.env.JWT_SECRET) {
+  console.error(`\x1b[31m%s\x1b[0m`, "❌ JWT_SECRET is not defined in .env");
+  process.exit(1);
+}
 
 const protect = asyncHandler(async (req, res, next) => {
   let token = req.cookies?.token;
@@ -10,34 +16,42 @@ const protect = asyncHandler(async (req, res, next) => {
   }
 
   if (!token) {
-    res.status(401);
-    throw new Error("Not authorized, please login");
+    throw new ApiError(401, "Not authorized, please login");
   }
 
+  let decoded;
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = await User.findById(decoded.id).select("-password");
-
-    if (!req.user) {
-      res.status(401);
-      throw new Error("User no longer exists");
-    }
-
-    next();
+    decoded = jwt.verify(token, process.env.JWT_SECRET);
   } catch (error) {
-    res.status(401);
-    throw new Error("Invalid token, authorization failed");
+    if (error.name === "TokenExpiredError") {
+      throw new ApiError(401, "Session expired, please login again");
+    }
+    throw new ApiError(401, "Invalid token, please login again");
   }
+
+  req.user = await User.findById(decoded.id).select(
+    "_id fullName email role phone avatar isGoogleUser passwordChangedAt",
+  );
+
+  if (!req.user) {
+    throw new ApiError(401, "User no longer exists");
+  }
+
+  if (req.user.passwordChangedAt) {
+    const changedAt = Math.floor(req.user.passwordChangedAt.getTime() / 1000);
+    if (decoded.iat < changedAt) {
+      throw new ApiError(401, "Password changed. Please login again.");
+    }
+  }
+
+  next();
 });
 
-// Admin Access Middleware
 const admin = (req, res, next) => {
   if (req.user && req.user.role === "admin") {
-    next();
-  } else {
-    res.status(403);
-    throw new Error("Access Denied: Admin only");
+    return next();
   }
+  throw new ApiError(403, "Access Denied: Admin only");
 };
 
-module.exports = { protect , admin};
+module.exports = { protect, admin };

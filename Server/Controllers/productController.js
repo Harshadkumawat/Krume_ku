@@ -1,9 +1,69 @@
 const asyncHandler = require("express-async-handler");
 const Product = require("../Models/ProductSchema");
-const mongoose = require("mongoose");
+const { ApiError } = require("../Middleware/errorMiddleware");
 const calculatePricing = require("../Utils/calculatePricing");
 
-// 1. GET ALL PRODUCTS
+// ── Helpers ─────────────────────────────────────────────────
+
+const attachPricing = (list) =>
+  list.map((p) => ({
+    ...p,
+    pricing: {
+      originalPrice: p.price,
+      discountPercent: p.discountPercent || 0,
+      discountAmount: p.discountAmount || 0,
+      discountPrice: p.discountPrice || p.price,
+      gstRate: p.gstRate || 0,
+      gstAmount: p.gstAmount || 0,
+      basePrice: p.discountPrice || p.price,
+      finalPriceWithTax: p.finalPriceWithTax || p.price,
+    },
+  }));
+
+const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const inFilter = (param) => {
+  if (!param) return null;
+  const values = param
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (!values.length) return null;
+  return { $in: values.map((v) => new RegExp(`^${escapeRegex(v)}$`, "i")) };
+};
+
+const LIST_PROJECTION = {
+  productName: 1,
+  price: 1,
+  discountPercent: 1,
+  discountAmount: 1,
+  discountPrice: 1,
+  gstRate: 1,
+  gstAmount: 1,
+  finalPriceWithTax: 1,
+  images: { $slice: 2 },
+  category: 1,
+  subCategory: 1,
+  gender: 1,
+  sizes: 1,
+  colors: 1,
+  slug: 1,
+  inStock: 1,
+  countInStock: 1,
+  isFeatured: 1,
+  isNewArrival: 1,
+};
+
+const SORT_OPTIONS = {
+  newest: { inStock: -1, createdAt: -1 },
+  price: { inStock: -1, price: 1 },
+  "-price": { inStock: -1, price: -1 },
+  popular: { inStock: -1, soldCount: -1 },
+  createdAt: { inStock: -1, createdAt: 1 },
+  "-createdAt": { inStock: -1, createdAt: -1 },
+};
+
+// ── GET /api/products ───────────────────────────────────────
 exports.getProducts = asyncHandler(async (req, res) => {
   let {
     page = 1,
@@ -16,6 +76,9 @@ exports.getProducts = asyncHandler(async (req, res) => {
     minPrice,
     maxPrice,
     newArrival,
+    cats,
+    sizes,
+    colors,
   } = req.query;
 
   page = Math.max(1, Number(page));
@@ -23,158 +86,149 @@ exports.getProducts = asyncHandler(async (req, res) => {
 
   const filter = {};
 
-  // Text Search
   if (q) {
+    const escapedQ = escapeRegex(q);
     filter.$or = [
-      { productName: { $regex: q, $options: "i" } },
-      { category: { $regex: q, $options: "i" } },
-      { subCategory: { $regex: q, $options: "i" } },
+      { productName: { $regex: escapedQ, $options: "i" } },
+      { category: { $regex: escapedQ, $options: "i" } },
+      { subCategory: { $regex: escapedQ, $options: "i" } },
     ];
   }
 
-  // Exact Match Filters
-  if (category) filter.category = category;
-  if (subCategory) filter.subCategory = subCategory;
-  if (gender) filter.gender = { $regex: `^${gender}$`, $options: "i" };
-
-  if (newArrival === "true") {
-    filter.isNewArrival = true;
+  const catsFilter = inFilter(cats);
+  if (catsFilter) {
+    filter.category = catsFilter;
+  } else if (category) {
+    filter.category = { $regex: `^${escapeRegex(category)}$`, $options: "i" };
   }
 
-  // Price Range
-  if (minPrice || maxPrice) {
+  if (subCategory) {
+    filter.subCategory = {
+      $regex: `^${escapeRegex(subCategory)}$`,
+      $options: "i",
+    };
+  }
+  if (gender) {
+    filter.gender = { $regex: `^${escapeRegex(gender)}$`, $options: "i" };
+  }
+
+  const sizesFilter = inFilter(sizes);
+  if (sizesFilter) filter["sizes.label"] = sizesFilter;
+
+  const colorsFilter = inFilter(colors);
+  if (colorsFilter) filter.colors = colorsFilter;
+
+  if (newArrival === "true") filter.isNewArrival = true;
+
+  const parsedMin = Number(minPrice);
+  const parsedMax = Number(maxPrice);
+  if (Number.isFinite(parsedMin) || Number.isFinite(parsedMax)) {
     filter.price = {};
-    if (minPrice) filter.price.$gte = Number(minPrice);
-    if (maxPrice) filter.price.$lte = Number(maxPrice);
+    if (Number.isFinite(parsedMin)) filter.price.$gte = parsedMin;
+    if (Number.isFinite(parsedMax)) filter.price.$lte = parsedMax;
   }
 
-  // Sorting logic (Same as before)
-  const sortOptions = {
-    price: { inStock: -1, price: 1 },
-    "-price": { inStock: -1, price: -1 },
-    createdAt: { inStock: -1, createdAt: 1 },
-    "-createdAt": { inStock: -1, createdAt: -1 },
-  };
-  const sortBy = sortOptions[sort] || { inStock: -1, createdAt: -1 };
-
+  const sortBy = SORT_OPTIONS[sort] || SORT_OPTIONS.newest;
   const skip = (page - 1) * limit;
-
-  const projection = {
-    productName: 1,
-    price: 1,
-    discountPercent: 1,
-    images: { $slice: 1 },
-    category: 1,
-    gender: 1,
-    sizes: 1,
-    colors: 1,
-    slug: 1,
-    inStock: 1,
-    countInStock: 1,
-  };
 
   const [total, rawData] = await Promise.all([
     Product.countDocuments(filter),
-    Product.find(filter, projection)
+    Product.find(filter, LIST_PROJECTION)
       .sort(sortBy)
       .skip(skip)
       .limit(limit)
       .lean(),
   ]);
 
-  const data = rawData.map((product) => ({
-    ...product,
-    pricing: calculatePricing(product),
-  }));
+  const data = attachPricing(rawData);
 
   res.status(200).json({
     success: true,
     data,
-    meta: { total, page, limit, pages: Math.ceil(total / limit) },
+    meta: {
+      total,
+      page,
+      limit,
+      pages: Math.ceil(total / limit),
+      hasMore: total > skip + data.length,
+    },
   });
 });
 
-// 2. GET SINGLE PRODUCT
+// ── GET /api/products/:id ──────────────────────────────────
 exports.getSingleProduct = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  let product;
+  const query = { $or: [{ slug: id }] };
 
-  if (mongoose.Types.ObjectId.isValid(id)) {
-    product = await Product.findById(id).lean();
-  } else {
-    product = await Product.findOne({ slug: id }).lean();
+  if (/^[a-f\d]{24}$/i.test(id)) {
+    query.$or.push({ _id: id });
   }
 
-  if (!product) {
-    return res
-      .status(404)
-      .json({ success: false, message: "Product Not Found" });
-  }
+  const product = await Product.findOne(query).lean();
+  if (!product) throw new ApiError(404, "Product not found");
 
-  product.pricing = calculatePricing(product);
+  product.pricing = {
+    originalPrice: product.price,
+    discountPercent: product.discountPercent || 0,
+    discountAmount: product.discountAmount || 0,
+    discountPrice: product.discountPrice || product.price,
+    gstRate: product.gstRate || 0,
+    gstAmount: product.gstAmount || 0,
+    basePrice: product.discountPrice || product.price,
+    finalPriceWithTax: product.finalPriceWithTax || product.price,
+  };
 
-  const relatedRaw = await Product.aggregate([
-    {
-      $match: {
-        category: product.category,
-        gender: product.gender,
-        _id: { $ne: product._id },
-        inStock: true,
-      },
-    },
-    { $sample: { size: 4 } },
-    {
-      $project: {
-        productName: 1,
-        price: 1,
-        images: { $arrayElemAt: ["$images", 0] },
-        discountPercent: 1,
-        slug: 1,
-        inStock: 1,
-        countInStock: 1,
-      },
-    },
-  ]);
+  const relatedRaw = await Product.find({
+    category: product.category,
+    gender: product.gender,
+    _id: { $ne: product._id },
+    inStock: true,
+  })
+    .limit(4)
+    .select(LIST_PROJECTION)
+    .lean();
 
-  const related = relatedRaw.map((p) => ({
-    ...p,
-    pricing: calculatePricing(p),
-  }));
-
-  res.status(200).json({ success: true, data: product, related });
+  res.status(200).json({
+    success: true,
+    data: product,
+    related: attachPricing(relatedRaw),
+  });
 });
 
-// 3. GET HOME SCREEN DATA
+// ── GET /api/products/home ─────────────────────────────────
 exports.getHomeProducts = asyncHandler(async (req, res) => {
-  const fetchOptions =
-    "productName price images category isFeatured isNewArrival soldCount discountPercent slug countInStock inStock";
+  const select =
+    "productName price discountPercent discountAmount discountPrice gstRate gstAmount finalPriceWithTax images category subCategory isFeatured isNewArrival soldCount slug countInStock inStock colors sizes";
+
   const stockFilter = { inStock: true };
 
-  const [newArrivalsRaw, featuredRaw, hotDealsRaw, premiumRaw] =
+  const [newArrivalsRaw, featuredRaw, hotDealsRaw, premiumRaw, categoryStats] =
     await Promise.all([
       Product.find({ ...stockFilter, isNewArrival: true })
         .sort({ createdAt: -1 })
         .limit(8)
-        .select(fetchOptions)
+        .select(select)
         .lean(),
       Product.find({ ...stockFilter, isFeatured: true })
         .limit(8)
-        .select(fetchOptions)
+        .select(select)
         .lean(),
       Product.find({ ...stockFilter, discountPercent: { $gt: 20 } })
         .sort({ discountPercent: -1 })
         .limit(8)
-        .select(fetchOptions)
+        .select(select)
         .lean(),
       Product.find(stockFilter)
         .sort({ soldCount: -1 })
         .limit(4)
-        .select(fetchOptions)
+        .select(select)
         .lean(),
+      Product.aggregate([
+        { $match: stockFilter },
+        { $group: { _id: "$category", count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+      ]),
     ]);
-
-  const attachPricing = (list) =>
-    list.map((p) => ({ ...p, pricing: calculatePricing(p) }));
 
   res.status(200).json({
     success: true,
@@ -183,33 +237,43 @@ exports.getHomeProducts = asyncHandler(async (req, res) => {
       featuredProducts: attachPricing(featuredRaw),
       hotDeals: attachPricing(hotDealsRaw),
       premiumCollection: attachPricing(premiumRaw),
+      categorySummary: categoryStats,
     },
   });
 });
 
-// 4. DATABASE FIX TOOL
+// ── POST /api/products/fix-db ──────────────────────────────
 exports.fixProductData = asyncHandler(async (req, res) => {
-  const products = await Product.find({});
-  let count = 0;
+  const products = await Product.find({}).lean();
+  const bulkOps = products.map((product) => {
+    const currentStock = (product.sizes || []).reduce(
+      (sum, item) => sum + (Number(item.stock) || 0),
+      0,
+    );
+    const pricing = calculatePricing(product);
 
-  for (const product of products) {
-    if (product.sizes && product.sizes.length > 0) {
-      product.countInStock = product.sizes.reduce(
-        (total, item) => total + (Number(item.stock) || 0),
-        0,
-      );
-    }
-    product.inStock = product.countInStock > 0;
-    if (!product.slug) {
-      product.slug = product.productName
-        .toLowerCase()
-        .trim()
-        .replace(/[^\w\s-]/g, "")
-        .replace(/[\s_-]+/g, "-")
-        .replace(/^-+|-+$/g, "");
-    }
-    await product.save();
-    count++;
-  }
-  res.json({ success: true, message: `Fixed data for ${count} products` });
+    return {
+      updateOne: {
+        filter: { _id: product._id },
+        update: {
+          $set: {
+            countInStock: currentStock,
+            inStock: currentStock > 0,
+            discountAmount: pricing.discountAmount,
+            discountPrice: pricing.discountPrice,
+            gstRate: pricing.gstRate,
+            gstAmount: pricing.gstAmount,
+            finalPriceWithTax: pricing.finalPriceWithTax,
+          },
+        },
+      },
+    };
+  });
+
+  if (bulkOps.length > 0) await Product.bulkWrite(bulkOps);
+
+  res.json({
+    success: true,
+    message: `Fixed ${bulkOps.length} products.`,
+  });
 });

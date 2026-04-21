@@ -1,30 +1,33 @@
-import React from "react";
+import React, { memo, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { formatPrice } from "../../utils/formatters";
+import { cldImage } from "../../utils/imageHelper";
 
-const RelatedProducts = ({ products, currentCategory }) => {
+const RelatedProducts = memo(({ products, currentCategory }) => {
   const navigate = useNavigate();
 
   if (!products || products.length === 0) return null;
 
-  const getImageUrl = (item) => {
-    if (!item.images) return "/placeholder.png";
+  const handleCardClick = useCallback(
+    (slugOrId) => {
+      navigate(`/item/${slugOrId}`);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    },
+    [navigate],
+  );
 
-    if (
-      item.images &&
-      typeof item.images === "object" &&
-      !Array.isArray(item.images)
-    ) {
-      return item.images.url || "/placeholder.png";
-    }
+  const getValidImage = (item) => {
+    const firstImg = item?.images?.[0] || item?.images;
+    if (!firstImg) return "/placeholder.png";
 
-    if (Array.isArray(item.images) && item.images.length > 0) {
-      const firstImg = item.images[0];
-      return typeof firstImg === "string"
-        ? firstImg
-        : firstImg.url || firstImg.secure_url;
-    }
+    const imgSrc =
+      typeof firstImg === "object"
+        ? firstImg.url || firstImg.secure_url
+        : firstImg;
 
-    return "/placeholder.png";
+    if (typeof imgSrc === "string" && imgSrc.startsWith("http")) return imgSrc;
+
+    return cldImage(imgSrc, 400);
   };
 
   return (
@@ -40,7 +43,7 @@ const RelatedProducts = ({ products, currentCategory }) => {
         </div>
         <Link
           to={`/products?category=${currentCategory}`}
-          className="text-[10px] font-black uppercase tracking-widest border-b-2 border-black pb-1 hover:text-zinc-400 hover:border-zinc-400 transition-all"
+          className="text-[10px] font-black uppercase tracking-widest border-b-2 border-black pb-1 hover:text-zinc-400 hover:border-zinc-400 transition-all outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-4"
         >
           View All
         </Link>
@@ -50,16 +53,21 @@ const RelatedProducts = ({ products, currentCategory }) => {
         {products.map((item) => (
           <div
             key={item._id}
-            className="group cursor-pointer"
-            onClick={() => {
-              navigate(`/item/${item._id}`);
-              window.scrollTo({ top: 0, behavior: "smooth" });
-            }}
+            role="button"
+            tabIndex={0}
+            aria-label={`View details for ${item.productName}`}
+            className="group cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-black rounded-2xl p-1 -m-1"
+            onClick={() => handleCardClick(item.slug || item._id)}
+            onKeyDown={(e) =>
+              e.key === "Enter" && handleCardClick(item.slug || item._id)
+            }
           >
             <div className="relative aspect-[3/4] overflow-hidden bg-zinc-50 rounded-2xl mb-4 border border-zinc-100 shadow-sm">
               <img
-                src={getImageUrl(item)}
+                src={getValidImage(item)}
                 alt={item.productName}
+                loading="lazy"
+                decoding="async"
                 className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                 onError={(e) => {
                   e.target.src = "/placeholder.png";
@@ -69,14 +77,15 @@ const RelatedProducts = ({ products, currentCategory }) => {
             <h3 className="text-[11px] font-black uppercase tracking-widest text-zinc-500 truncate mb-1 italic">
               {item.productName}
             </h3>
-            <p className="text-sm font-black italic">
-              ₹{item.finalPriceWithTax?.toLocaleString() || item.price}
+            <p className="text-sm font-black italic text-black">
+              {formatPrice(item.finalPriceWithTax || item.price)}
             </p>
           </div>
         ))}
       </div>
     </section>
   );
-};
+});
 
+RelatedProducts.displayName = "RelatedProducts";
 export default RelatedProducts;

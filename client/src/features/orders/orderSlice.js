@@ -2,16 +2,22 @@ import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import orderService from "./orderService";
 import { toast } from "react-toastify";
 
-const initialState = {
-  orders: [],
-  order: null,
-  isError: false,
-  isSuccess: false,
-  isLoading: false,
-  message: "",
-};
+const extractOrder = (payload) => payload?.data || payload;
+const extractOrders = (payload) =>
+  payload?.data || payload?.orders || payload || [];
 
-// -------------------- THUNKS --------------------
+const replaceOrder = (state, updatedOrder) => {
+  if (!updatedOrder?._id) return;
+
+  const index = state.orders.findIndex((o) => o._id === updatedOrder._id);
+  if (index !== -1) {
+    state.orders[index] = updatedOrder;
+  }
+
+  if (state.order?._id === updatedOrder._id) {
+    state.order = updatedOrder;
+  }
+};
 
 export const createOrder = createAsyncThunk(
   "order/create",
@@ -31,19 +37,6 @@ export const getMyOrders = createAsyncThunk(
   async (_, thunkAPI) => {
     try {
       return await orderService.getMyOrders();
-    } catch (error) {
-      return thunkAPI.rejectWithValue(
-        error.response?.data?.message || error.message,
-      );
-    }
-  },
-);
-
-export const getAllOrders = createAsyncThunk(
-  "order/getAllOrders",
-  async (_, thunkAPI) => {
-    try {
-      return await orderService.getAllOrders();
     } catch (error) {
       return thunkAPI.rejectWithValue(
         error.response?.data?.message || error.message,
@@ -91,6 +84,45 @@ export const returnOrder = createAsyncThunk(
   },
 );
 
+export const getAllOrders = createAsyncThunk(
+  "order/getAllOrders",
+  async (params = {}, thunkAPI) => {
+    try {
+      return await orderService.getAllOrders(params);
+    } catch (error) {
+      return thunkAPI.rejectWithValue(
+        error.response?.data?.message || error.message,
+      );
+    }
+  },
+);
+
+export const updateOrderStatus = createAsyncThunk(
+  "order/updateStatus",
+  async ({ id, status }, thunkAPI) => {
+    try {
+      return await orderService.updateOrderStatus(id, status);
+    } catch (error) {
+      return thunkAPI.rejectWithValue(
+        error.response?.data?.message || error.message,
+      );
+    }
+  },
+);
+
+export const deleteOrder = createAsyncThunk(
+  "order/delete",
+  async (id, thunkAPI) => {
+    try {
+      return await orderService.deleteOrder(id);
+    } catch (error) {
+      return thunkAPI.rejectWithValue(
+        error.response?.data?.message || error.message,
+      );
+    }
+  },
+);
+
 export const adminManageReturn = createAsyncThunk(
   "order/adminManageReturn",
   async ({ id, statusData }, thunkAPI) => {
@@ -104,7 +136,16 @@ export const adminManageReturn = createAsyncThunk(
   },
 );
 
-// -------------------- SLICE --------------------
+const initialState = {
+  orders: [],
+  order: null,
+  isError: false,
+  isSuccess: false,
+  isLoading: false,
+  isMutating: false,
+  message: "",
+  orderCreated: false,
+};
 
 export const orderSlice = createSlice({
   name: "order",
@@ -112,9 +153,11 @@ export const orderSlice = createSlice({
   reducers: {
     resetOrderState: (state) => {
       state.isLoading = false;
+      state.isMutating = false;
       state.isSuccess = false;
       state.isError = false;
       state.message = "";
+      state.orderCreated = false;
     },
     clearSingleOrder: (state) => {
       state.order = null;
@@ -122,175 +165,165 @@ export const orderSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      /* --- 1. CREATE ORDER (Isi me isSuccess TRUE chahiye) --- */
       .addCase(createOrder.pending, (state) => {
-        state.isLoading = true;
-        state.isSuccess = false; // Reset old success
+        state.isMutating = true;
+        state.isSuccess = false;
         state.isError = false;
+        state.message = "";
+        state.orderCreated = false;
       })
       .addCase(createOrder.fulfilled, (state, action) => {
-        state.isLoading = false;
-        state.isSuccess = true; // ✅ Sirf yahan TRUE hona chahiye redirect ke liye
-        state.isError = false;
-        const newOrder = action.payload?.data || action.payload;
+        state.isMutating = false;
+        state.isSuccess = true;
+        state.orderCreated = true;
+        const newOrder = extractOrder(action.payload);
         state.order = newOrder;
-
-        if (newOrder) {
+        if (newOrder?._id) {
           state.orders.unshift(newOrder);
         }
         toast.success("Order Placed Successfully. 🎉");
       })
       .addCase(createOrder.rejected, (state, action) => {
-        state.isLoading = false;
+        state.isMutating = false;
         state.isError = true;
-        state.isSuccess = false;
+        state.orderCreated = false;
         state.message = action.payload;
+        toast.error(action.payload || "Order placement failed!");
       })
-
-      /* --- 2. GET MY ORDERS (isSuccess MAT lagana) --- */
       .addCase(getMyOrders.pending, (state) => {
         state.isLoading = true;
         state.isError = false;
+        state.message = "";
       })
       .addCase(getMyOrders.fulfilled, (state, action) => {
         state.isLoading = false;
-        // ❌ state.isSuccess = true;  <-- YE LINE HATA DI (Bug Fix)
-        state.isError = false;
-
-        const incomingOrders =
-          action.payload?.data ||
-          action.payload?.orders ||
-          action.payload ||
-          [];
-        state.orders = incomingOrders;
+        state.orders = extractOrders(action.payload);
       })
       .addCase(getMyOrders.rejected, (state, action) => {
         state.isLoading = false;
         state.isError = true;
         state.message = action.payload;
       })
-
-      /* --- 3. GET ALL ORDERS (ADMIN) --- */
       .addCase(getAllOrders.pending, (state) => {
         state.isLoading = true;
         state.isError = false;
+        state.message = "";
       })
       .addCase(getAllOrders.fulfilled, (state, action) => {
         state.isLoading = false;
-        // ❌ state.isSuccess = true; <-- YE BHI HATA DI
-        state.orders = action.payload.data || action.payload || [];
+        state.orders = extractOrders(action.payload);
       })
       .addCase(getAllOrders.rejected, (state, action) => {
         state.isLoading = false;
         state.isError = true;
         state.message = action.payload;
       })
-
-      /* --- 4. GET ORDER DETAILS --- */
       .addCase(getOrderDetails.pending, (state) => {
         state.isLoading = true;
         state.isError = false;
+        state.message = "";
       })
       .addCase(getOrderDetails.fulfilled, (state, action) => {
         state.isLoading = false;
-        // ❌ state.isSuccess = true; <-- YE BHI HATA DI
-        state.order = action.payload?.data || action.payload;
+        state.order = extractOrder(action.payload);
       })
       .addCase(getOrderDetails.rejected, (state, action) => {
         state.isLoading = false;
         state.isError = true;
         state.message = action.payload;
       })
-
-      /* --- 5. CANCEL ORDER --- */
       .addCase(cancelOrderUser.pending, (state) => {
-        state.isLoading = true;
+        state.isMutating = true;
+        state.isError = false;
+        state.message = "";
       })
       .addCase(cancelOrderUser.fulfilled, (state, action) => {
-        state.isLoading = false;
-        // Cancel hone par success true rakh sakte hain taaki UI update ho
-        // Lekin redirect na ho, isliye dhyan rakhna
+        state.isMutating = false;
         state.isSuccess = true;
-        const updatedOrder = action.payload?.data || action.payload;
-
-        if (state.order && state.order._id === updatedOrder._id) {
-          state.order.orderStatus = "Cancelled";
-        }
-        const index = state.orders.findIndex((o) => o._id === updatedOrder._id);
-        if (index !== -1) {
-          state.orders[index].orderStatus = "Cancelled";
-        }
+        const updatedOrder = extractOrder(action.payload);
+        replaceOrder(state, updatedOrder);
         toast.info("Order Cancelled.");
       })
       .addCase(cancelOrderUser.rejected, (state, action) => {
-        state.isLoading = false;
+        state.isMutating = false;
         state.isError = true;
         state.message = action.payload;
-        toast.error(action.payload);
+        toast.error(action.payload || "Cancel failed!");
       })
-
-      /* --- 6. USER RETURN REQUEST --- */
       .addCase(returnOrder.pending, (state) => {
-        state.isLoading = true;
+        state.isMutating = true;
+        state.isError = false;
+        state.message = "";
       })
       .addCase(returnOrder.fulfilled, (state, action) => {
-        state.isLoading = false;
+        state.isMutating = false;
         state.isSuccess = true;
-        const orderId = action.meta.arg.id;
-
-        if (state.order && state.order._id === orderId) {
-          state.order.orderStatus = "Return Requested";
-          state.order.returnInfo = {
-            ...state.order.returnInfo,
-            isReturnRequested: true,
-            status: "Pending",
-          };
-        }
-        const index = state.orders.findIndex((o) => o._id === orderId);
-        if (index !== -1) {
-          state.orders[index].orderStatus = "Return Requested";
-          state.orders[index].returnInfo = {
-            ...state.orders[index].returnInfo,
-            isReturnRequested: true,
-            status: "Pending",
-          };
-        }
+        const updatedOrder = extractOrder(action.payload);
+        replaceOrder(state, updatedOrder);
         toast.info("Return request submitted.");
       })
       .addCase(returnOrder.rejected, (state, action) => {
-        state.isLoading = false;
+        state.isMutating = false;
         state.isError = true;
         state.message = action.payload;
-        toast.error(action.payload);
+        toast.error(action.payload || "Return request failed!");
       })
-
-      /* --- 7. ADMIN MANAGE RETURN --- */
       .addCase(adminManageReturn.pending, (state) => {
-        state.isLoading = true;
+        state.isMutating = true;
+        state.isError = false;
+        state.message = "";
       })
       .addCase(adminManageReturn.fulfilled, (state, action) => {
-        state.isLoading = false;
+        state.isMutating = false;
         state.isSuccess = true;
-        const orderId = action.meta.arg.id;
-        const newStatus = action.meta.arg.statusData.status;
-
-        const index = state.orders.findIndex((o) => o._id === orderId);
-        if (index !== -1) {
-          state.orders[index].returnInfo.status = newStatus;
-          if (newStatus === "Approved")
-            state.orders[index].orderStatus = "Return Approved";
-          if (newStatus === "Refunded")
-            state.orders[index].orderStatus = "Returned";
-          if (newStatus === "Rejected")
-            state.orders[index].orderStatus = "Delivered";
-        }
-        toast.success(action.payload?.message || "Status Updated");
+        const updatedOrder = extractOrder(action.payload);
+        replaceOrder(state, updatedOrder);
+        toast.success(action.payload?.message || "Return status updated");
       })
       .addCase(adminManageReturn.rejected, (state, action) => {
-        state.isLoading = false;
+        state.isMutating = false;
         state.isError = true;
         state.message = action.payload;
-        toast.error(action.payload);
+        toast.error(action.payload || "Return management failed!");
+      })
+      .addCase(updateOrderStatus.pending, (state) => {
+        state.isMutating = true;
+        state.isError = false;
+        state.message = "";
+      })
+      .addCase(updateOrderStatus.fulfilled, (state, action) => {
+        state.isMutating = false;
+        state.isSuccess = true;
+        const updatedOrder = extractOrder(action.payload);
+        replaceOrder(state, updatedOrder);
+        toast.success("Order status updated");
+      })
+      .addCase(updateOrderStatus.rejected, (state, action) => {
+        state.isMutating = false;
+        state.isError = true;
+        state.message = action.payload;
+        toast.error(action.payload || "Status update failed!");
+      })
+      .addCase(deleteOrder.pending, (state) => {
+        state.isMutating = true;
+        state.isError = false;
+        state.message = "";
+      })
+      .addCase(deleteOrder.fulfilled, (state, action) => {
+        state.isMutating = false;
+        state.isSuccess = true;
+        const deletedId = action.meta.arg;
+        state.orders = state.orders.filter((o) => o._id !== deletedId);
+        if (state.order?._id === deletedId) {
+          state.order = null;
+        }
+        toast.success("Order deleted");
+      })
+      .addCase(deleteOrder.rejected, (state, action) => {
+        state.isMutating = false;
+        state.isError = true;
+        state.message = action.payload;
+        toast.error(action.payload || "Delete failed!");
       });
   },
 });

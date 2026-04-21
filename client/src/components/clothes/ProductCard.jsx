@@ -1,26 +1,12 @@
-import React, { useState } from "react";
+import React, { useState, useCallback, memo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import { Heart } from "lucide-react";
 import { addToWishlist } from "../../features/wishlist/wishlistSlice";
+import { cldImage } from "../../utils/imageHelper";
+import { formatPrice } from "../../utils/formatters";
 
-const CLOUD = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || "dftticvtc";
-
-const cldSrc = (img, width = 600) => {
-  if (!img) return "https://placehold.co/600x800/png?text=No+Image";
-  if (img.public_id) {
-    return `https://res.cloudinary.com/${CLOUD}/image/upload/c_fill,g_auto,w_${width},q_auto:good,f_auto/${img.public_id}`;
-  }
-  return (
-    img.secure_url || img.url || "https://placehold.co/600x800/png?text=Product"
-  );
-};
-
-export default function ProductCard({
-  product,
-  label,
-  labelColor = "bg-black",
-}) {
+const ProductCard = memo(({ product, label, labelColor = "bg-black" }) => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const [isLoaded, setIsLoaded] = useState(false);
@@ -41,22 +27,39 @@ export default function ProductCard({
     slug,
   } = product;
 
-  // 🔥 AVAILABILITY LOGIC
   const isAvailable = inStock === true || (countInStock || 0) > 0;
+  const displayImage = cldImage(images?.[0], 500);
+  const hoverImage = images?.[1] ? cldImage(images[1], 500) : displayImage;
 
-  const displayImage = cldSrc(images?.[0], 500);
+  const handleWishlistClick = useCallback(
+    (e) => {
+      e.stopPropagation();
+      dispatch(addToWishlist(_id));
+    },
+    [dispatch, _id],
+  );
 
-  const hoverImage = images?.[1] ? cldSrc(images[1], 500) : displayImage;
+  // ✅ FIX: useCallback — memo actually works now
+  const handleCardClick = useCallback(
+    () => navigate(`/product/${slug || _id}`),
+    [navigate, slug, _id],
+  );
 
-  const handleWishlistClick = (e) => {
-    e.stopPropagation();
-    dispatch(addToWishlist(_id));
-  };
+  const handleKeyDown = useCallback(
+    (e) => {
+      if (e.key === "Enter") handleCardClick();
+    },
+    [handleCardClick],
+  );
 
   return (
     <div
-      onClick={() => navigate(`/item/${slug || _id}`)}
-      className="group cursor-pointer flex flex-col relative animate-in fade-in duration-700 h-full"
+      onClick={handleCardClick}
+      onKeyDown={handleKeyDown}
+      role="button"
+      tabIndex={0}
+      aria-label={`View details for ${productName}`}
+      className="group cursor-pointer flex flex-col relative animate-in fade-in duration-700 h-full outline-none focus-visible:ring-2 focus-visible:ring-black rounded-sm"
     >
       <div className="relative w-full aspect-[3/4] overflow-hidden bg-zinc-50 mb-4 border border-transparent group-hover:border-black transition-all duration-500 rounded-sm">
         {!isLoaded && (
@@ -67,22 +70,37 @@ export default function ProductCard({
           src={displayImage}
           alt={productName}
           loading="lazy"
+          decoding="async"
           onLoad={() => setIsLoaded(true)}
-          className={`w-full h-full object-cover absolute inset-0 z-10 transition-all duration-700 ease-in-out group-hover:opacity-0 group-hover:scale-110 ${isLoaded ? "opacity-100" : "opacity-0"}`}
+          className={`w-full h-full object-cover absolute inset-0 z-0 transition-transform duration-700 ease-in-out group-hover:scale-110 ${
+            isLoaded ? "opacity-100" : "opacity-0"
+          }`}
         />
 
-        <img
-          src={hoverImage}
-          alt={productName}
-          loading="lazy"
-          className="w-full h-full object-cover absolute inset-0 z-0 scale-100 transition-transform duration-1000 group-hover:scale-105"
-        />
+        {images?.[1] && (
+          <img
+            src={hoverImage}
+            alt=""
+            aria-hidden="true"
+            loading="lazy"
+            decoding="async"
+            className="w-full h-full object-cover absolute inset-0 z-10 opacity-0 transition-all duration-700 ease-in-out group-hover:opacity-100 group-hover:scale-105"
+          />
+        )}
 
-        {/* BADGES */}
         <div className="absolute top-3 left-3 z-30 flex flex-col gap-1.5">
           {label && (
             <span
-              className={`${labelColor} text-white text-[8px] font-black px-2 py-1 uppercase tracking-[0.2em] shadow-xl`}
+              className={`${
+                labelColor.startsWith("#") || labelColor.startsWith("rgb")
+                  ? "bg-black"
+                  : labelColor
+              } text-white text-[8px] font-black px-2 py-1 uppercase tracking-[0.2em] shadow-xl`}
+              style={
+                labelColor.startsWith("#") || labelColor.startsWith("rgb")
+                  ? { backgroundColor: labelColor }
+                  : undefined
+              }
             >
               {label}
             </span>
@@ -100,13 +118,15 @@ export default function ProductCard({
         </div>
 
         <button
+          type="button"
           onClick={handleWishlistClick}
-          className="absolute top-3 right-3 z-30 w-9 h-9 rounded-full bg-white/80 backdrop-blur-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 hover:bg-black hover:text-white"
+          aria-label={`Add ${productName} to wishlist`}
+          className="absolute top-3 right-3 z-30 w-9 h-9 rounded-full bg-white/80 backdrop-blur-md flex items-center justify-center opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-all duration-300 hover:bg-black hover:text-white outline-none focus-visible:ring-2 focus-visible:ring-black"
         >
           <Heart size={16} strokeWidth={2} />
         </button>
 
-        <div className="absolute inset-x-0 bottom-0 bg-white/95 backdrop-blur-md py-3 translate-y-full group-hover:translate-y-0 transition-transform duration-500 z-40 border-t border-black/10">
+        <div className="absolute inset-x-0 bottom-0 bg-white/95 backdrop-blur-md py-3 translate-y-full group-hover:translate-y-0 focus-within:translate-y-0 transition-transform duration-500 z-40 border-t border-black/10">
           <div className="flex justify-center items-center gap-3">
             {sizes?.length > 0 ? (
               sizes.slice(0, 5).map((s, i) => (
@@ -125,7 +145,6 @@ export default function ProductCard({
           </div>
         </div>
 
-        {/* SOLD OUT OVERLAY */}
         {!isAvailable && (
           <div className="absolute inset-0 bg-white/80 z-40 flex items-center justify-center backdrop-blur-[2px]">
             <span className="bg-black text-white px-4 py-2 text-[10px] font-black uppercase tracking-[0.3em] italic">
@@ -142,12 +161,11 @@ export default function ProductCard({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="text-[13px] font-black italic tracking-tighter text-black">
-              ₹ {(pricing?.finalPriceWithTax || price)?.toLocaleString("en-IN")}
+              {formatPrice(pricing?.finalPriceWithTax || price)}
             </span>
-
             {discountPercent > 0 && (
               <span className="text-[10px] text-zinc-300 line-through font-medium italic">
-                ₹{price?.toLocaleString("en-IN")}
+                {formatPrice(price)}
               </span>
             )}
           </div>
@@ -155,4 +173,7 @@ export default function ProductCard({
       </div>
     </div>
   );
-}
+});
+
+ProductCard.displayName = "ProductCard";
+export default ProductCard;

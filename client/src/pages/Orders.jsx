@@ -1,20 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "react-toastify";
-import {
-  Loader2,
-  PackageSearch,
-  ArrowRight,
-  X,
-  AlertCircle,
-  CheckCircle,
-  Clock,
-  Banknote,
-  XCircle,
-  RotateCcw,
-} from "lucide-react";
+import { PackageSearch, ArrowRight, X, AlertCircle } from "lucide-react";
 
 import {
   cancelOrderUser,
@@ -22,11 +11,16 @@ import {
   returnOrder,
 } from "../features/orders/orderSlice";
 import OrderCard from "../components/order/OrderCard";
-import SEO from "../components/SEO"; // 🚀 SEO Import Added
+import SEO from "../components/SEO";
+import Button from "../components/ui/Button";
+import StatusBadge from "../components/ui/StatusBadge";
+import { ListSkeleton } from "../components/Skeletons";
 
 export default function Orders() {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const { orders = [], isLoading } = useSelector((state) => state.order);
+  const { user } = useSelector((state) => state.auth);
 
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [returnType, setReturnType] = useState("refund");
@@ -34,8 +28,13 @@ export default function Orders() {
   const [comments, setComments] = useState("");
 
   useEffect(() => {
-    dispatch(getMyOrders());
-  }, [dispatch]);
+    if (!user) {
+      navigate("/login");
+    } else {
+      dispatch(getMyOrders());
+    }
+    window.scrollTo(0, 0);
+  }, [dispatch, user, navigate]);
 
   const handleReturnSubmit = (e) => {
     e.preventDefault();
@@ -64,7 +63,7 @@ export default function Orders() {
         .unwrap()
         .then(() => {
           toast.success("Order cancelled successfully");
-          dispatch(getMyOrders());
+          if (selectedOrder?._id === orderId) setSelectedOrder(null);
         })
         .catch((err) => toast.error(err));
     }
@@ -72,52 +71,64 @@ export default function Orders() {
 
   if (isLoading)
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
+      <div className="min-h-screen bg-[#FAFAFA] pt-24 md:pt-32 pb-20">
         <SEO title="Loading Orders..." />
-        <Loader2 className="animate-spin text-black w-10 h-10" />
+        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-12">
+          <div className="mb-10 border-b border-black/5 pb-6">
+            <h1 className="text-4xl md:text-6xl font-black uppercase italic text-zinc-200">
+              MY ORDERS
+            </h1>
+          </div>
+          <div className="max-w-4xl mx-auto space-y-4">
+            {[...Array(3)].map((_, i) => (
+              <ListSkeleton key={i} />
+            ))}
+          </div>
+        </div>
       </div>
     );
 
   return (
-    <div className="min-h-screen bg-white pt-24 md:pt-32 pb-20 selection:bg-black selection:text-white overflow-x-hidden">
+    <div className="min-h-screen bg-[#FAFAFA] pt-24 md:pt-32 pb-20 selection:bg-black selection:text-white overflow-x-hidden">
       <SEO
         title="My Orders"
-        description="Track and manage your premium Krumeku streetwear acquisitions."
+        description="Track and manage your premium Krumeku orders and embroidery collection."
       />
 
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-12">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10 md:mb-12 border-b border-black/5 pb-6 md:pb-8">
           <div>
-            <h1 className="text-4xl md:text-6xl font-black uppercase tracking-tighter italic leading-none">
+            <h1 className="text-4xl md:text-6xl font-black uppercase italic tracking-tighter leading-none">
               MY{" "}
               <span className="text-transparent stroke-text-black">ORDERS</span>
             </h1>
-            <p className="text-[10px] md:text-[11px] font-black uppercase tracking-[0.3em] text-gray-400 mt-3">
-              Track your premium acquisitions
+            <p className="text-[10px] md:text-[11px] font-black uppercase tracking-[0.3em] text-zinc-400 mt-3">
+              Manage your premium wardrobe
             </p>
           </div>
-          <div className="text-left md:text-center bg-zinc-50 px-6 py-3 rounded-xl border border-zinc-100">
+          <div className="text-left md:text-center bg-white px-6 py-3 rounded-2xl border border-zinc-100 shadow-sm">
             <p className="text-xl md:text-2xl font-black italic text-black">
               {orders?.length || 0}
             </p>
-            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-1">
+            <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mt-1">
               Total Pieces
             </p>
           </div>
         </div>
 
         {!orders || orders.length === 0 ? (
-          <div className="py-20 md:py-28 text-center border-2 border-dashed border-gray-100 rounded-[2rem]">
-            <PackageSearch size={40} className="mx-auto text-gray-300 mb-6" />
+          <div className="py-20 md:py-28 text-center border-2 border-dashed border-zinc-200 bg-white rounded-[2rem] flex flex-col items-center">
+            <PackageSearch size={40} className="text-zinc-200 mb-6" />
             <h2 className="text-xl md:text-2xl font-black uppercase italic mb-4">
-              No History Found
+              Order History Empty
             </h2>
-            <Link
-              to="/products"
-              className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest border-b-2 border-black pb-1"
+            <Button
+              onClick={() => navigate("/products")}
+              variant="ghost"
+              className="border border-zinc-200 mt-2"
             >
-              Acquire Your First Piece <ArrowRight size={14} />
-            </Link>
+              Shop New Drops <ArrowRight size={14} className="ml-2" />
+            </Button>
           </div>
         ) : (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 max-w-4xl mx-auto space-y-4 md:space-y-6">
@@ -133,6 +144,7 @@ export default function Orders() {
         )}
       </div>
 
+      {/* Return/Exchange Drawer */}
       <AnimatePresence>
         {selectedOrder && (
           <div className="fixed inset-0 z-[100] flex justify-end">
@@ -141,25 +153,25 @@ export default function Orders() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setSelectedOrder(null)}
-              className="absolute inset-0 bg-black/40 backdrop-blur-sm cursor-pointer"
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm cursor-pointer"
             />
             <motion.div
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="relative bg-white w-full sm:w-[400px] md:w-[500px] h-full shadow-2xl overflow-y-auto rounded-l-3xl"
+              className="relative bg-white w-full sm:w-[450px] h-full shadow-2xl overflow-y-auto rounded-l-[2rem]"
             >
-              <div className="p-6 md:p-8 lg:p-12 min-h-full flex flex-col">
+              <div className="p-6 md:p-10 min-h-full flex flex-col">
                 <div className="flex justify-between items-start mb-8 md:mb-10">
                   <h2 className="text-2xl md:text-3xl font-black uppercase italic tracking-tighter leading-none">
                     {selectedOrder.returnInfo?.isReturnRequested
                       ? "Request\nStatus"
-                      : "Initiate\nProtocol"}
+                      : "Return &\nExchange"}
                   </h2>
                   <button
                     onClick={() => setSelectedOrder(null)}
-                    className="p-2 md:p-3 bg-zinc-50 hover:bg-zinc-100 rounded-full transition-all"
+                    className="p-3 bg-zinc-50 hover:bg-zinc-100 rounded-full transition-all"
                   >
                     <X size={20} />
                   </button>
@@ -169,37 +181,27 @@ export default function Orders() {
                   {selectedOrder.returnInfo?.isReturnRequested ? (
                     <div className="space-y-6">
                       <div className="bg-zinc-50 border border-zinc-100 p-6 rounded-2xl">
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">
-                          Current Status
+                        <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-4">
+                          Current Update
                         </p>
-                        <div className="flex items-center gap-4">
-                          {selectedOrder.returnInfo.status === "Pending" && (
-                            <Clock size={24} className="text-orange-600" />
-                          )}
-                          {selectedOrder.returnInfo.status === "Approved" && (
-                            <CheckCircle size={24} className="text-blue-600" />
-                          )}
-                          {selectedOrder.returnInfo.status === "Refunded" && (
-                            <Banknote size={24} className="text-emerald-600" />
-                          )}
-                          {selectedOrder.returnInfo.status === "Rejected" && (
-                            <XCircle size={24} className="text-red-600" />
-                          )}
-                          <div>
-                            <h3 className="text-xl font-black uppercase italic tracking-tighter">
-                              {selectedOrder.returnInfo.status}
-                            </h3>
-                            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1">
+                        <div className="flex flex-col gap-2">
+                          <div className="flex items-center gap-3">
+                            <StatusBadge
+                              status={selectedOrder.returnInfo.status}
+                              className="px-4 py-2 text-[11px]"
+                            />
+                            <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
                               Type: {selectedOrder.returnInfo.type}
                             </p>
                           </div>
                         </div>
+
                         {selectedOrder.returnInfo.adminComment && (
-                          <div className="mt-6 p-4 bg-white border border-gray-200 rounded-xl">
-                            <span className="text-[9px] font-black uppercase tracking-widest text-gray-400 block mb-1">
-                              Update from Support:
+                          <div className="mt-6 p-4 bg-white border border-zinc-100 rounded-xl">
+                            <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400 block mb-1 flex items-center gap-2">
+                              Message from Krumeku:
                             </span>
-                            <p className="text-[11px] font-bold text-gray-800 uppercase tracking-tight italic">
+                            <p className="text-[11px] font-bold text-zinc-800 uppercase tracking-tight italic">
                               "{selectedOrder.returnInfo.adminComment}"
                             </p>
                           </div>
@@ -208,77 +210,94 @@ export default function Orders() {
                     </div>
                   ) : (
                     <>
-                      <div className="bg-orange-50 border border-orange-100 p-3 rounded-xl flex gap-3">
+                      <div className="bg-orange-50 border border-orange-100 p-4 rounded-xl flex gap-3">
                         <AlertCircle
                           className="text-orange-600 shrink-0 mt-0.5"
                           size={18}
                         />
-                        <p className="text-[10px] font-bold text-orange-800 uppercase tracking-tighter">
-                          Ensure artifact is unused, unwashed, and original tags
-                          attached.
-                        </p>
+                        <div className="space-y-1">
+                          <p className="text-[10px] font-black text-orange-900 uppercase tracking-widest leading-tight">
+                            Quality Policy
+                          </p>
+                          <p className="text-[10px] font-bold text-orange-800 uppercase tracking-tighter leading-tight">
+                            Item must be unused with tags. Damage to embroidery
+                            due to improper ironing is not covered.
+                          </p>
+                        </div>
                       </div>
+
                       <form onSubmit={handleReturnSubmit} className="space-y-6">
                         <div>
-                          <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400 block mb-2">
-                            Request Type
+                          <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400 block mb-3">
+                            Select Request Type
                           </label>
                           <div className="grid grid-cols-2 gap-3">
-                            <button
+                            <Button
                               type="button"
+                              variant={
+                                returnType === "refund" ? "primary" : "outline"
+                              }
+                              className="h-14 text-[10px]"
                               onClick={() => setReturnType("refund")}
-                              className={`py-3 rounded-xl border-2 text-[10px] font-black uppercase tracking-widest transition-all ${returnType === "refund" ? "border-black bg-black text-white" : "border-zinc-100 text-zinc-400"}`}
                             >
-                              Refund
-                            </button>
-                            <button
+                              I want Refund
+                            </Button>
+                            <Button
                               type="button"
+                              variant={
+                                returnType === "exchange"
+                                  ? "primary"
+                                  : "outline"
+                              }
+                              className="h-14 text-[10px]"
                               onClick={() => setReturnType("exchange")}
-                              className={`py-3 rounded-xl border-2 text-[10px] font-black uppercase tracking-widest transition-all ${returnType === "exchange" ? "border-black bg-black text-white" : "border-zinc-100 text-zinc-400"}`}
                             >
-                              Exchange
-                            </button>
+                              I want Exchange
+                            </Button>
                           </div>
                         </div>
+
                         <div>
-                          <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400 block mb-2">
-                            Reason
+                          <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400 block mb-3">
+                            Reason for Return
                           </label>
                           <select
                             required
                             value={returnReason}
                             onChange={(e) => setReturnReason(e.target.value)}
-                            className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl outline-none text-[11px] font-bold uppercase focus:border-black transition-all"
+                            className="w-full p-4 bg-zinc-50 border border-zinc-100 rounded-xl outline-none text-[11px] font-bold uppercase focus:border-black transition-all cursor-pointer appearance-none"
                           >
-                            <option value="">Select Protocol</option>
+                            <option value="">Select Reason</option>
                             <option value="size">Size Fit Issue</option>
                             <option value="quality">
-                              Fabric Defect / Damage
+                              Fabric/Quality Defect
                             </option>
-                            <option value="wrong">
-                              Wrong Artifact Received
-                            </option>
-                            <option value="mind">Change of Mind</option>
+                            <option value="wrong">Wrong Item Received</option>
+                            <option value="mind">Changed my mind</option>
                           </select>
                         </div>
+
                         <div>
-                          <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400 block mb-2">
-                            Remarks
+                          <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400 block mb-3">
+                            Describe Issue (Optional)
                           </label>
                           <textarea
-                            rows="3"
+                            rows="4"
                             value={comments}
                             onChange={(e) => setComments(e.target.value)}
-                            placeholder="DESCRIBE THE ISSUE..."
-                            className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl outline-none text-[11px] font-medium focus:border-black transition-all resize-none uppercase"
+                            placeholder="TELL US MORE ABOUT THE ISSUE..."
+                            className="w-full p-4 bg-zinc-50 border border-zinc-100 rounded-xl outline-none text-[11px] font-medium focus:border-black transition-all resize-none uppercase"
                           />
                         </div>
-                        <button
+
+                        <Button
                           type="submit"
-                          className="w-full py-4 bg-black text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-xl hover:bg-zinc-800 transition-all shadow-xl"
+                          variant="primary"
+                          className="w-full h-14 mt-4"
                         >
-                          Confirm Request
-                        </button>
+                          Confirm Request{" "}
+                          <ArrowRight size={14} className="ml-2" />
+                        </Button>
                       </form>
                     </>
                   )}

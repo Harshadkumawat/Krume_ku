@@ -1,3 +1,4 @@
+// features/store.js
 import { configureStore } from "@reduxjs/toolkit";
 import auth from "../auth/authSlice";
 import admin from "../admin/adminSlice";
@@ -7,6 +8,7 @@ import wishlist from "../wishlist/wishlistSlice";
 import order from "../orders/orderSlice";
 import coupon from "../coupon/couponSlice";
 import shipping from "../shipping/shippingSlice";
+import { injectStore } from "../../utils/api";
 
 const store = configureStore({
   reducer: {
@@ -24,6 +26,11 @@ const store = configureStore({
     getDefaultMiddleware({
       serializableCheck: false,
     }),
-  devTools: true,
+
+  devTools: import.meta.env.DEV,
 });
+
+
+injectStore(store);
+
 export default store;

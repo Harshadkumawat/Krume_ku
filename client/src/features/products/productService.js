@@ -1,17 +1,18 @@
-import axios from "axios";
+import api from "../../utils/api";
 
-const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
-
-const api = axios.create({
-  baseURL: API_URL,
-});
-
-const getProduct = async (params = {}) => {
-  const response = await api.get("/api/products", { params });
+const getAllProducts = async (params = {}, signal) => {
+  const config = { params };
+  if (signal) {
+    config.signal = signal;
+  }
+  const response = await api.get("/api/products", config);
   return response.data;
 };
 
-const singleProduct = async (id) => {
+const getProductById = async (id) => {
+  if (!id) {
+    throw new Error("Product ID is required");
+  }
   const response = await api.get(`/api/products/${id}`);
   return response.data;
 };
@@ -22,7 +23,7 @@ const getHomeProducts = async () => {
 };
 
 export const productService = {
-  getProduct,
-  singleProduct,
+  getAllProducts,
+  getProductById,
   getHomeProducts,
 };

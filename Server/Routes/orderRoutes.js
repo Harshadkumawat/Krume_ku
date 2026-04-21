@@ -10,30 +10,26 @@ const {
   updateOrderStatus,
   deleteOrder,
   cancelOrder,
-  getAdminDashboardStats,
   handleReturnStatus,
   requestReturn,
 } = require("../Controllers/orderController");
 
-// --- 1. ADMIN ROUTES ---
-
-router.get("/admin/stats", protect, admin, getAdminDashboardStats);
+// ── ADMIN ROUTES ─────────────────────────────────────────────
 router.get("/admin/all", protect, admin, getAllOrders);
 
-// --- 2. USER ROUTES ---
-
+// ── USER ROUTES ──────────────────────────────────────────────
 router.route("/").post(protect, addOrderItems);
 router.get("/myorders", protect, getMyOrders);
-router.put("/:id/cancel", protect, cancelOrder);
 
-// --- 3. ID BASED ROUTES ---
+// ── ID-BASED ROUTES ──────────────────────────────────────────
+router.put("/:id/cancel", protect, cancelOrder);
+router.put("/:id/return", protect, requestReturn);
+router.put("/:id/return/manage", protect, admin, handleReturnStatus);
+
 router
   .route("/:id")
   .get(protect, getOrderById)
   .put(protect, admin, updateOrderStatus)
   .delete(protect, admin, deleteOrder);
-
-router.put("/:id/return", protect, requestReturn);
-router.put("/:id/return/manage", protect, admin, handleReturnStatus);
 
 module.exports = router;

@@ -1,7 +1,7 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { authService } from "./authService";
 
-// -------------------- THUNKS --------------------
+// ── Thunks ───────────────────────────────────────────────────
 
 export const registerUser = createAsyncThunk(
   "AUTH/REGISTER",
@@ -42,7 +42,6 @@ export const googleLoginUser = createAsyncThunk(
   },
 );
 
-// 🔥 NEW: Isse export karna zaroori tha Dashboard ke liye
 export const getAllUsers = createAsyncThunk(
   "AUTH/GET_ALL_USERS",
   async (_, thunkAPI) => {
@@ -51,6 +50,19 @@ export const getAllUsers = createAsyncThunk(
     } catch (error) {
       return thunkAPI.rejectWithValue(
         error.response?.data?.message || "Fetch users failed",
+      );
+    }
+  },
+);
+
+export const getUserStats = createAsyncThunk(
+  "AUTH/GET_USER_STATS",
+  async (_, thunkAPI) => {
+    try {
+      return await authService.getUserStats();
+    } catch (error) {
+      return thunkAPI.rejectWithValue(
+        error.response?.data?.message || "Fetch user stats failed",
       );
     }
   },
@@ -73,6 +85,19 @@ export const fetchCurrentUser = createAsyncThunk(
       return await authService.getCurrentUser();
     } catch (error) {
       return thunkAPI.rejectWithValue("Not authenticated");
+    }
+  },
+);
+
+export const updateProfile = createAsyncThunk(
+  "AUTH/UPDATE_PROFILE",
+  async (userData, thunkAPI) => {
+    try {
+      return await authService.updateProfile(userData);
+    } catch (error) {
+      return thunkAPI.rejectWithValue(
+        error.response?.data?.message || "Profile update failed",
+      );
     }
   },
 );
@@ -103,18 +128,69 @@ export const forgotPassword = createAsyncThunk(
   },
 );
 
-// -------------------- INITIAL STATE --------------------
+export const addUserAddress = createAsyncThunk(
+  "AUTH/ADD_ADDRESS",
+  async (addressData, thunkAPI) => {
+    try {
+      return await authService.addUserAddress(addressData);
+    } catch (error) {
+      return thunkAPI.rejectWithValue(
+        error.response?.data?.message || "Failed to add address",
+      );
+    }
+  },
+);
+
+export const updateUserAddress = createAsyncThunk(
+  "AUTH/UPDATE_ADDRESS",
+  async ({ id, addressData }, thunkAPI) => {
+    try {
+      return await authService.updateUserAddress(id, addressData);
+    } catch (error) {
+      return thunkAPI.rejectWithValue(
+        error.response?.data?.message || "Failed to update address",
+      );
+    }
+  },
+);
+
+export const deleteUserAddress = createAsyncThunk(
+  "AUTH/DELETE_ADDRESS",
+  async (id, thunkAPI) => {
+    try {
+      return await authService.deleteUserAddress(id);
+    } catch (error) {
+      return thunkAPI.rejectWithValue(
+        error.response?.data?.message || "Failed to delete address",
+      );
+    }
+  },
+);
+
+// ── Helpers ──────────────────────────────────────────────────
+
+const extractUser = (payload) => payload?.data || payload;
+
+const mergeAddresses = (state, action) => {
+  state.isMutating = false;
+  state.isSuccess = true;
+  if (state.user && action.payload?.data) {
+    state.user.addresses = action.payload.data;
+  }
+};
+
+// ── Slice ────────────────────────────────────────────────────
 
 const initialState = {
   user: null,
   allUsers: [],
+  userStats: null,
   isLoading: false,
+  isMutating: false,
   isSuccess: false,
   isError: false,
   message: "",
 };
-
-// -------------------- SLICE --------------------
 
 const authSlice = createSlice({
   name: "auth",
@@ -122,6 +198,7 @@ const authSlice = createSlice({
   reducers: {
     reset: (state) => {
       state.isLoading = false;
+      state.isMutating = false;
       state.isSuccess = false;
       state.isError = false;
       state.message = "";
@@ -129,175 +206,233 @@ const authSlice = createSlice({
     setUser: (state, action) => {
       state.user = action.payload;
     },
+    clearUser: (state) => {
+      state.user = null;
+      state.allUsers = [];
+      state.userStats = null;
+      state.isLoading = false;
+      state.isMutating = false;
+      state.isSuccess = false;
+      state.isError = false;
+      state.message = "";
+    },
   },
   extraReducers: (builder) => {
     builder
-      // ==========================
-      // REGISTER CASES
-      // ==========================
+      // ── Register ──────────────────────────────
       .addCase(registerUser.pending, (state) => {
         state.isLoading = true;
-        state.isSuccess = false;
         state.isError = false;
+        state.message = "";
       })
       .addCase(registerUser.fulfilled, (state, action) => {
         state.isLoading = false;
         state.isSuccess = true;
-        state.isError = false;
-        state.user = action.payload?.data || action.payload;
+        state.user = extractUser(action.payload);
       })
       .addCase(registerUser.rejected, (state, action) => {
         state.isLoading = false;
         state.isError = true;
-        state.isSuccess = false;
         state.message = action.payload;
       })
 
-      // ==========================
-      // LOGIN CASES
-      // ==========================
+      // ── Login ─────────────────────────────────
       .addCase(loginUser.pending, (state) => {
         state.isLoading = true;
-        state.isSuccess = false;
         state.isError = false;
+        state.message = "";
       })
       .addCase(loginUser.fulfilled, (state, action) => {
         state.isLoading = false;
         state.isSuccess = true;
-        state.isError = false;
-        state.user = action.payload?.data || action.payload;
+        state.user = extractUser(action.payload);
       })
       .addCase(loginUser.rejected, (state, action) => {
         state.isLoading = false;
         state.isError = true;
-        state.isSuccess = false;
         state.message = action.payload;
       })
 
-      // ==========================
-      // GOOGLE LOGIN CASES
-      // ==========================
+      // ── Google Login ──────────────────────────
       .addCase(googleLoginUser.pending, (state) => {
         state.isLoading = true;
-        state.isSuccess = false;
         state.isError = false;
+        state.message = "";
       })
       .addCase(googleLoginUser.fulfilled, (state, action) => {
         state.isLoading = false;
         state.isSuccess = true;
-        state.isError = false;
-        state.user = action.payload?.data || action.payload;
+        state.user = extractUser(action.payload);
       })
       .addCase(googleLoginUser.rejected, (state, action) => {
         state.isLoading = false;
         state.isError = true;
-        state.isSuccess = false;
         state.message = action.payload;
       })
 
-      // ==========================
-      // GET ALL USERS (Admin Only)
-      // ==========================
-      .addCase(getAllUsers.pending, (state) => {
-        state.isLoading = true;
-        state.isSuccess = false;
-        state.isError = false;
-      })
-      .addCase(getAllUsers.fulfilled, (state, action) => {
-        state.isLoading = false;
-        state.isSuccess = true;
-        state.isError = false;
-        state.allUsers = action.payload.data || action.payload;
-      })
-      .addCase(getAllUsers.rejected, (state, action) => {
-        state.isLoading = false;
-        state.isError = true;
-        state.isSuccess = false;
-        state.message = action.payload;
-      })
-
-      // ==========================
-      // FETCH CURRENT USER CASES
-      // ==========================
-      .addCase(fetchCurrentUser.pending, (state) => {
-        state.isLoading = true;
-        state.isSuccess = false;
-        state.isError = false;
-      })
-      .addCase(fetchCurrentUser.fulfilled, (state, action) => {
-        state.isLoading = false;
-        state.isSuccess = true;
-        state.isError = false;
-        state.user = action.payload?.data || action.payload;
-      })
-      .addCase(fetchCurrentUser.rejected, (state) => {
-        state.isLoading = false;
-        state.user = null;
-        state.isSuccess = false;
-        state.isError = false;
-      })
-
-      // ==========================
-      // LOGOUT CASES
-      // ==========================
+      // ── Logout ────────────────────────────────
       .addCase(logout.pending, (state) => {
         state.isLoading = true;
       })
       .addCase(logout.fulfilled, (state) => {
         state.user = null;
         state.allUsers = [];
+        state.userStats = null;
         state.isLoading = false;
+        state.isMutating = false;
         state.isSuccess = false;
         state.isError = false;
         state.message = "";
       })
-      .addCase(logout.rejected, (state, action) => {
+      .addCase(logout.rejected, (state) => {
+        state.user = null;
+        state.allUsers = [];
+        state.userStats = null;
         state.isLoading = false;
-        state.isError = true;
-        state.message = action.payload;
+        state.isMutating = false;
+        state.isSuccess = false;
+        state.isError = false;
+        state.message = "";
       })
-      // ==========================
-      // RESET PASSWORD CASES
-      // ==========================
-      .addCase(resetPassword.pending, (state) => {
+
+      // ── Fetch Current User ────────────────────
+      .addCase(fetchCurrentUser.pending, (state) => {
         state.isLoading = true;
-        state.isSuccess = false;
-        state.isError = false;
       })
-      .addCase(resetPassword.fulfilled, (state) => {
+      .addCase(fetchCurrentUser.fulfilled, (state, action) => {
         state.isLoading = false;
+        state.user = extractUser(action.payload);
+      })
+      .addCase(fetchCurrentUser.rejected, (state, action) => {
+        state.isLoading = false;
+        state.user = null;
+        state.message = action.payload || "";
+      })
+
+      // ── Update Profile ────────────────────────
+      .addCase(updateProfile.pending, (state) => {
+        state.isMutating = true;
+        state.isError = false;
+        state.message = "";
+      })
+      .addCase(updateProfile.fulfilled, (state, action) => {
+        state.isMutating = false;
         state.isSuccess = true;
-        state.isError = false;
-        state.message = "Password reset successfully!";
+        state.user = extractUser(action.payload);
+        state.message = "Profile updated successfully!";
       })
-      .addCase(resetPassword.rejected, (state, action) => {
-        state.isLoading = false;
+      .addCase(updateProfile.rejected, (state, action) => {
+        state.isMutating = false;
         state.isError = true;
-        state.isSuccess = false;
         state.message = action.payload;
-      }) // ==========================
-      // FORGOT PASSWORD CASES
-      // ==========================
+      })
+
+      // ── Forgot Password ──────────────────────
       .addCase(forgotPassword.pending, (state) => {
         state.isLoading = true;
-        state.isSuccess = false;
         state.isError = false;
+        state.message = "";
       })
       .addCase(forgotPassword.fulfilled, (state, action) => {
         state.isLoading = false;
         state.isSuccess = true;
-        state.isError = false;
-        state.message =
-          action.payload?.message || "Reset link sent to your email!";
+        state.message = action.payload?.message || "Reset link sent!";
       })
       .addCase(forgotPassword.rejected, (state, action) => {
         state.isLoading = false;
         state.isError = true;
-        state.isSuccess = false;
+        state.message = action.payload;
+      })
+
+      // ── Reset Password ───────────────────────
+      .addCase(resetPassword.pending, (state) => {
+        state.isLoading = true;
+        state.isError = false;
+        state.message = "";
+      })
+      .addCase(resetPassword.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.isSuccess = true;
+        const userData = extractUser(action.payload);
+        if (userData?._id) {
+          state.user = userData;
+          state.message = "Password reset successful! You are now logged in.";
+        } else {
+          state.message = "Password reset successfully!";
+        }
+      })
+      .addCase(resetPassword.rejected, (state, action) => {
+        state.isLoading = false;
+        state.isError = true;
+        state.message = action.payload;
+      })
+
+      // ── Get All Users (Admin) ────────────────
+      .addCase(getAllUsers.pending, (state) => {
+        state.isLoading = true;
+        state.isError = false;
+      })
+      .addCase(getAllUsers.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.allUsers = action.payload?.data || action.payload || [];
+      })
+      .addCase(getAllUsers.rejected, (state, action) => {
+        state.isLoading = false;
+        state.isError = true;
+        state.message = action.payload;
+      })
+
+      // ── Get User Stats (Admin) ───────────────
+      .addCase(getUserStats.pending, (state) => {
+        state.isLoading = true;
+      })
+      .addCase(getUserStats.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.userStats = action.payload?.data || action.payload;
+      })
+      .addCase(getUserStats.rejected, (state, action) => {
+        state.isLoading = false;
+        state.isError = true;
+        state.message = action.payload;
+      })
+
+      // ── Add Address ──────────────────────────
+      .addCase(addUserAddress.pending, (state) => {
+        state.isMutating = true;
+        state.isError = false;
+      })
+      .addCase(addUserAddress.fulfilled, mergeAddresses)
+      .addCase(addUserAddress.rejected, (state, action) => {
+        state.isMutating = false;
+        state.isError = true;
+        state.message = action.payload;
+      })
+
+      // ── Update Address ───────────────────────
+      .addCase(updateUserAddress.pending, (state) => {
+        state.isMutating = true;
+        state.isError = false;
+      })
+      .addCase(updateUserAddress.fulfilled, mergeAddresses)
+      .addCase(updateUserAddress.rejected, (state, action) => {
+        state.isMutating = false;
+        state.isError = true;
+        state.message = action.payload;
+      })
+
+      // ── Delete Address ───────────────────────
+      .addCase(deleteUserAddress.pending, (state) => {
+        state.isMutating = true;
+        state.isError = false;
+      })
+      .addCase(deleteUserAddress.fulfilled, mergeAddresses)
+      .addCase(deleteUserAddress.rejected, (state, action) => {
+        state.isMutating = false;
+        state.isError = true;
         state.message = action.payload;
       });
   },
 });
 
-export const { reset, setUser } = authSlice.actions;
+export const { reset, setUser, clearUser } = authSlice.actions;
 export default authSlice.reducer;

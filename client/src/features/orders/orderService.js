@@ -1,26 +1,14 @@
-import axios from "axios";
+import api from "../../utils/api";
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
-const API_URL = `${BASE_URL}/api/orders/`;
+// ── USER OPERATIONS ────────────────────────────────────────
 
 const createOrder = async (orderData) => {
-  const response = await axios.post(API_URL, orderData, {
-    withCredentials: true,
-  });
+  const response = await api.post("/api/orders", orderData);
   return response.data;
 };
 
 const getMyOrders = async () => {
-  const response = await axios.get(`${API_URL}myorders?t=${Date.now()}`, {
-    withCredentials: true,
-  });
-  return response.data;
-};
-
-const getAllOrders = async () => {
-  const response = await axios.get(`${API_URL}admin/all`, {
-    withCredentials: true,
-  });
+  const response = await api.get("/api/orders/myorders");
   return response.data;
 };
 
@@ -28,34 +16,46 @@ const getOrderDetails = async (orderId) => {
   if (!orderId || orderId === "super" || orderId.length < 10) {
     throw new Error("Invalid Order ID provided");
   }
-  const response = await axios.get(`${API_URL}${orderId}`, {
-    withCredentials: true,
-  });
+  const response = await api.get(`/api/orders/${orderId}`);
   return response.data;
 };
 
 const cancelOrder = async (orderId) => {
-  const response = await axios.put(
-    `${API_URL}${orderId}/cancel`,
-    {},
-    { withCredentials: true },
-  );
+  const response = await api.put(`/api/orders/${orderId}/cancel`, {});
   return response.data;
 };
 
 const requestReturn = async (orderId, returnData) => {
-  const response = await axios.put(`${API_URL}${orderId}/return`, returnData, {
-    withCredentials: true,
-  });
+  const response = await api.put(`/api/orders/${orderId}/return`, returnData);
+  return response.data;
+};
+
+// ── ADMIN OPERATIONS ───────────────────────────────────────
+
+const getAllOrders = async (params = {}) => {
+  const query = new URLSearchParams(params).toString();
+  const url = query
+    ? `/api/orders/admin/all?${query}`
+    : "/api/orders/admin/all";
+  const response = await api.get(url);
   return response.data;
 };
 
 const manageReturn = async (orderId, statusData) => {
-  const response = await axios.put(
-    `${API_URL}${orderId}/return/manage`,
+  const response = await api.put(
+    `/api/orders/${orderId}/return/manage`,
     statusData,
-    { withCredentials: true },
   );
+  return response.data;
+};
+
+const updateOrderStatus = async (id, status) => {
+  const response = await api.put(`/api/orders/${id}`, { status });
+  return response.data;
+};
+
+const deleteOrder = async (id) => {
+  const response = await api.delete(`/api/orders/${id}`);
   return response.data;
 };
 
@@ -67,6 +67,8 @@ const orderService = {
   cancelOrder,
   requestReturn,
   manageReturn,
+  updateOrderStatus,
+  deleteOrder,
 };
 
 export default orderService;

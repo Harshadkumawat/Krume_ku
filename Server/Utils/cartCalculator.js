@@ -1,59 +1,80 @@
+const calculatePricing = require("./calculatePricing");
+
+const SHIPPING_THRESHOLD = 1000;
+
 const calculateBill = (items, coupon = null) => {
   let totalExclTax = 0;
   let totalGST = 0;
   let totalItems = 0;
 
   items.forEach((item) => {
-    if (item.product) {
-      const unitPrice = Number(
-        item.product.discountPrice || item.product.price,
-      );
-      const quantity = Number(item.quantity);
+    const prod = item.product;
+    if (!prod || !prod.price) return;
 
-      const itemGstRate = unitPrice < 1000 ? 0.05 : 0.12;
+    const pricing = prod.pricing || calculatePricing(prod);
 
-      const itemTotalExclTax = unitPrice * quantity;
-      const itemGST = itemTotalExclTax * itemGstRate;
+    const unitPrice = Number(pricing.discountPrice || prod.price || 0);
+    const quantity = Number(item.quantity) || 1;
 
-      totalExclTax += itemTotalExclTax;
-      totalGST += itemGST;
-      totalItems += quantity;
-    }
+    const gstRate = pricing.gstRate || (unitPrice < 1000 ? 5 : 12);
+    const itemGstRate = gstRate / 100;
+
+    const itemTotalExclTax = unitPrice * quantity;
+    const itemGST = Math.round(itemTotalExclTax * itemGstRate);
+
+    totalExclTax += itemTotalExclTax;
+    totalGST += itemGST;
+    totalItems += quantity;
   });
 
-  // 2. Discount Calculation
-  let discountAmount = 0;
+  // ── Coupon Discount Logic ───────────────────────────────
+  let discountAmountRaw = 0;
   if (coupon) {
+    const dValue = Number(coupon.discountValue || 0);
+
     if (coupon.discountType === "percentage") {
-      discountAmount = Math.round((totalExclTax * coupon.discountAmount) / 100);
+      discountAmountRaw = (totalExclTax * dValue) / 100;
+
+      // Cap at maxDiscountAmount (if set)
+      if (coupon.maxDiscountAmount > 0) {
+        discountAmountRaw = Math.min(
+          discountAmountRaw,
+          coupon.maxDiscountAmount,
+        );
+      }
     } else {
-      discountAmount = Number(coupon.discountAmount);
+      discountAmountRaw = dValue;
     }
   }
 
-  // 3. Taxable Amount
+  // Discount cannot exceed cart total, and cannot be negative
+  const discountAmount = Math.round(
+    Math.min(Math.max(0, totalExclTax), Math.max(0, discountAmountRaw)),
+  );
 
-  const taxableAmount = totalExclTax - discountAmount;
+  // ── Taxable Amount ─────────────────────────────────────
+  // Discount applied BEFORE tax (as per Indian GST rules)
+  const taxableAmount = Math.max(0, totalExclTax - discountAmount);
 
+  // ── Weighted GST ───────────────────────────────────────
   const effectiveGstRate = totalExclTax > 0 ? totalGST / totalExclTax : 0;
-  const finalGST = taxableAmount * effectiveGstRate;
+  const finalGST = Math.round(taxableAmount * effectiveGstRate);
 
-  // 4. Shipping Logic
-  const SHIPPING_THRESHOLD = 1000;
+  // ── Shipping ───────────────────────────────────────────
   const shippingCharge =
-    totalExclTax >= SHIPPING_THRESHOLD || totalExclTax === 0 ? 0 : 50;
+    taxableAmount >= SHIPPING_THRESHOLD || totalItems === 0 ? 0 : 50;
 
-  // 5. Final Total
-  const finalTotal = taxableAmount + finalGST + shippingCharge;
+  // ── Final Total ────────────────────────────────────────
+  const finalTotal = Math.round(taxableAmount + finalGST + shippingCharge);
 
   return {
     totalItems,
     cartTotalExclTax: Math.round(totalExclTax),
-    discountAmount: Math.round(discountAmount),
-    gstAmount: Math.round(finalGST),
+    discountAmount,
+    gstAmount: finalGST,
     shipping: shippingCharge,
-    finalTotal: Math.round(finalTotal),
+    finalTotal,
   };
 };
 
-module.exports = { calculateBill };
+module.exports = { calculateBill, SHIPPING_THRESHOLD };

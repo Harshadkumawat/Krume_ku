@@ -1,14 +1,8 @@
-import axios from "axios";
+import api from "../../utils/api";
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
 
-const api = axios.create({
-  baseURL: BASE_URL,
-  withCredentials: true,
-  headers: {
-    "Content-Type": "application/json",
-  },
-});
+
+
 
 const authRegister = async (data) => {
   const response = await api.post("/api/auth/register", data);
@@ -36,7 +30,7 @@ const forgotPassword = async (email) => {
 };
 
 const resetPassword = async (token, password) => {
-  const response = await api.put(`/api/auth/reset-password/${token}`, {
+  const response = await api.patch(`/api/auth/reset-password/${token}`, {
     password,
   });
   return response.data;
@@ -62,6 +56,21 @@ const getUserStats = async () => {
   return response.data;
 };
 
+const addUserAddress = async (addressData) => {
+  const response = await api.post("/api/auth/address", addressData);
+  return response.data;
+};
+
+const updateUserAddress = async (id, addressData) => {
+  const response = await api.put(`/api/auth/address/${id}`, addressData);
+  return response.data;
+};
+
+const deleteUserAddress = async (id) => {
+  const response = await api.delete(`/api/auth/address/${id}`);
+  return response.data;
+};
+
 export const authService = {
   authRegister,
   authLogin,
@@ -73,4 +82,7 @@ export const authService = {
   updateProfile,
   getAllUsers,
   getUserStats,
+  addUserAddress,
+  updateUserAddress,
+  deleteUserAddress,
 };

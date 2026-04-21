@@ -4,41 +4,53 @@ const couponSchema = new mongoose.Schema(
   {
     code: {
       type: String,
-      required: true,
+      required: [true, "Coupon code is required"],
       unique: true,
       uppercase: true,
       trim: true,
+      maxLength: [20, "Coupon code cannot exceed 20 characters"],
     },
     discountType: {
       type: String,
-      enum: ["percentage", "fixed"], // % off ya flat ₹ off
+      enum: ["percentage", "fixed"],
       default: "percentage",
     },
-    discountAmount: {
+    discountValue: {
       type: Number,
-      required: true,
+      required: [true, "Discount value is required"],
+      min: [0, "Discount cannot be negative"],
+      validate: {
+        validator: function (val) {
+          if (this.discountType === "percentage" && val > 100) return false;
+          return true;
+        },
+        message: "Percentage discount cannot exceed 100%",
+      },
     },
     minOrderAmount: {
       type: Number,
-      default: 0, // Kitne ki shopping pe apply hoga
+      default: 0,
+      min: [0, "Minimum order amount cannot be negative"],
+    },
+    maxDiscountAmount: {
+      type: Number,
+      default: 0,
+      min: [0, "Maximum discount amount cannot be negative"],
     },
     usageLimit: {
-      type: Number, // Total kitne users use kar sakte hain (e.g. First 100 users)
-      required: true,
-    },
-    usedCount: {
       type: Number,
-      default: 0, // Kitni baar use ho chuka hai
+      required: [true, "Usage limit is required"],
+      min: [1, "Usage limit must be at least 1"],
     },
-    usersUsed: [
+    usedBy: [
       {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "User", // Ek user ek hi baar use kare isliye ID save karenge
+        ref: "User",
       },
     ],
-    expiryDate: {
+    expiresAt: {
       type: Date,
-      required: true,
+      required: [true, "Expiry date is required"],
     },
     isActive: {
       type: Boolean,
@@ -47,5 +59,32 @@ const couponSchema = new mongoose.Schema(
   },
   { timestamps: true },
 );
+
+/**
+ * Helper method to validate coupon eligibility
+ */
+couponSchema.methods.isValid = function (userId, orderAmount) {
+  if (this.expiresAt < new Date()) {
+    return { valid: false, message: "Coupon has expired" };
+  }
+  if (!this.isActive) {
+    return { valid: false, message: "Coupon is not active" };
+  }
+  if (this.usedBy.length >= this.usageLimit) {
+    return { valid: false, message: "Coupon usage limit reached" };
+  }
+  if (userId && this.usedBy.some((id) => id.toString() === userId.toString())) {
+    return { valid: false, message: "You have already used this coupon" };
+  }
+  if (orderAmount < this.minOrderAmount) {
+    return {
+      valid: false,
+      message: `Minimum order ₹${this.minOrderAmount} required`,
+    };
+  }
+  return { valid: true };
+};
+
+couponSchema.index({ expiresAt: 1 });
 
 module.exports = mongoose.model("Coupon", couponSchema);

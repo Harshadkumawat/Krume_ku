@@ -1,55 +1,91 @@
-import React from "react";
-import { X, TicketPercent, AlertCircle } from "lucide-react";
+import React, { memo } from "react";
+import { X, TicketPercent, AlertCircle, Loader2 } from "lucide-react";
 
-export default function CouponSection({
-  couponInput,
-  setCouponInput,
-  handleApply,
-  appliedCoupon,
-  handleRemove,
-  isError,
-  message,
-  discountAmount,
-}) {
-  return (
-    <div className="py-2">
-      {discountAmount === 0 ? (
-        <div className="relative">
-          <input
-            type="text"
-            placeholder="PROMO CODE"
-            value={couponInput}
-            onChange={(e) => setCouponInput(e.target.value)}
-            className="w-full border-b-2 py-2 text-xs font-black uppercase outline-none focus:border-black"
-          />
-          <button
-            onClick={handleApply}
-            className="absolute right-0 top-1 text-[10px] font-black uppercase text-gray-400 hover:text-black"
-          >
-            Apply
-          </button>
-        </div>
-      ) : (
-        <div className="flex items-center justify-between bg-black text-white px-4 py-3 text-[10px] font-black uppercase italic tracking-widest">
-          <div className="flex items-center gap-2">
-            <TicketPercent size={14} className="text-teal-400" /> COUPON ACTIVE
+const CouponSection = memo(
+  ({
+    couponInput,
+    setCouponInput,
+    handleApply,
+    handleRemove,
+    isError,
+    message,
+    discountAmount, 
+    isLoading, 
+  }) => {
+   
+    const isCouponActive = discountAmount > 0;
+
+    return (
+      <div className="py-2">
+        {!isCouponActive ? (
+          <div className="relative group">
+            <input
+              type="text"
+              placeholder="ENTER PROMO CODE"
+              aria-label="Enter promo code"
+              value={couponInput}
+              onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+              className={`w-full border-b-2 py-2 text-xs font-black uppercase outline-none transition-colors ${
+                isError
+                  ? "border-red-400"
+                  : "border-gray-200 focus:border-black"
+              }`}
+            />
+            <button
+              type="button"
+              disabled={isLoading || !couponInput}
+              onClick={handleApply}
+              className="absolute right-0 top-1 text-[10px] font-black uppercase text-blue-600 hover:text-black disabled:text-gray-300 transition-all"
+            >
+              {isLoading ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                "Apply"
+              )}
+            </button>
           </div>
-          <X
-            size={14}
-            className="cursor-pointer hover:text-red-400"
-            onClick={handleRemove}
-          />
-        </div>
-      )}
+        ) : (
+          /* 🔥 Active Coupon State: Ye tab dikhega jab discountAmount > 0 ho */
+          <div className="flex items-center justify-between bg-emerald-600 text-white px-4 py-3 rounded-sm shadow-md animate-in fade-in slide-in-from-top-1">
+            <div className="flex flex-col">
+              <div className="flex items-center gap-2">
+                <TicketPercent size={14} className="text-white" />
+                <span className="text-[10px] font-black uppercase tracking-tighter">
+                  COUPON APPLIED
+                </span>
+              </div>
+              <p className="text-[9px] font-bold opacity-90 italic">
+                Discount reflected in total
+              </p>
+            </div>
 
-      {isError && message && (
-        <div className="mt-3 p-3 bg-red-50 border-l-4 border-red-500 flex items-center gap-3">
-          <AlertCircle size={16} className="text-red-500 shrink-0" />
-          <p className="text-[11px] font-bold text-red-700 uppercase leading-tight">
-            {message}
-          </p>
-        </div>
-      )}
-    </div>
-  );
-}
+            <button
+              type="button"
+              onClick={handleRemove}
+              className="bg-white/20 hover:bg-white/40 rounded-full p-1 transition-colors"
+              title="Remove Coupon"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        )}
+
+        {/* Error Feedback */}
+        {isError && message && (
+          <div
+            role="alert"
+            className="mt-3 p-2 bg-red-50 border-l-2 border-red-500 flex items-start gap-2 animate-shake"
+          >
+            <AlertCircle size={14} className="text-red-500 mt-0.5 shrink-0" />
+            <p className="text-[10px] font-bold text-red-700 uppercase leading-tight">
+              {message}
+            </p>
+          </div>
+        )}
+      </div>
+    );
+  },
+);
+
+CouponSection.displayName = "CouponSection";
+export default CouponSection;

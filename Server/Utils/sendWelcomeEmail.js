@@ -1,23 +1,54 @@
 const nodemailer = require("nodemailer");
 
+let transporter = null;
+
+const getTransporter = () => {
+  if (transporter) return transporter;
+
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+    console.error(
+      `\x1b[31m%s\x1b[0m`,
+      "❌ EMAIL_USER or EMAIL_PASS missing in .env",
+    );
+    return null;
+  }
+
+  transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
+    },
+    pool: true,
+    maxConnections: 3,
+    maxMessages: 50,
+  });
+
+  return transporter;
+};
+
 const sendWelcomeEmail = async (userEmail, userName) => {
   try {
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-      },
-    });
+    const mailer = getTransporter();
 
-    const firstName = userName.split(" ")[0];
+    if (!mailer) {
+      console.error("⚠️ Welcome email skipped — transporter not configured");
+      return;
+    }
+
+    if (!userEmail) {
+      console.error("⚠️ Welcome email skipped — no email provided");
+      return;
+    }
+
+    const firstName = userName ? String(userName).split(" ")[0] : "there";
 
     const mailOptions = {
       from: `"KRUMEKU" <${process.env.EMAIL_USER}>`,
       to: userEmail,
       subject: `Welcome to the Collective, ${firstName} | Get 10% Off Inside`,
       html: `
-        <div style="background-color: #f4f4f4; padding: 20px; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;">
+        <div style="background-color: #f4f4f4; padding: 20px; font-family: Helvetica, Arial, sans-serif;">
           <div style="max-width: 600px; margin: auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
             
             <div style="padding: 30px; text-align: center; border-bottom: 1px solid #eeeeee;">
@@ -41,20 +72,20 @@ const sendWelcomeEmail = async (userEmail, userName) => {
                 </div>
               </div>
 
-              <a href="${process.env.FRONTEND_URL}" style="display: inline-block; background-color: #000000; color: #ffffff; padding: 18px 40px; border-radius: 4px; text-decoration: none; font-weight: 700; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">
+              <a href="${process.env.FRONTEND_URL || "https://krumeku.com"}" style="display: inline-block; background-color: #000000; color: #ffffff; padding: 18px 40px; border-radius: 4px; text-decoration: none; font-weight: 700; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">
                 Shop New Arrivals
               </a>
             </div>
 
-            <div style="padding: 20px 40px; background-color: #fafafa; display: flex; justify-content: space-around; text-align: center; border-top: 1px solid #eeeeee;">
-              <div style="font-size: 11px; color: #999999; text-transform: uppercase;">✓ Free Shipping</div>
-              <div style="font-size: 11px; color: #999999; text-transform: uppercase;">✓ Exclusive Drops</div>
-              <div style="font-size: 11px; color: #999999; text-transform: uppercase;">✓ 24/7 Support</div>
+            <div style="padding: 20px 40px; background-color: #fafafa; text-align: center; border-top: 1px solid #eeeeee;">
+              <span style="font-size: 11px; color: #999999; text-transform: uppercase; margin: 0 10px;">✓ Free Shipping</span>
+              <span style="font-size: 11px; color: #999999; text-transform: uppercase; margin: 0 10px;">✓ Exclusive Drops</span>
+              <span style="font-size: 11px; color: #999999; text-transform: uppercase; margin: 0 10px;">✓ 24/7 Support</span>
             </div>
 
             <div style="padding: 30px; text-align: center; font-size: 12px; color: #999999;">
               <p style="margin-bottom: 10px;">Connect with us @krumeku.collective</p>
-              <p>© 2026 KRUMEKU. All rights reserved.</p>
+              <p>© ${new Date().getFullYear()} KRUMEKU. All rights reserved.</p>
             </div>
 
           </div>
@@ -62,9 +93,10 @@ const sendWelcomeEmail = async (userEmail, userName) => {
       `,
     };
 
-    await transporter.sendMail(mailOptions);
+    await mailer.sendMail(mailOptions);
+    console.log(`✅ Welcome email sent to ${userEmail}`);
   } catch (error) {
-    console.error("Welcome Email Error:", error);
+    console.error("❌ Welcome Email Error:", error.message);
   }
 };
 

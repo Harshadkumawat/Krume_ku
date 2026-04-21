@@ -3,15 +3,43 @@ require("dotenv").config();
 const connectDB = require("./Config/db_Config");
 const cookieParser = require("cookie-parser");
 const cors = require("cors");
+const helmet = require("helmet");
+const compression = require("compression");
+const rateLimit = require("express-rate-limit");
 const { errorHandler } = require("./Middleware/errorMiddleware");
 
 const app = express();
 const PORT = process.env.PORT || 5050;
 
-// Database Connection
-connectDB();
+app.set("trust proxy", 1);
 
-// CORS
+// 🛡️ SECURITY & PERFORMANCE
+app.use(helmet());
+app.use(compression());
+app.disable("x-powered-by");
+
+// Request logging for development
+if (process.env.NODE_ENV !== "production") {
+  app.use((req, res, next) => {
+    console.log(`${req.method} ${req.originalUrl}`);
+    next();
+  });
+}
+
+// 🚦 RATE LIMITING
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 200,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: "Too many requests, please try again later.",
+  },
+});
+app.use("/api/", limiter);
+
+// 🌍 CORS CONFIGURATION
 const allowedOrigins = [
   "http://localhost:5173",
   "https://krume-ku.vercel.app",
@@ -22,22 +50,13 @@ const allowedOrigins = [
 
 app.use(
   cors({
-    origin: function (origin, callback) {
+    origin: (origin, callback) => {
       if (!origin) return callback(null, true);
 
-      const isAllowed = allowedOrigins.some((ao) => {
-        return (
-          origin === ao || origin.endsWith(`.${ao.replace("https://", "")}`)
-        );
-      });
-
-      if (isAllowed) {
-        return callback(null, true);
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
       } else {
-        return callback(
-          new Error(`CORS Policy: Origin ${origin} is not allowed!`),
-          false,
-        );
+        callback(new Error("Not allowed"));
       }
     },
     credentials: true,
@@ -51,30 +70,72 @@ app.use(
   }),
 );
 
-// Middlewares
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
+// 📦 BODY PARSERS
+app.use(express.json({ limit: "1mb" }));
+app.use(express.urlencoded({ limit: "2mb", extended: true }));
 app.use(cookieParser());
 
-// Base Route
-app.get("/", (req, res) => {
-  res.send("Welcome to Krumeku Server!");
+// 🤖 SEO & HEALTH
+app.get("/robots.txt", (req, res) => {
+  res
+    .type("text/plain")
+    .send("User-agent: *\nAllow: /\nSitemap: https://krumeku.com/sitemap.xml");
 });
 
-// Routes
-app.use("/api/auth", require("./Routes/authRoutes"));
-app.use("/api/admin/", require("./Routes/adminRoutes"));
-app.use("/api/products", require("./Routes/productsRoutes"));
-app.use("/api/wishlist", require("./Routes/wishlistRoutes"));
-app.use("/api/coupons", require("./Routes/couponRoutes"));
-app.use("/api/cart", require("./Routes/cartRoutes"));
-app.use("/api/orders", require("./Routes/orderRoutes"));
-app.use("/api/shipping", require("./Routes/shippingRoutes"));
-app.use("/api/payment", require("./Routes/paymentRoutes"));
+app.get("/", (req, res) => {
+  res.status(200).json({ success: true, message: "Krumeku API is Live 🚀" });
+});
 
-// Error Handler
+app.get("/api/health", (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: "OK",
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// 🛣️ ROUTES
+const routes = {
+  auth: require("./Routes/authRoutes"),
+  admin: require("./Routes/adminRoutes"),
+  products: require("./Routes/productsRoutes"),
+  wishlist: require("./Routes/wishlistRoutes"),
+  coupons: require("./Routes/couponRoutes"),
+  cart: require("./Routes/cartRoutes"),
+  orders: require("./Routes/orderRoutes"),
+  shipping: require("./Routes/shippingRoutes"),
+  payment: require("./Routes/paymentRoutes"),
+};
+
+Object.entries(routes).forEach(([path, route]) =>
+  app.use(`/api/${path}`, route),
+);
+
+// 🛑 404 HANDLER
+app.use((req, res) => {
+  res.status(404).json({ success: false, message: "Route not found" });
+});
+
+// 🛑 ERROR HANDLING
 app.use(errorHandler);
 
-app.listen(PORT, () => {
-  console.log(`Server is running on port: ${PORT}`);
-});
+// 🚀 START SERVER
+const startServer = async () => {
+  try {
+    await connectDB();
+    app.listen(PORT, () => {
+      console.log(
+        `\x1b[35m%s\x1b[0m`,
+        `🚀 Krumeku Server initiated on Port: ${PORT}`,
+      );
+    });
+  } catch (error) {
+    console.error(
+      `\x1b[31m%s\x1b[0m`,
+      `❌ Server failed to start: ${error.message}`,
+    );
+    process.exit(1);
+  }
+};
+
+startServer();
