@@ -21,7 +21,6 @@ const deleteProduct = async (id) => {
   const res = await api.delete(`/api/admin/products/${id}`);
   return res.data;
 };
-
 // ── DASHBOARD STATS ────────────────────────────────────────
 
 const getStats = async (range = "daily") => {
@@ -29,15 +28,12 @@ const getStats = async (range = "daily") => {
   return res.data;
 };
 
-
-
 const adminService = {
   createProduct,
   getAdminProducts,
   updateProduct,
   deleteProduct,
   getStats,
-
 };
 
 export default adminService;
