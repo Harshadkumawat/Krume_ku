@@ -13,33 +13,7 @@ const PORT = process.env.PORT || 5050;
 
 app.set("trust proxy", 1);
 
-// 🛡️ SECURITY & PERFORMANCE
-app.use(helmet());
-app.use(compression());
-app.disable("x-powered-by");
-
-// Request logging for development
-if (process.env.NODE_ENV !== "production") {
-  app.use((req, res, next) => {
-    console.log(`${req.method} ${req.originalUrl}`);
-    next();
-  });
-}
-
-// 🚦 RATE LIMITING
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 200,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: {
-    success: false,
-    message: "Too many requests, please try again later.",
-  },
-});
-app.use("/api/", limiter);
-
-// 🌍 CORS CONFIGURATION
+// 🌍 CORS — Sabse Pehle
 const allowedOrigins = [
   "http://localhost:5173",
   "https://krume-ku.vercel.app",
@@ -52,7 +26,6 @@ app.use(
   cors({
     origin: (origin, callback) => {
       if (!origin) return callback(null, true);
-
       if (allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
@@ -69,6 +42,32 @@ app.use(
     ],
   }),
 );
+
+// 🛡️ SECURITY & PERFORMANCE — CORS ke baad
+app.use(helmet());
+app.use(compression());
+app.disable("x-powered-by");
+
+// 🚦 RATE LIMITING
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: process.env.NODE_ENV === "production" ? 200 : 2000,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: "Too many requests, please try again later.",
+  },
+});
+app.use("/api/", limiter);
+
+// Request logging for development
+if (process.env.NODE_ENV !== "production") {
+  app.use((req, res, next) => {
+    console.log(`${req.method} ${req.originalUrl}`);
+    next();
+  });
+}
 
 // 📦 BODY PARSERS
 app.use(express.json({ limit: "1mb" }));
