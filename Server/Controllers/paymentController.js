@@ -57,9 +57,9 @@ exports.createRazorpayOrder = asyncHandler(async (req, res) => {
   }
 
   const options = {
-    amount: Math.round(serverAmount * 100), 
+    amount: Math.round(serverAmount * 100),
     currency: "INR",
-    receipt: `receipt_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+    receipt: `rcpt_${Date.now()}`.slice(0, 40), 
   };
 
   const order = await razorpay.orders.create(options);
@@ -86,10 +86,14 @@ exports.verifyRazorpayPayment = asyncHandler(async (req, res) => {
     .update(sign)
     .digest("hex");
 
-  const isAuthentic = crypto.timingSafeEqual(
-    Buffer.from(razorpay_signature),
-    Buffer.from(expectedSign),
-  );
+  const sigBuffer = Buffer.from(razorpay_signature);
+  const expBuffer = Buffer.from(expectedSign);
+
+  if (sigBuffer.length !== expBuffer.length) {
+    throw new ApiError(400, "Payment verification failed — invalid signature");
+  }
+
+  const isAuthentic = crypto.timingSafeEqual(sigBuffer, expBuffer);
 
   if (isAuthentic) {
     res.status(200).json({

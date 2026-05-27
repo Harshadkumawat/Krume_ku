@@ -1,5 +1,5 @@
 import React, { memo } from "react";
-import { ArrowRight, Tag, Truck, Lock, ChevronRight } from "lucide-react";
+import { ArrowRight, Truck, Lock } from "lucide-react";
 import { formatPrice } from "../../utils/formatters";
 import Button from "../ui/Button";
 
@@ -12,7 +12,9 @@ const CartSummary = memo(({ billDetails, onCheckout, couponSection }) => {
     finalTotal = 0,
   } = billDetails || {};
 
-  const subtotal = cartTotalExclTax + gstAmount - discountAmount;
+  // ✅ Correct calculations
+  const discountedBase = cartTotalExclTax - discountAmount; // ₹959
+  const subtotal = discountedBase + gstAmount; // ₹1007
 
   return (
     <>
@@ -28,7 +30,6 @@ const CartSummary = memo(({ billDetails, onCheckout, couponSection }) => {
         .cs-row:nth-child(2) { animation-delay: 0.10s; }
         .cs-row:nth-child(3) { animation-delay: 0.15s; }
         .cs-row:nth-child(4) { animation-delay: 0.20s; }
-        .cs-row:nth-child(5) { animation-delay: 0.25s; }
 
         .cs-btn { position: relative; overflow: hidden; }
         .cs-btn::after {
@@ -85,9 +86,17 @@ const CartSummary = memo(({ billDetails, onCheckout, couponSection }) => {
                 Price before tax
               </p>
             </div>
-            <span className="text-[13px] font-bold text-zinc-800 tabular-nums">
-              {formatPrice(cartTotalExclTax)}
-            </span>
+            <div className="text-right">
+              {/* Strikethrough original price if coupon applied */}
+              {discountAmount > 0 && (
+                <p className="text-[11px] text-zinc-400 line-through tabular-nums">
+                  {formatPrice(cartTotalExclTax)}
+                </p>
+              )}
+              <span className="text-[13px] font-bold text-zinc-800 tabular-nums">
+                {formatPrice(discountedBase)}
+              </span>
+            </div>
           </div>
 
           {/* GST */}
@@ -107,26 +116,6 @@ const CartSummary = memo(({ billDetails, onCheckout, couponSection }) => {
               +&thinsp;{formatPrice(gstAmount)}
             </span>
           </div>
-
-          {/* Coupon Discount */}
-          {discountAmount > 0 && (
-            <div className="cs-row flex justify-between items-start py-3.5 border-b border-zinc-100">
-              <div className="flex items-start gap-1.5">
-                <Tag size={11} className="text-emerald-500 mt-1 shrink-0" />
-                <div>
-                  <p className="text-[13px] font-semibold text-emerald-600 leading-snug">
-                    Coupon Discount
-                  </p>
-                  <p className="text-[10px] text-zinc-400 mt-0.5 font-medium">
-                    Promo code applied
-                  </p>
-                </div>
-              </div>
-              <span className="text-[13px] font-black text-emerald-600 tabular-nums">
-                &minus;&thinsp;{formatPrice(discountAmount)}
-              </span>
-            </div>
-          )}
 
           {/* Subtotal */}
           <div className="cs-row flex justify-between items-center py-3.5 border-b border-zinc-200">

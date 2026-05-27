@@ -14,12 +14,12 @@ const ResetPassword = () => {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false); // ✅
 
   const { isLoading, isSuccess, isError, message } = useSelector(
     (state) => state.auth,
   );
 
-  // Token check
   useEffect(() => {
     if (!token) {
       toast.error("Invalid reset link.");
@@ -39,19 +39,15 @@ const ResetPassword = () => {
     }
   }, [isSuccess, isError, message, dispatch, navigate]);
 
-  // ✅ SPEED: Simple function — no useCallback needed for forms
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    if (!password || !confirmPassword) {
+    if (!password || !confirmPassword)
       return toast.error("Please fill both fields.");
-    }
-    if (password.length < 6) {
+    if (password.length < 6)
       return toast.error("Security key must be at least 6 characters.");
-    }
-    if (password !== confirmPassword) {
+    if (password !== confirmPassword)
       return toast.error("Passwords do not match!");
-    }
 
     dispatch(resetPassword({ token, password }));
   };
@@ -66,6 +62,7 @@ const ResetPassword = () => {
       />
 
       <div className="w-full max-w-[420px] bg-white rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.04)] overflow-hidden border border-gray-100">
+        {/* Header */}
         <div className="bg-black p-8 text-center">
           <Link
             to="/"
@@ -114,7 +111,7 @@ const ResetPassword = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   disabled={isLoading}
-                  className="w-full p-3.5 pl-12 bg-gray-50 border-2 border-transparent rounded-2xl font-bold text-sm focus:bg-white outline-none transition-all disabled:opacity-60"
+                  className="w-full p-3.5 pl-12 pr-12 bg-gray-50 border-2 border-transparent rounded-2xl font-bold text-sm focus:bg-white outline-none transition-all disabled:opacity-60"
                   placeholder="••••••••"
                 />
                 <button
@@ -133,7 +130,7 @@ const ResetPassword = () => {
               </div>
             </div>
 
-            {/* Confirm Password */}
+            {/* Confirm Password ✅ show/hide added */}
             <div className="space-y-1.5">
               <label
                 htmlFor="confirm-password"
@@ -149,14 +146,29 @@ const ResetPassword = () => {
                 />
                 <input
                   id="confirm-password"
-                  type="password"
+                  type={showConfirmPassword ? "text" : "password"} // ✅
                   required
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   disabled={isLoading}
-                  className="w-full p-3.5 pl-12 bg-gray-50 border-2 border-transparent rounded-2xl font-bold text-sm focus:bg-white outline-none transition-all disabled:opacity-60"
+                  className="w-full p-3.5 pl-12 pr-12 bg-gray-50 border-2 border-transparent rounded-2xl font-bold text-sm focus:bg-white outline-none transition-all disabled:opacity-60"
                   placeholder="••••••••"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword((prev) => !prev)} // ✅
+                  disabled={isLoading}
+                  aria-label={
+                    showConfirmPassword ? "Hide password" : "Show password"
+                  }
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-300 hover:text-black outline-none focus-visible:text-black rounded p-1 transition-colors"
+                >
+                  {showConfirmPassword ? (
+                    <EyeOff size={16} aria-hidden="true" />
+                  ) : (
+                    <Eye size={16} aria-hidden="true" />
+                  )}
+                </button>
               </div>
             </div>
 

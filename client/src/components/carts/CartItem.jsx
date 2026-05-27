@@ -101,7 +101,7 @@ const CartItem = memo(
               {discount > 0 && (
                 <div className="flex items-center justify-end gap-1.5 mt-1">
                   <span className="text-xs text-zinc-400 line-through tabular-nums">
-                    {formatPrice(totalBasePrice)}
+                    {/* {formatPrice(totalBasePrice)} */}
                   </span>
                   <span className="discount-badge">{discount}% OFF</span>
                 </div>

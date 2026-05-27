@@ -1,16 +1,28 @@
 const nodemailer = require("nodemailer");
 
+let transporter = null;
+
+const getTransporter = () => {
+  if (transporter) return transporter;
+  transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
+    },
+    pool: true,
+    maxConnections: 3,
+    maxMessages: 50,
+  });
+  return transporter;
+};
+
 const sendResetEmail = async (userEmail, resetUrl) => {
   try {
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-      },
-    });
+    const mailer = getTransporter();
+    if (!mailer) return;
 
-    const mailOptions = {
+    await mailer.sendMail({
       from: `"KRUMEKU SECURITY" <${process.env.EMAIL_USER}>`,
       to: userEmail,
       subject: `SECURITY PROTOCOL: Password Reset Request`,
@@ -33,11 +45,11 @@ const sendResetEmail = async (userEmail, resetUrl) => {
           </div>
         </div>
       `,
-    };
+    });
 
-    await transporter.sendMail(mailOptions);
+    console.log(`✅ Reset email sent to ${userEmail}`);
   } catch (error) {
-    console.error("Reset Email Error:", error);
+    console.error("❌ Reset Email Error:", error.message);
   }
 };
 

@@ -214,8 +214,7 @@ exports.getDashboardStats = asyncHandler(async (req, res) => {
 
   const revenueMatch = {
     ...dateMatch,
-    isPaid: true,
-    orderStatus: { $nin: ["Cancelled", "Returned"] },
+    orderStatus: { $nin: ["Cancelled", "Returned", "Processing", "Confirmed"] },
   };
 
   const groupFormat = range === "monthly" ? "%Y-%m" : "%Y-%m-%d";

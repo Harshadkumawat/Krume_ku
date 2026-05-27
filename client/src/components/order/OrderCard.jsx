@@ -17,7 +17,10 @@ const OrderCard = memo(({ order, onReturnClick, onCancelClick }) => {
   const navigate = useNavigate();
 
   const isDelivered = order.orderStatus === "Delivered";
-  const isProcessing = order.orderStatus === "Processing";
+
+  const isCancellable =
+    order.orderStatus === "Processing" || order.orderStatus === "Confirmed";
+
   const isEligible =
     isDelivered &&
     (order.deliveredAt ? checkEligibility(order.deliveredAt) : true);
@@ -42,6 +45,7 @@ const OrderCard = memo(({ order, onReturnClick, onCancelClick }) => {
     >
       <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 md:gap-6">
         <div className="flex gap-4 md:gap-5 flex-1 min-w-0">
+          {/* Product Image */}
           <div className="w-20 h-24 md:w-24 md:h-32 bg-zinc-50 overflow-hidden flex-shrink-0 rounded-xl border border-zinc-100 relative">
             <img
               src={cldImage(item?.image, 300)}
@@ -56,6 +60,7 @@ const OrderCard = memo(({ order, onReturnClick, onCancelClick }) => {
             />
           </div>
 
+          {/* Product Info */}
           <div className="flex flex-col justify-center flex-1 min-w-0 py-1">
             <p className="text-[8px] md:text-[9px] font-black text-zinc-400 uppercase tracking-[0.2em] mb-1.5 md:mb-1">
               ID: {formatId(order._id)}
@@ -82,7 +87,9 @@ const OrderCard = memo(({ order, onReturnClick, onCancelClick }) => {
           </div>
         </div>
 
+        {/* Action Button */}
         <div className="flex items-center justify-start md:justify-end w-full md:w-auto mt-2 md:mt-0 pt-4 md:pt-0 border-t border-zinc-100 md:border-t-0 md:min-w-[180px]">
+          {/* Return requested — show return status */}
           {isReturnRequested ? (
             <div className="text-left md:text-right w-full md:w-auto bg-orange-50 md:bg-transparent p-3 md:p-0 rounded-lg md:rounded-none border border-orange-100 md:border-none flex items-center justify-between md:block">
               <div className="flex flex-col items-start md:items-end gap-1">
@@ -97,7 +104,8 @@ const OrderCard = memo(({ order, onReturnClick, onCancelClick }) => {
                 aria-hidden="true"
               />
             </div>
-          ) : isProcessing ? (
+          ) : isCancellable ? (
+            // ✅ Processing OR Confirmed — cancel button
             <button
               type="button"
               onClick={(e) => {
@@ -105,11 +113,12 @@ const OrderCard = memo(({ order, onReturnClick, onCancelClick }) => {
                 if (onCancelClick) onCancelClick(order._id);
               }}
               aria-label={`Cancel order ${formatId(order._id)}`}
-              className="flex items-center justify-center gap-2 md:gap-3 w-full md:w-auto text-[10px] md:text-[10px] font-black uppercase tracking-[0.1em] bg-red-50 text-red-600 border border-red-200 px-5 md:px-6 py-3.5 md:py-4 rounded-xl hover:bg-red-100 transition-all active:scale-95 outline-none focus-visible:ring-2 focus-visible:ring-red-600 focus-visible:ring-offset-2"
+              className="flex items-center justify-center gap-2 md:gap-3 w-full md:w-auto text-[10px] font-black uppercase tracking-[0.1em] bg-red-50 text-red-600 border border-red-200 px-5 md:px-6 py-3.5 md:py-4 rounded-xl hover:bg-red-100 transition-all active:scale-95 outline-none focus-visible:ring-2 focus-visible:ring-red-600 focus-visible:ring-offset-2"
             >
               <XCircle size={14} aria-hidden="true" /> Cancel Order
             </button>
           ) : isEligible ? (
+            // Delivered + within 7 days — return button
             <button
               type="button"
               onClick={(e) => {
@@ -117,11 +126,12 @@ const OrderCard = memo(({ order, onReturnClick, onCancelClick }) => {
                 onReturnClick(order);
               }}
               aria-label={`Return or exchange order ${formatId(order._id)}`}
-              className="flex items-center justify-center gap-2 md:gap-3 w-full md:w-auto text-[10px] md:text-[10px] font-black uppercase tracking-[0.1em] bg-black text-white px-5 md:px-6 py-3.5 md:py-4 rounded-xl hover:bg-zinc-800 transition-all shadow-lg active:scale-95 outline-none focus-visible:ring-2 focus-visible:ring-zinc-800 focus-visible:ring-offset-2"
+              className="flex items-center justify-center gap-2 md:gap-3 w-full md:w-auto text-[10px] font-black uppercase tracking-[0.1em] bg-black text-white px-5 md:px-6 py-3.5 md:py-4 rounded-xl hover:bg-zinc-800 transition-all shadow-lg active:scale-95 outline-none focus-visible:ring-2 focus-visible:ring-zinc-800 focus-visible:ring-offset-2"
             >
               <RotateCcw size={14} aria-hidden="true" /> Return / Exchange
             </button>
           ) : (
+            // Default — view details
             <button
               type="button"
               tabIndex={-1}

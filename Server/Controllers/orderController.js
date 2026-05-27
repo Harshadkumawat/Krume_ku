@@ -6,11 +6,18 @@ const Coupon = require("../Models/couponModel");
 const Cart = require("../Models/CartSchema");
 const { ApiError } = require("../Middleware/errorMiddleware");
 const sendOrderEmail = require("../Utils/sendEmail");
+const sendCancelEmail = require("../Utils/Emails/sendCancelEmail");
+const sendReturnEmail = require("../Utils/Emails/sendReturnEmail");
 const { getShiprocketToken } = require("./shippingController");
 const syncOrderToShiprocket = require("../Utils/shiprocketOrder");
 const axios = require("axios");
 const { calculateBill } = require("../Utils/cartCalculator");
 const calculatePricing = require("../Utils/calculatePricing");
+const { getGstRate } = require("../Utils/calculatePricing");
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Constants
+// ─────────────────────────────────────────────────────────────────────────────
 
 const PRODUCT_SELECT =
   "productName price discountPercent discountPrice discountAmount gstRate gstAmount finalPriceWithTax images category subCategory colors sizes countInStock inStock";
@@ -29,6 +36,10 @@ const VALID_TRANSITIONS = {
 
 const USER_CANCELLABLE = ["Processing", "Confirmed"];
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
 const updateProductStock = async (orderItems, action = "decrease") => {
   for (const item of orderItems) {
     const product = await Product.findById(item.product);
@@ -43,7 +54,6 @@ const updateProductStock = async (orderItems, action = "decrease") => {
     }
 
     const sizeIndex = product.sizes.findIndex((s) => s.label === item.size);
-
     if (sizeIndex !== -1) {
       if (action === "decrease") {
         product.sizes[sizeIndex].stock = Math.max(
@@ -56,7 +66,7 @@ const updateProductStock = async (orderItems, action = "decrease") => {
       product.markModified("sizes");
     } else {
       console.warn(
-        `⚠️ Size "${item.size}" not found in product ${product._id}. Stock not adjusted for this item.`,
+        `⚠️ Size "${item.size}" not found in product ${product._id}. Stock not adjusted.`,
       );
     }
 
@@ -99,6 +109,25 @@ const handleCancellation = async (order) => {
   await restoreCouponUsage(order);
 };
 
+// Safe email sender — never crashes the main flow
+const safeEmail = async (fn, label) => {
+  try {
+    await fn();
+  } catch (err) {
+    console.error(`⚠️ ${label} Email Error:`, err.message);
+  }
+};
+
+// Get user email safely
+const getUserEmail = async (userId) => {
+  const user = await User.findById(userId).select("email");
+  return user?.email || null;
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Controllers
+// ─────────────────────────────────────────────────────────────────────────────
+
 const addOrderItems = asyncHandler(async (req, res) => {
   const { shippingAddress, paymentMethod, isPaid, paidAt, paymentResult } =
     req.body;
@@ -136,7 +165,11 @@ const addOrderItems = asyncHandler(async (req, res) => {
     if (!product.inStock || product.countInStock < item.quantity) {
       throw new ApiError(
         400,
-        `"${product.productName}" ${!product.inStock ? "is out of stock" : `only has ${product.countInStock} units available`}`,
+        `"${product.productName}" ${
+          !product.inStock
+            ? "is out of stock"
+            : `only has ${product.countInStock} units available`
+        }`,
       );
     }
 
@@ -210,6 +243,7 @@ const addOrderItems = asyncHandler(async (req, res) => {
 
   const createdOrder = await order.save();
 
+  // Auto-save address if user has none
   try {
     const user = await User.findById(req.user._id);
     if (user && (!user.addresses || user.addresses.length === 0)) {
@@ -236,6 +270,7 @@ const addOrderItems = asyncHandler(async (req, res) => {
 
   res.status(201).json({ success: true, data: createdOrder });
 
+  // ── Shiprocket Sync (background) ─────────────────────────────────────────
   (async () => {
     try {
       const token = await getShiprocketToken();
@@ -258,25 +293,37 @@ const addOrderItems = asyncHandler(async (req, res) => {
     }
   })();
 
+  // ── Order Confirmation Email (background) ────────────────────────────────
   (async () => {
-    try {
+    await safeEmail(async () => {
+      const discountRatio =
+        billDetails.cartTotalExclTax > 0
+          ? billDetails.discountAmount / billDetails.cartTotalExclTax
+          : 0;
+
       await sendOrderEmail(req.user.email, {
         orderId: createdOrder._id.toString(),
         totalAmount: createdOrder.totalPrice,
         address: `${shippingAddress.address}, ${shippingAddress.city} - ${shippingAddress.pincode}`,
-        items: orderItems.map((item) => ({
-          name: item.productName,
-          quantity: item.quantity,
-          price: item.price,
-          image: item.image,
-          size: item.size || "N/A",
-        })),
+        items: orderItems.map((item) => {
+          const priceExclGst = Number(item.price) || 0;
+          const itemTaxable = priceExclGst * (1 - discountRatio);
+          const gstRate = getGstRate(itemTaxable);
+          const inclGstPrice = Math.round(itemTaxable * (1 + gstRate / 100));
+          return {
+            name: item.productName,
+            quantity: item.quantity,
+            price: inclGstPrice,
+            image: item.image,
+            size: item.size || "N/A",
+          };
+        }),
       });
-    } catch (error) {
-      console.error("⚠️ Email Error:", error.message);
-    }
+    }, "Order Confirmation");
   })();
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 const requestReturn = asyncHandler(async (req, res) => {
   const { reason, comments, type } = req.body;
@@ -320,6 +367,8 @@ const requestReturn = asyncHandler(async (req, res) => {
     data: order,
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 const handleReturnStatus = asyncHandler(async (req, res) => {
   const { status, adminComment } = req.body;
@@ -390,12 +439,30 @@ const handleReturnStatus = asyncHandler(async (req, res) => {
 
   await order.save();
 
+  // ── Return Status Email ──────────────────────────────────────────────────
+  await safeEmail(async () => {
+    const email = await getUserEmail(order.user);
+    if (email) {
+      await sendReturnEmail(
+        email,
+        {
+          orderId: order._id.toString(),
+          returnType: order.returnInfo?.type || "Refund",
+          adminComment: order.returnInfo?.adminComment || "",
+        },
+        status,
+      );
+    }
+  }, "Return Status");
+
   res.status(200).json({
     success: true,
     message: `Return ${status.toLowerCase()}`,
     data: order,
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 const updateOrderStatus = asyncHandler(async (req, res) => {
   const order = await Order.findById(req.params.id);
@@ -425,11 +492,25 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
 
   if (newStatus === "Cancelled") {
     await handleCancellation(order);
+
+    // ── Admin Cancel Email ─────────────────────────────────────────────────
+    await safeEmail(async () => {
+      const email = await getUserEmail(order.user);
+      if (email) {
+        await sendCancelEmail(email, {
+          orderId: order._id.toString(),
+          totalAmount: order.totalPrice,
+          paymentMethod: order.paymentMethod,
+        });
+      }
+    }, "Admin Cancel");
   }
 
   await order.save();
   res.status(200).json({ success: true, data: order });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 const getOrderById = asyncHandler(async (req, res) => {
   const order = await Order.findById(req.params.id)
@@ -448,12 +529,16 @@ const getOrderById = asyncHandler(async (req, res) => {
   res.status(200).json({ success: true, data: order });
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+
 const getMyOrders = asyncHandler(async (req, res) => {
   const orders = await Order.find({ user: req.user._id })
     .sort({ createdAt: -1 })
     .lean();
   res.status(200).json({ success: true, data: orders });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 const cancelOrder = asyncHandler(async (req, res) => {
   const order = await Order.findById(req.params.id);
@@ -472,12 +557,26 @@ const cancelOrder = asyncHandler(async (req, res) => {
   order.orderStatus = "Cancelled";
   await order.save();
 
+  // ── User Cancel Email ────────────────────────────────────────────────────
+  await safeEmail(async () => {
+    const email = await getUserEmail(order.user);
+    if (email) {
+      await sendCancelEmail(email, {
+        orderId: order._id.toString(),
+        totalAmount: order.totalPrice,
+        paymentMethod: order.paymentMethod,
+      });
+    }
+  }, "User Cancel");
+
   res.status(200).json({
     success: true,
     message: "Order cancelled successfully",
     data: order,
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 const getAllOrders = asyncHandler(async (req, res) => {
   const filter = {};
@@ -498,6 +597,8 @@ const getAllOrders = asyncHandler(async (req, res) => {
   res.status(200).json({ success: true, count: orders.length, data: orders });
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+
 const deleteOrder = asyncHandler(async (req, res) => {
   const order = await Order.findById(req.params.id);
   if (!order) throw new ApiError(404, "Order not found");
@@ -505,6 +606,8 @@ const deleteOrder = asyncHandler(async (req, res) => {
   await order.deleteOne();
   res.status(200).json({ success: true, message: "Order removed" });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 module.exports = {
   addOrderItems,

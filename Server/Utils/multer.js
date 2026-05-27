@@ -8,7 +8,6 @@ const fileFilter = (req, file, cb) => {
   if (allowedTypes.includes(file.mimetype)) {
     cb(null, true);
   } else {
-    // ✅ FIX: Multer error → errorMiddleware handle karega
     const error = new Error(
       "Invalid file type. Only JPG, PNG, and WEBP are allowed!",
     );

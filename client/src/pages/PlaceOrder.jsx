@@ -39,9 +39,7 @@ export default function PlaceOrder() {
   const isOrderPlaced = useRef(false);
 
   const subtotalWithTax =
-    (billDetails?.cartTotalExclTax || 0) +
-    (billDetails?.gstAmount || 0) -
-    (billDetails?.discountAmount || 0);
+    (billDetails?.finalTotal || 0) - (billDetails?.shipping || 0);
 
   useEffect(() => {
     dispatch(resetOrderState());
@@ -404,7 +402,7 @@ export default function PlaceOrder() {
               </h2>
               <div className="space-y-4 text-[13px] font-medium text-zinc-600">
                 <div className="flex justify-between italic">
-                  <span>Total MRP</span>
+                  <span>Item Total (excl. tax)</span>
                   <span className="text-black">
                     {formatPrice(billDetails?.cartTotalExclTax)}
                   </span>
