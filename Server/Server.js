@@ -44,7 +44,11 @@ app.use(
 );
 
 // 🛡️ SECURITY & PERFORMANCE — CORS ke baad
-app.use(helmet());
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+  }),
+);
 app.use(compression());
 app.disable("x-powered-by");
 
