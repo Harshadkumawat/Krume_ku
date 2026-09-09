@@ -1,18 +1,20 @@
 import React, { memo } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader as Loader2 } from "lucide-react";
 
 const baseStyles =
-  "inline-flex items-center justify-center font-black uppercase tracking-[0.2em] transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed italic rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2";
+  "inline-flex items-center justify-center font-black uppercase tracking-[0.2em] transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed italic rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 shadow-md hover:shadow-lg";
 
 const variantsStyles = {
-  primary: "bg-black text-white hover:bg-zinc-800 shadow-lg shadow-black/10",
+  primary:
+    "bg-black text-white hover:bg-zinc-800 hover:shadow-lg hover:shadow-black/20 border-2 border-black",
   outline:
-    "bg-white border-2 border-black text-black hover:bg-black hover:text-white",
+    "bg-white border-2 border-black text-black hover:bg-black hover:text-white hover:shadow-lg",
   danger:
-    "bg-red-50 border border-red-100 text-red-600 hover:bg-red-600 hover:text-white",
-  ghost: "bg-zinc-100 text-zinc-500 hover:bg-zinc-200 hover:text-black",
+    "bg-red-50 border-2 border-red-100 text-red-600 hover:bg-red-600 hover:text-white hover:border-red-600 hover:shadow-red-600/30",
+  ghost:
+    "bg-zinc-100 text-zinc-600 hover:bg-zinc-200 hover:text-black border border-zinc-200",
   dark_outline:
-    "bg-zinc-900 border border-white/10 text-white hover:bg-white hover:text-black",
+    "bg-zinc-900 border-2 border-white/20 text-white hover:bg-white hover:text-black hover:shadow-lg",
 };
 
 const sizesStyles = {

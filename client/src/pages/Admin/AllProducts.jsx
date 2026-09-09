@@ -1,8 +1,3 @@
-// frontend/src/components/admin/AllProducts.jsx
-// ✅ UPDATED — 2 fixes
-// FIX 1: Category filter uses all schema categories (not hardcoded 4)
-// FIX 2: Action buttons always visible (touch-device friendly)
-
 import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Link } from "react-router-dom";
@@ -18,13 +13,13 @@ import {
   TrendingUp,
   Star,
   ArrowUpRight,
+  X,
 } from "lucide-react";
 import {
   getAdminProducts,
   deleteProduct,
 } from "../../features/admin/adminSlice";
 
-// ✅ FIX 1: All categories from schema — single source of truth
 const CATEGORY_OPTIONS = [
   "T-Shirts",
   "Shirts",
@@ -37,6 +32,73 @@ const CATEGORY_OPTIONS = [
   "Ethnic Wear",
 ];
 
+// ── Delete Confirmation Modal ──────────────────────────────────────────────────
+const DeleteModal = ({ product, onConfirm, onCancel }) => {
+  if (!product) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+      <div className="bg-white rounded-[1.5rem] shadow-2xl w-full max-w-md p-6 animate-in fade-in zoom-in-95 duration-200">
+        {/* Icon + Close */}
+        <div className="flex items-start justify-between mb-5">
+          <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center flex-shrink-0">
+            <Trash2 size={20} className="text-red-600" />
+          </div>
+          <button
+            onClick={onCancel}
+            className="p-2 rounded-xl hover:bg-gray-100 transition-colors"
+            aria-label="Close"
+          >
+            <X size={18} className="text-gray-400" />
+          </button>
+        </div>
+
+        {/* Text */}
+        <h2 className="text-lg font-black uppercase italic tracking-tight mb-2">
+          Delete product?
+        </h2>
+        <p className="text-sm text-gray-500 leading-relaxed mb-4">
+          <span className="font-black text-gray-800">
+            {product.productName}
+          </span>{" "}
+          will be permanently removed from your store. This action cannot be
+          undone.
+        </p>
+
+        {/* Warning note */}
+        <div className="flex gap-3 items-start bg-orange-50 border border-orange-100 rounded-xl p-3 mb-6">
+          <AlertTriangle
+            size={15}
+            className="text-orange-500 flex-shrink-0 mt-0.5"
+          />
+          <p className="text-[11px] font-bold text-orange-700 leading-relaxed">
+            Existing orders linked to this product will not be affected, but it
+            will no longer appear in your store.
+          </p>
+        </div>
+
+        {/* Actions */}
+        <div className="flex gap-3">
+          <button
+            onClick={onCancel}
+            className="flex-1 py-3 border border-gray-200 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 transition-all"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            className="flex-1 py-3 bg-red-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-700 transition-all flex items-center justify-center gap-2 active:scale-95"
+          >
+            <Trash2 size={13} strokeWidth={3} />
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ── Main Component ─────────────────────────────────────────────────────────────
 const AllProducts = () => {
   const dispatch = useDispatch();
   const { products = [], isLoading } = useSelector((state) => state.admin);
@@ -44,22 +106,30 @@ const AllProducts = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");
 
+  // Delete modal state — stores full product object so we can show name
+  const [deleteTarget, setDeleteTarget] = useState(null);
+
   useEffect(() => {
     dispatch(getAdminProducts());
   }, [dispatch]);
 
-  const handleDelete = useCallback(
-    (id) => {
-      if (
-        window.confirm(
-          "Are you sure you want to permanently delete this product?",
-        )
-      ) {
-        dispatch(deleteProduct(id));
-      }
-    },
-    [dispatch],
-  );
+  // Opens modal with the selected product
+  const handleDelete = useCallback((product) => {
+    setDeleteTarget(product);
+  }, []);
+
+  // Confirmed — dispatch and close
+  const confirmDelete = useCallback(() => {
+    if (deleteTarget) {
+      dispatch(deleteProduct(deleteTarget._id));
+      setDeleteTarget(null);
+    }
+  }, [dispatch, deleteTarget]);
+
+  // Cancelled — just close
+  const cancelDelete = useCallback(() => {
+    setDeleteTarget(null);
+  }, []);
 
   const filteredProducts = useMemo(() => {
     const query = searchTerm.toLowerCase();
@@ -101,146 +171,154 @@ const AllProducts = () => {
     );
 
   return (
-    <div className="space-y-6 md:space-y-8 animate-in fade-in duration-500 pb-20 overflow-x-hidden">
-      {/* Header */}
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-5 bg-black p-6 md:p-8 rounded-[1.5rem] md:rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 blur-[100px] rounded-full -mr-20 -mt-20"></div>
-        <div className="relative z-10">
-          <h1 className="text-2xl md:text-4xl font-black uppercase tracking-tighter italic">
-            Product <span className="text-blue-500">Inventory</span>
-          </h1>
-          <p className="text-gray-500 text-[9px] md:text-[10px] font-black uppercase tracking-[0.3em] mt-1.5 opacity-80">
-            Control Center / {filteredProducts.length} Items Found
-          </p>
-        </div>
-        <Link
-          to="/admin/product/new"
-          className="w-full md:w-auto justify-center bg-white text-black px-6 py-4 md:py-3.5 rounded-xl font-black uppercase text-[10px] tracking-widest flex items-center gap-2 hover:bg-blue-500 hover:text-white transition-all shadow-lg active:scale-95"
-        >
-          <Plus size={14} strokeWidth={3} /> Add New Entry
-        </Link>
-      </header>
+    <>
+      {/* Delete Modal */}
+      <DeleteModal
+        product={deleteTarget}
+        onConfirm={confirmDelete}
+        onCancel={cancelDelete}
+      />
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
-        <StatCard
-          icon={<Package size={20} />}
-          title="Archive Size"
-          value={filteredProducts.length}
-          color="text-blue-600"
-          bg="bg-blue-50"
-        />
-        <StatCard
-          icon={<TrendingUp size={20} />}
-          title="Stock Valuation"
-          value={`₹${stats.totalValue.toLocaleString("en-IN")}`}
-          color="text-emerald-600"
-          bg="bg-emerald-50"
-        />
-        <StatCard
-          icon={<AlertTriangle size={20} />}
-          title="Critically Low"
-          value={stats.lowStockCount}
-          color="text-orange-600"
-          bg="bg-orange-50"
-          alert={stats.lowStockCount > 0}
-        />
-      </div>
-
-      {/* Search & Filter */}
-      <div className="flex flex-col md:flex-row gap-3 md:gap-4 p-1 rounded-[1.5rem]">
-        <div className="relative flex-1 group">
-          <Search
-            className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-black transition-colors"
-            size={18}
-          />
-          <input
-            type="text"
-            placeholder="Search by product name..."
-            aria-label="Search catalog"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-12 pr-4 py-4 bg-white border border-gray-100 rounded-xl focus:border-black outline-none font-bold text-[10px] md:font-black uppercase tracking-widest transition-all shadow-sm"
-          />
-        </div>
-        <div className="relative">
-          <Filter
-            className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
-            size={18}
-          />
-          {/* ✅ FIX 1: All 9 categories from schema */}
-          <select
-            aria-label="Filter by category"
-            value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
-            className="w-full md:w-auto pl-12 pr-10 py-4 bg-white border border-gray-100 rounded-xl focus:border-black outline-none font-bold text-[10px] md:font-black uppercase tracking-widest appearance-none cursor-pointer min-w-[200px] shadow-sm"
+      <div className="space-y-6 md:space-y-8 animate-in fade-in duration-500 pb-20 overflow-x-hidden">
+        {/* Header */}
+        <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-5 bg-black p-6 md:p-8 rounded-[1.5rem] md:rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 blur-[100px] rounded-full -mr-20 -mt-20"></div>
+          <div className="relative z-10">
+            <h1 className="text-2xl md:text-4xl font-black uppercase tracking-tighter italic">
+              Product <span className="text-blue-500">Inventory</span>
+            </h1>
+            <p className="text-gray-500 text-[9px] md:text-[10px] font-black uppercase tracking-[0.3em] mt-1.5 opacity-80">
+              Control Center / {filteredProducts.length} Items Found
+            </p>
+          </div>
+          <Link
+            to="/admin/product/new"
+            className="w-full md:w-auto justify-center bg-white text-black px-6 py-4 md:py-3.5 rounded-xl font-black uppercase text-[10px] tracking-widest flex items-center gap-2 hover:bg-blue-500 hover:text-white transition-all shadow-lg active:scale-95"
           >
-            <option value="All">All Categories</option>
-            {CATEGORY_OPTIONS.map((cat) => (
-              <option key={cat} value={cat}>
-                {cat}
-              </option>
-            ))}
-          </select>
+            <Plus size={14} strokeWidth={3} /> Add New Entry
+          </Link>
+        </header>
+
+        {/* Stats */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
+          <StatCard
+            icon={<Package size={20} />}
+            title="Archive Size"
+            value={filteredProducts.length}
+            color="text-blue-600"
+            bg="bg-blue-50"
+          />
+          <StatCard
+            icon={<TrendingUp size={20} />}
+            title="Stock Valuation"
+            value={`₹${stats.totalValue.toLocaleString("en-IN")}`}
+            color="text-emerald-600"
+            bg="bg-emerald-50"
+          />
+          <StatCard
+            icon={<AlertTriangle size={20} />}
+            title="Critically Low"
+            value={stats.lowStockCount}
+            color="text-orange-600"
+            bg="bg-orange-50"
+            alert={stats.lowStockCount > 0}
+          />
         </div>
-      </div>
 
-      {/* Product List */}
-      <main>
-        {filteredProducts.length === 0 ? (
-          <EmptyState />
-        ) : (
-          <>
-            {/* Desktop Table */}
-            <div className="hidden md:block bg-white rounded-[2rem] border border-gray-100 shadow-sm overflow-hidden">
-              <table className="w-full text-left" role="grid">
-                <thead className="bg-gray-50/50 border-b border-gray-100">
-                  <tr>
-                    <th className="p-6 text-[9px] font-black text-gray-400 uppercase tracking-[0.3em] italic">
-                      Artifact Info
-                    </th>
-                    <th className="p-6 text-[9px] font-black text-gray-400 uppercase tracking-[0.3em] italic">
-                      Valuation
-                    </th>
-                    <th className="p-6 text-[9px] font-black text-gray-400 uppercase tracking-[0.3em] italic">
-                      Stock Status
-                    </th>
-                    <th className="p-6 text-[9px] font-black text-gray-400 uppercase tracking-[0.3em] italic text-right">
-                      Ops
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {filteredProducts.map((product) => (
-                    <ProductRow
-                      key={product._id}
-                      product={product}
-                      onDelete={handleDelete}
-                    />
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Mobile Cards */}
-            <div className="md:hidden flex flex-col gap-4">
-              {filteredProducts.map((product) => (
-                <ProductMobileCard
-                  key={product._id}
-                  product={product}
-                  onDelete={handleDelete}
-                />
+        {/* Search & Filter */}
+        <div className="flex flex-col md:flex-row gap-3 md:gap-4 p-1 rounded-[1.5rem]">
+          <div className="relative flex-1 group">
+            <Search
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-black transition-colors"
+              size={18}
+            />
+            <input
+              type="text"
+              placeholder="Search by product name..."
+              aria-label="Search catalog"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-12 pr-4 py-4 bg-white border border-gray-100 rounded-xl focus:border-black outline-none font-bold text-[10px] md:font-black uppercase tracking-widest transition-all shadow-sm"
+            />
+          </div>
+          <div className="relative">
+            <Filter
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
+              size={18}
+            />
+            <select
+              aria-label="Filter by category"
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              className="w-full md:w-auto pl-12 pr-10 py-4 bg-white border border-gray-100 rounded-xl focus:border-black outline-none font-bold text-[10px] md:font-black uppercase tracking-widest appearance-none cursor-pointer min-w-[200px] shadow-sm"
+            >
+              <option value="All">All Categories</option>
+              {CATEGORY_OPTIONS.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat}
+                </option>
               ))}
-            </div>
-          </>
-        )}
-      </main>
-    </div>
+            </select>
+          </div>
+        </div>
+
+        {/* Product List */}
+        <main>
+          {filteredProducts.length === 0 ? (
+            <EmptyState />
+          ) : (
+            <>
+              {/* Desktop Table */}
+              <div className="hidden md:block bg-white rounded-[2rem] border border-gray-100 shadow-sm overflow-hidden">
+                <table className="w-full text-left" role="grid">
+                  <thead className="bg-gray-50/50 border-b border-gray-100">
+                    <tr>
+                      <th className="p-6 text-[9px] font-black text-gray-400 uppercase tracking-[0.3em] italic">
+                        Artifact Info
+                      </th>
+                      <th className="p-6 text-[9px] font-black text-gray-400 uppercase tracking-[0.3em] italic">
+                        Valuation
+                      </th>
+                      <th className="p-6 text-[9px] font-black text-gray-400 uppercase tracking-[0.3em] italic">
+                        Stock Status
+                      </th>
+                      <th className="p-6 text-[9px] font-black text-gray-400 uppercase tracking-[0.3em] italic text-right">
+                        Ops
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {filteredProducts.map((product) => (
+                      <ProductRow
+                        key={product._id}
+                        product={product}
+                        onDelete={handleDelete}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile Cards */}
+              <div className="md:hidden flex flex-col gap-4">
+                {filteredProducts.map((product) => (
+                  <ProductMobileCard
+                    key={product._id}
+                    product={product}
+                    onDelete={handleDelete}
+                  />
+                ))}
+              </div>
+            </>
+          )}
+        </main>
+      </div>
+    </>
   );
 };
 
-// ✅ FIX 2: Action buttons always visible (not opacity-0)
-// Touch devices can't hover — buttons were invisible on iPad
+// ── Sub-components ─────────────────────────────────────────────────────────────
+
 const ProductRow = React.memo(({ product, onDelete }) => (
   <tr className="group hover:bg-gray-50/50 transition-all duration-300">
     <td className="p-6">
@@ -297,8 +375,6 @@ const ProductRow = React.memo(({ product, onDelete }) => (
       </div>
     </td>
     <td className="p-6 text-right">
-      {/* ✅ FIX 2: Changed from opacity-0 to opacity-60 
-          Hover enhances to full opacity, but always visible for touch */}
       <div className="flex items-center justify-end gap-2 opacity-60 group-hover:opacity-100 transition-all">
         <Link
           to={`/admin/product/${product._id}`}
@@ -308,7 +384,7 @@ const ProductRow = React.memo(({ product, onDelete }) => (
           <Edit size={14} />
         </Link>
         <button
-          onClick={() => onDelete(product._id)}
+          onClick={() => onDelete(product)}
           className="p-3 bg-red-50 text-red-600 hover:bg-red-600 hover:text-white rounded-xl transition-all"
           aria-label={`Delete ${product.productName}`}
         >
@@ -356,7 +432,7 @@ const ProductMobileCard = React.memo(({ product, onDelete }) => (
         <Edit size={14} /> Edit
       </Link>
       <button
-        onClick={() => onDelete(product._id)}
+        onClick={() => onDelete(product)}
         className="flex-1 py-3 bg-red-50 text-red-600 rounded-xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest"
       >
         <Trash2 size={14} /> Delete

@@ -3,11 +3,14 @@ import {
   X,
   ChevronDown,
   Scissors,
-  Loader2,
-  AlertCircle,
+  Loader as Loader2,
+  CircleAlert as AlertCircle,
   RefreshCw,
   SlidersHorizontal,
+  Sparkles,
+  TrendingUp,
 } from "lucide-react";
+import { motion } from "framer-motion";
 import FilterSidebar from "../components/clothes/FilterSidebar";
 import ProductCard from "../components/clothes/ProductCard";
 import PageTransition from "../components/PageTransition";
@@ -47,17 +50,26 @@ const getDisplayTitle = (params) => {
 
 // ── Memoized Child Components ─────────────────────────────
 const TabButton = memo(({ tab, isActive, onClick }) => (
-  <button
+  <motion.button
     onClick={onClick}
-    className={`py-4 text-[10px] font-black uppercase tracking-[0.3em] transition-colors relative outline-none ${
-      isActive ? "text-black" : "text-zinc-300 hover:text-zinc-600"
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    className={`py-4 px-1 text-[11px] font-black uppercase tracking-[0.3em] transition-colors relative outline-none group ${
+      isActive ? "text-black" : "text-zinc-400 hover:text-zinc-700"
     }`}
   >
     {tab.label}
     {isActive && (
-      <span className="absolute bottom-0 left-0 w-full h-[2px] bg-black" />
+      <motion.span
+        layoutId="underline"
+        className="absolute bottom-0 left-0 right-0 h-[3px] bg-black rounded-full"
+        transition={{ type: "spring", stiffness: 380, damping: 40 }}
+      />
     )}
-  </button>
+    {!isActive && (
+      <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-zinc-200 group-hover:bg-zinc-400 transition-colors" />
+    )}
+  </motion.button>
 ));
 
 const ErrorBlock = memo(({ onRetry }) => (
@@ -196,84 +208,115 @@ const Clothes = () => {
 
   return (
     <PageTransition>
-      <div className="min-h-screen bg-white selection:bg-black selection:text-white">
+      <div className="min-h-screen bg-gradient-to-b from-white via-white to-zinc-50 selection:bg-black selection:text-white relative overflow-hidden">
         <SEO
           title={`Buy ${displayTitle}`}
           description={`Discover ${displayTitle} from Krumeku.`}
         />
 
-        <nav className="bg-white border-b border-zinc-100 sticky top-0 z-40 overflow-x-auto no-scrollbar">
+        <div className="absolute top-0 right-0 w-96 h-96 bg-red-600/5 rounded-full blur-3xl pointer-events-none" />
+
+        <nav className="bg-white/80 backdrop-blur-xl border-b-2 border-zinc-100 sticky top-0 z-40 overflow-x-auto no-scrollbar shadow-sm">
           <div className="max-w-[1600px] mx-auto px-4 md:px-12 flex gap-8 whitespace-nowrap min-w-max">
-            {QUICK_TABS.map((tab) => (
-              <TabButton
+            {QUICK_TABS.map((tab, idx) => (
+              <motion.div
                 key={tab.label}
-                tab={tab}
-                isActive={
-                  tab.type === "all"
-                    ? activeTabType === "all"
-                    : activeTabType === `${tab.type}:${tab.val}`
-                }
-                onClick={() => handleTabClick(tab)}
-              />
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: idx * 0.05 }}
+              >
+                <TabButton
+                  tab={tab}
+                  isActive={
+                    tab.type === "all"
+                      ? activeTabType === "all"
+                      : activeTabType === `${tab.type}:${tab.val}`
+                  }
+                  onClick={() => handleTabClick(tab)}
+                />
+              </motion.div>
             ))}
           </div>
         </nav>
 
-        <div className="py-6 md:py-10 bg-white">
-          <div className="max-w-[1600px] mx-auto px-4 md:px-12">
+        <div className="py-8 md:py-12 bg-white/50 backdrop-blur-sm border-b-2 border-zinc-100">
+          <div className="max-w-[1600px] mx-auto px-4 md:px-12 relative z-10">
             {(params.queryParam || params.newArrivalParam) && (
-              <div className="mb-4 flex items-center gap-2 text-red-600">
-                <span className="w-1.5 h-1.5 bg-red-600 rounded-full animate-pulse" />
-                <span className="text-[9px] font-black uppercase tracking-widest">
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="mb-6 flex items-center gap-3 bg-red-50/50 border-l-4 border-red-600 pl-4 pr-4 py-3 rounded-r-lg"
+              >
+                <span className="w-2.5 h-2.5 bg-red-600 rounded-full animate-pulse" />
+                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-red-700">
                   {params.newArrivalParam
                     ? "NEW DROPS"
                     : `SEARCH: ${params.queryParam}`}
                 </span>
                 <button
                   onClick={actions.handleClearSearch}
-                  className="text-zinc-300 hover:text-black"
+                  className="ml-auto text-zinc-400 hover:text-black transition-colors"
                 >
-                  <X size={12} />
+                  <X size={14} />
                 </button>
-              </div>
+              </motion.div>
             )}
 
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-              <div className="flex flex-col gap-1">
-                <div className="flex items-baseline gap-4">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex flex-col gap-2"
+              >
+                <div className="flex items-baseline gap-4 flex-wrap">
                   <h1 className="text-3xl md:text-5xl font-black uppercase tracking-tighter italic leading-none">
                     {displayTitle}
                   </h1>
-                  <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest hidden md:block">
+                  <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest hidden md:block">
                     / {totalPieces} PIECES
                   </span>
                 </div>
                 {params.subCategoryParam === "Embroidered" && (
-                  <p className="text-[10px] md:text-xs font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-2 mt-2">
+                  <motion.p
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.1 }}
+                    className="text-[11px] md:text-xs font-bold text-red-600 uppercase tracking-widest flex items-center gap-2 mt-1"
+                  >
                     <Scissors size={12} className="text-black" /> 100% IN-HOUSE
                     MACHINE EMBROIDERED
-                  </p>
+                  </motion.p>
                 )}
                 {activeFilterCount > 0 && (
-                  <p className="text-[9px] font-black text-red-600 uppercase tracking-widest mt-1">
+                  <motion.p
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.15 }}
+                    className="text-[10px] font-black text-red-600 uppercase tracking-widest mt-2 flex items-center gap-2"
+                  >
+                    <TrendingUp size={12} />
                     {activeFilterCount} filter{activeFilterCount > 1 ? "s" : ""}{" "}
                     active ·{" "}
                     <button
                       onClick={actions.handleClearFilters}
-                      className="underline"
+                      className="underline hover:text-black transition-colors"
                     >
                       Clear
                     </button>
-                  </p>
+                  </motion.p>
                 )}
-              </div>
+              </motion.div>
 
-              <div className="w-full md:w-auto flex gap-2">
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="w-full md:w-auto flex gap-2"
+              >
                 <div className="relative flex-1 md:flex-none">
                   <select
                     value={params.sortParam}
                     onChange={handleSortChange}
-                    className="w-full md:min-w-[180px] bg-white text-black py-2.5 px-4 text-[9px] font-black uppercase tracking-widest border border-zinc-200 rounded-lg appearance-none outline-none cursor-pointer"
+                    className="w-full md:min-w-[200px] bg-white text-black py-3 px-4 text-[9px] font-black uppercase tracking-widest border-2 border-zinc-200 hover:border-black rounded-lg appearance-none outline-none cursor-pointer transition-colors"
                   >
                     {SORT_OPTIONS.map((opt) => (
                       <option key={opt.value} value={opt.value}>
@@ -283,15 +326,15 @@ const Clothes = () => {
                   </select>
                   <ChevronDown
                     size={12}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-600 pointer-events-none"
                   />
                 </div>
-              </div>
+              </motion.div>
             </div>
           </div>
         </div>
 
-        <div className="max-w-[1600px] mx-auto px-4 md:px-12 pb-20 flex gap-12">
+        <div className="max-w-[1600px] mx-auto px-4 md:px-12 pb-20 flex gap-12 relative z-10">
           <aside className="hidden lg:block w-64 shrink-0 sticky top-24 h-fit">
             <FilterSidebar {...filterProps} />
           </aside>
@@ -300,11 +343,17 @@ const Clothes = () => {
             {state.isError && !state.isLoading && (
               <ErrorBlock onRetry={() => actions.fetchProducts(1)} />
             )}
-            <ProductGrid
-              products={state.allProducts}
-              isLoading={state.isLoading}
-              isFetchingMore={state.isFetchingMore}
-            />
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.5 }}
+            >
+              <ProductGrid
+                products={state.allProducts}
+                isLoading={state.isLoading}
+                isFetchingMore={state.isFetchingMore}
+              />
+            </motion.div>
             {!state.isLoading &&
               !state.isError &&
               state.allProducts.length === 0 && (
@@ -314,10 +363,15 @@ const Clothes = () => {
                 />
               )}
             {state.meta?.hasMore && state.allProducts.length > 0 && (
-              <div className="mt-16 text-center">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                className="mt-20 text-center"
+              >
                 <Button
                   variant="outline"
-                  className="px-10 py-4 uppercase tracking-[0.2em] font-black text-[10px]"
+                  className="px-12 py-4 uppercase tracking-[0.2em] font-black text-[11px] border-2 hover:bg-black hover:text-white transition-all"
                   disabled={state.isFetchingMore || state.isLoading}
                   onClick={() =>
                     actions.fetchProducts((state.meta?.page ?? 1) + 1)
@@ -326,39 +380,56 @@ const Clothes = () => {
                   {state.isFetchingMore ? (
                     <Loader2 className="animate-spin w-4 h-4 mx-auto" />
                   ) : (
-                    "Load More"
+                    "Load More Premium Pieces"
                   )}
                 </Button>
-              </div>
+              </motion.div>
             )}
           </main>
         </div>
 
         {/* 📱 MOBILE FILTER TRIGGER */}
-        <div className="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-50"
+        >
           <Button
             variant="primary"
-            className="rounded-full shadow-2xl px-8 py-4"
+            className="rounded-full shadow-2xl px-8 py-4 font-black uppercase text-[10px]"
             icon={SlidersHorizontal}
             onClick={() => setMobileFilterOpen(true)}
           >
             Refine{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
           </Button>
-        </div>
+        </motion.div>
 
         {/* 📱 MOBILE FILTER DRAWER */}
         {isMobileFilterOpen && (
-          <div className="fixed inset-0 z-[100] flex justify-end">
-            <div
-              className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-in fade-in"
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex justify-end"
+          >
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="absolute inset-0 bg-black/50 backdrop-blur-sm"
               onClick={() => setMobileFilterOpen(false)}
             />
-            <div className="relative bg-white w-[85%] h-full p-8 overflow-y-auto animate-in slide-in-from-right duration-300 rounded-l-3xl flex flex-col">
-              <div className="flex justify-between items-center mb-8">
+            <motion.div
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              className="relative bg-white w-[85%] h-full p-8 overflow-y-auto rounded-l-2xl flex flex-col shadow-2xl"
+            >
+              <div className="flex justify-between items-center mb-8 pb-4 border-b-2 border-zinc-100">
                 <h2 className="text-xl font-black uppercase italic">Refine</h2>
                 <button
                   onClick={() => setMobileFilterOpen(false)}
-                  className="hover:text-red-600 transition-colors"
+                  className="hover:text-red-600 transition-colors p-2 hover:bg-red-50 rounded-full"
                 >
                   <X size={20} />
                 </button>
@@ -366,17 +437,17 @@ const Clothes = () => {
               <div className="flex-1 overflow-y-auto no-scrollbar">
                 <FilterSidebar {...filterProps} />
               </div>
-              <div className="pt-6 border-t border-zinc-100 mt-4 flex flex-col gap-3">
+              <div className="pt-6 border-t-2 border-zinc-100 mt-6 flex flex-col gap-3">
                 <Button
                   variant="primary"
-                  className="w-full h-14"
+                  className="w-full h-14 font-black uppercase"
                   onClick={() => setMobileFilterOpen(false)}
                 >
                   Show Results
                 </Button>
               </div>
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
         )}
       </div>
     </PageTransition>

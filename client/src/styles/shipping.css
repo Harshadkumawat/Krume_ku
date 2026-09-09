@@ -1,0 +1,252 @@
+/* Page Animation */
+
+@keyframes ship-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.ship-page {
+  animation: ship-in 0.4s cubic-bezier(0.33, 1, 0.68, 1) both;
+}
+
+/* Address Card */
+
+.addr-card {
+  border: 1.5px solid #e4e4e7;
+  border-radius: 14px;
+  padding: 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  background: #fff;
+}
+
+.addr-card:hover {
+  border-color: #a1a1aa;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+}
+
+.addr-card.selected {
+  border-color: #000;
+  box-shadow:
+    0 0 0 1.5px #000,
+    0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+/* Inputs */
+
+.ship-input {
+  width: 100%;
+  height: 48px;
+  padding: 0 16px 0 44px;
+  background: #fafafa;
+  border: 1.5px solid #e4e4e7;
+  border-radius: 10px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #18181b;
+  outline: none;
+  transition: all 0.15s;
+  appearance: none;
+}
+
+.ship-input::placeholder {
+  color: #a1a1aa;
+}
+
+.ship-input:focus {
+  border-color: #000;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.06);
+}
+
+.ship-input.no-icon {
+  padding-left: 16px;
+}
+
+.ship-input.autofilled {
+  border-color: #86efac;
+  background: #f0fdf4;
+}
+
+/* Address Type Buttons */
+
+.type-btn {
+  flex: 1;
+  height: 44px;
+  border: 1.5px solid #e4e4e7;
+  border-radius: 10px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+
+  cursor: pointer;
+
+  background: white;
+  color: #71717a;
+
+  transition: all 0.15s;
+  outline: none;
+}
+
+.type-btn:hover {
+  border-color: #000;
+  color: #000;
+}
+
+.type-btn.active {
+  background: #000;
+  border-color: #000;
+  color: #fff;
+}
+
+/* Submit Button */
+
+.ship-submit {
+  width: 100%;
+  height: 52px;
+
+  background: #000;
+  color: #fff;
+
+  border: none;
+  border-radius: 12px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+
+  font-size: 11px;
+  font-weight: 900;
+
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+
+  cursor: pointer;
+
+  transition:
+    opacity 0.15s,
+    transform 0.1s;
+}
+
+.ship-submit:hover:not(:disabled) {
+  opacity: 0.88;
+}
+
+.ship-submit:active:not(:disabled) {
+  transform: scale(0.99);
+}
+
+.ship-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Edit Button */
+
+.edit-pill {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+
+  display: flex;
+  align-items: center;
+  gap: 4px;
+
+  background: #f4f4f5;
+  border: none;
+  border-radius: 8px;
+
+  padding: 4px 10px;
+
+  font-size: 10px;
+  font-weight: 700;
+
+  color: #71717a;
+  cursor: pointer;
+
+  transition: all 0.15s;
+  outline: none;
+
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.edit-pill:hover {
+  background: #000;
+  color: #fff;
+}
+
+@media (min-width: 768px) {
+  .edit-pill {
+    opacity: 0;
+  }
+
+  .addr-card:hover .edit-pill,
+  .edit-pill:focus-visible {
+    opacity: 1;
+  }
+}
+
+/* Dropdown */
+
+.dropdown-item {
+  padding: 10px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.1s;
+  outline: none;
+}
+
+.dropdown-item:hover,
+.dropdown-item:focus {
+  background: #f4f4f5;
+}
+
+.dropdown-item.active {
+  background: #000;
+  color: #fff;
+  font-weight: 700;
+}
+
+/* Address Badge */
+
+.addr-type-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+
+  padding: 3px 10px;
+  border-radius: 8px;
+
+  font-size: 10px;
+  font-weight: 800;
+
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.addr-type-badge.selected {
+  background: #000;
+  color: #fff;
+}
+
+.addr-type-badge.default {
+  background: #f4f4f5;
+  color: #71717a;
+}

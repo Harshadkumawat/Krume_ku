@@ -7,17 +7,9 @@ import {
   updateCouponStatus,
   deleteCoupon,
 } from "../../features/coupon/couponSlice";
-import {
-  Loader2,
-  Plus,
-  Edit2,
-  Trash2,
-  Power,
-  X,
-  Tag,
-  AlertTriangle,
-} from "lucide-react";
+import { Loader2, Plus, Edit2, Trash2, Power, X, Tag } from "lucide-react";
 import { formatDate } from "../../utils/formatters";
+import DeleteModal from "../../components/ui/DeleteModal";
 
 const INITIAL_FORM_STATE = {
   code: "",
@@ -39,6 +31,9 @@ const CouponManager = () => {
   const [editId, setEditId] = useState(null);
   const [formData, setFormData] = useState(INITIAL_FORM_STATE);
 
+  // Delete modal state
+  const [deleteTarget, setDeleteTarget] = useState(null);
+
   useEffect(() => {
     dispatch(getAllCoupons());
   }, [dispatch]);
@@ -59,14 +54,20 @@ const CouponManager = () => {
     setShowModal(true);
   }, []);
 
-  const handleDeleteClick = useCallback(
-    (id) => {
-      if (window.confirm("Permanently delete this coupon?")) {
-        dispatch(deleteCoupon(id));
-      }
-    },
-    [dispatch],
-  );
+  const handleDeleteClick = useCallback((coupon) => {
+    setDeleteTarget(coupon);
+  }, []);
+
+  const confirmDelete = useCallback(() => {
+    if (deleteTarget) {
+      dispatch(deleteCoupon(deleteTarget._id));
+      setDeleteTarget(null);
+    }
+  }, [dispatch, deleteTarget]);
+
+  const cancelDelete = useCallback(() => {
+    setDeleteTarget(null);
+  }, []);
 
   const handleModalClose = () => {
     setShowModal(false);
@@ -111,6 +112,17 @@ const CouponManager = () => {
 
   return (
     <div className="space-y-6 md:space-y-8 animate-in fade-in duration-500 pb-20 overflow-x-hidden selection:bg-black selection:text-white">
+      {/* Delete Modal */}
+      <DeleteModal
+        isOpen={!!deleteTarget}
+        title="Confirm deletion"
+        itemName={deleteTarget?.code}
+        warning="This coupon will be permanently removed. Active users will no longer be able to redeem it."
+        onConfirm={confirmDelete}
+        onCancel={cancelDelete}
+        confirmText="Yes, delete"
+      />
+
       {/* ── Header ── */}
       <div className="bg-black text-white p-6 md:p-10 rounded-[1.5rem] md:rounded-[2.5rem] shadow-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-6 relative overflow-hidden">
         <div
@@ -270,7 +282,7 @@ const CouponManager = () => {
                         <Edit2 size={14} />
                       </button>
                       <button
-                        onClick={() => handleDeleteClick(coupon._id)}
+                        onClick={() => handleDeleteClick(coupon)}
                         disabled={isMutating}
                         className="p-2.5 bg-red-50 text-red-600 hover:bg-red-600 hover:text-white rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                         aria-label="Delete coupon"
@@ -286,7 +298,7 @@ const CouponManager = () => {
         </div>
       )}
 
-      {/* ── Modal ── */}
+      {/* ── Create/Edit Modal ── */}
       {showModal && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
           <div
@@ -384,7 +396,6 @@ const CouponManager = () => {
                   />
                 </div>
 
-                {/* Conditional Max Discount Field */}
                 {formData.discountType === "percentage" && (
                   <div>
                     <label

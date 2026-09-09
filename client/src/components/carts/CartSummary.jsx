@@ -1,5 +1,6 @@
 import React, { memo } from "react";
-import { ArrowRight, Truck, Lock } from "lucide-react";
+import { motion } from "framer-motion";
+import { ArrowRight, Truck, Lock, Zap } from "lucide-react";
 import { formatPrice } from "../../utils/formatters";
 import Button from "../ui/Button";
 

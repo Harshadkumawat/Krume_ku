@@ -9,6 +9,7 @@ import React, {
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-toastify";
+import { motion } from "framer-motion";
 import { logout } from "../features/auth/authSlice";
 import {
   X,
@@ -19,10 +20,11 @@ import {
   Heart,
   ChevronRight,
   Package,
-  UserCircle,
+  CircleUser as UserCircle,
   ArrowRight,
   ShieldCheck,
   Scissors,
+  Sparkles,
 } from "lucide-react";
 import Button from "./ui/Button";
 
@@ -435,8 +437,8 @@ export default function Navbar() {
   const wishlistCount = wishlistItems?.length || 0;
   const isAdmin = user?.role === "admin";
 
-  // ── Nav Links 
-  // ── Nav Links 
+  // ── Nav Links
+  // ── Nav Links
   const navLinks = useMemo(
     () => [
       // Schema enum: subCategory -> "Bleach Art"

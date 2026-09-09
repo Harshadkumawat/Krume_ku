@@ -49,8 +49,12 @@ const updateProductStock = async (orderItems, action = "decrease") => {
 
     if (action === "decrease") {
       product.soldCount = (product.soldCount || 0) + qty;
+
+      product.countInStock = Math.max(0, (product.countInStock || 0) - qty);
     } else {
       product.soldCount = Math.max(0, (product.soldCount || 0) - qty);
+
+      product.countInStock = (product.countInStock || 0) + qty;
     }
 
     const sizeIndex = product.sizes.findIndex((s) => s.label === item.size);
@@ -104,12 +108,13 @@ const restoreCouponUsage = async (order) => {
 };
 
 const handleCancellation = async (order) => {
-  await updateProductStock(order.orderItems, "restore");
+  if (order.stockReduced) {
+    await updateProductStock(order.orderItems, "restore");
+  }
   await cancelShiprocketOrder(order.shiprocketOrderId);
   await restoreCouponUsage(order);
 };
 
-// Safe email sender — never crashes the main flow
 const safeEmail = async (fn, label) => {
   try {
     await fn();
@@ -118,19 +123,17 @@ const safeEmail = async (fn, label) => {
   }
 };
 
-// Get user email safely
 const getUserEmail = async (userId) => {
   const user = await User.findById(userId).select("email");
   return user?.email || null;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Controllers
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 const addOrderItems = asyncHandler(async (req, res) => {
-  const { shippingAddress, paymentMethod, isPaid, paidAt, paymentResult } =
-    req.body;
+  const { shippingAddress, paymentMethod, razorpayOrderId } = req.body;
 
   if (
     !shippingAddress?.fullName ||
@@ -141,6 +144,13 @@ const addOrderItems = asyncHandler(async (req, res) => {
     !shippingAddress?.pincode
   ) {
     throw new ApiError(400, "Complete shipping address is required");
+  }
+
+  if ((paymentMethod || "COD") === "Online" && !razorpayOrderId) {
+    throw new ApiError(
+      400,
+      "razorpayOrderId is required for Online payment — call createRazorpayOrder first",
+    );
   }
 
   const cart = await Cart.findOne({ user: req.user._id })
@@ -161,7 +171,6 @@ const addOrderItems = asyncHandler(async (req, res) => {
 
   for (const item of validItems) {
     const product = item.product;
-
     if (!product.inStock || product.countInStock < item.quantity) {
       throw new ApiError(
         400,
@@ -172,7 +181,6 @@ const addOrderItems = asyncHandler(async (req, res) => {
         }`,
       );
     }
-
     const sizeObj = product.sizes?.find((s) => s.label === item.size);
     if (sizeObj && sizeObj.stock < item.quantity) {
       throw new ApiError(
@@ -187,7 +195,6 @@ const addOrderItems = asyncHandler(async (req, res) => {
 
   if (coupon?._id) {
     const freshCoupon = await Coupon.findById(coupon._id);
-
     if (!freshCoupon || !freshCoupon.isActive) {
       cart.appliedCoupon = null;
       await cart.save();
@@ -196,12 +203,10 @@ const addOrderItems = asyncHandler(async (req, res) => {
         "Applied coupon is no longer available. Please review your cart and try again.",
       );
     }
-
     const recheck = freshCoupon.isValid(
       req.user._id,
       billDetails.cartTotalExclTax,
     );
-
     if (!recheck.valid) {
       cart.appliedCoupon = null;
       await cart.save();
@@ -225,6 +230,8 @@ const addOrderItems = asyncHandler(async (req, res) => {
     };
   });
 
+  const isCOD = (paymentMethod || "COD") === "COD";
+
   const order = new Order({
     orderItems,
     user: req.user._id,
@@ -236,14 +243,17 @@ const addOrderItems = asyncHandler(async (req, res) => {
     discountPrice: billDetails.discountAmount,
     totalPrice: billDetails.finalTotal,
     appliedCoupon: coupon?._id || null,
-    isPaid: isPaid || false,
-    paidAt: paidAt || null,
-    paymentResult: paymentResult || {},
+    isPaid: false,
+    paidAt: null,
+    paymentResult: {},
+    orderStatus: "Processing",
+    razorpayOrderId: razorpayOrderId || null,
+
+    stockReduced: isCOD,
   });
 
   const createdOrder = await order.save();
 
-  // Auto-save address if user has none
   try {
     const user = await User.findById(req.user._id);
     if (user && (!user.addresses || user.addresses.length === 0)) {
@@ -258,69 +268,75 @@ const addOrderItems = asyncHandler(async (req, res) => {
     console.error("⚠️ Address Auto-Save Failed:", error.message);
   }
 
-  await updateProductStock(orderItems, "decrease");
+  if (isCOD) {
+    await updateProductStock(orderItems, "decrease");
 
-  if (coupon?._id) {
-    await Coupon.findByIdAndUpdate(coupon._id, {
-      $addToSet: { usedBy: req.user._id },
-    });
+    if (coupon?._id) {
+      await Coupon.findByIdAndUpdate(coupon._id, {
+        $addToSet: { usedBy: req.user._id },
+      });
+    }
+
+    await Cart.findOneAndDelete({ user: req.user._id });
   }
-
-  await Cart.findOneAndDelete({ user: req.user._id });
 
   res.status(201).json({ success: true, data: createdOrder });
 
-  // ── Shiprocket Sync (background) ─────────────────────────────────────────
-  (async () => {
-    try {
-      const token = await getShiprocketToken();
-      if (token) {
-        const shiprocketRes = await syncOrderToShiprocket(
-          createdOrder,
-          token,
-          req.user.email,
-          req.user.fullName,
-        );
-        if (shiprocketRes) {
-          await Order.findByIdAndUpdate(createdOrder._id, {
-            shiprocketOrderId: shiprocketRes.order_id,
-            shiprocketShipmentId: shiprocketRes.shipment_id,
-          });
+  if (isCOD) {
+    (async () => {
+      try {
+        const token = await getShiprocketToken();
+        if (token) {
+          const shiprocketRes = await syncOrderToShiprocket(
+            createdOrder,
+            token,
+            req.user.email,
+            req.user.fullName,
+          );
+          if (shiprocketRes) {
+            await Order.findByIdAndUpdate(createdOrder._id, {
+              shiprocketOrderId: shiprocketRes.order_id,
+              shiprocketShipmentId: shiprocketRes.shipment_id,
+            });
+          }
         }
+      } catch (error) {
+        console.error("⚠️ Shiprocket Sync Failed:", error.message);
       }
-    } catch (error) {
-      console.error("⚠️ Shiprocket Sync Failed:", error.message);
-    }
-  })();
+    })();
 
-  // ── Order Confirmation Email (background) ────────────────────────────────
-  (async () => {
-    await safeEmail(async () => {
-      const discountRatio =
-        billDetails.cartTotalExclTax > 0
-          ? billDetails.discountAmount / billDetails.cartTotalExclTax
-          : 0;
+    (async () => {
+      await safeEmail(async () => {
+        const discountRatio =
+          billDetails.cartTotalExclTax > 0
+            ? billDetails.discountAmount / billDetails.cartTotalExclTax
+            : 0;
 
-      await sendOrderEmail(req.user.email, {
-        orderId: createdOrder._id.toString(),
-        totalAmount: createdOrder.totalPrice,
-        address: `${shippingAddress.address}, ${shippingAddress.city} - ${shippingAddress.pincode}`,
-        items: orderItems.map((item) => {
-          const priceExclGst = Number(item.price) || 0;
-          const itemTaxable = priceExclGst * (1 - discountRatio);
-          const gstRate = getGstRate(itemTaxable);
-          const inclGstPrice = Math.round(itemTaxable * (1 + gstRate / 100));
-          return {
-            name: item.productName,
-            quantity: item.quantity,
-            price: inclGstPrice,
-            image: item.image,
-            size: item.size || "N/A",
-          };
-        }),
-      });
-    }, "Order Confirmation");
-  })();
+        await sendOrderEmail(req.user.email, {
+          orderId: createdOrder._id.toString(),
+          totalAmount: createdOrder.totalPrice,
+          address: `${shippingAddress.address}, ${shippingAddress.city} - ${shippingAddress.pincode}`,
+          items: orderItems.map((item) => {
+            const priceExclGst = Number(item.price) || 0;
+            const itemTaxable = priceExclGst * (1 - discountRatio);
+            const gstRate = getGstRate(itemTaxable);
+            const inclGstPrice = Math.round(itemTaxable * (1 + gstRate / 100));
+            return {
+              name: item.productName,
+              quantity: item.quantity,
+              price: inclGstPrice,
+              image: item.image,
+              size: item.size || "N/A",
+            };
+          }),
+        });
+
+        await Order.findByIdAndUpdate(createdOrder._id, {
+          confirmationEmailSent: true,
+        });
+      }, "COD Order Confirmation");
+    })();
+  }
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -330,7 +346,6 @@ const requestReturn = asyncHandler(async (req, res) => {
   const order = await Order.findById(req.params.id);
 
   if (!order) throw new ApiError(404, "Order not found");
-
   verifyOrderOwnership(order, req.user._id);
 
   if (order.orderStatus !== "Delivered") {
@@ -361,11 +376,9 @@ const requestReturn = asyncHandler(async (req, res) => {
   order.orderStatus = "Return Requested";
   await order.save();
 
-  res.status(200).json({
-    success: true,
-    message: "Return request submitted",
-    data: order,
-  });
+  res
+    .status(200)
+    .json({ success: true, message: "Return request submitted", data: order });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -431,6 +444,7 @@ const handleReturnStatus = asyncHandler(async (req, res) => {
   } else if (status === "Refunded") {
     order.orderStatus = "Returned";
     order.isPaid = false;
+    order.paymentStatus = "Refunded";
     await updateProductStock(order.orderItems, "restore");
     await restoreCouponUsage(order);
   } else if (status === "Rejected") {
@@ -439,7 +453,6 @@ const handleReturnStatus = asyncHandler(async (req, res) => {
 
   await order.save();
 
-  // ── Return Status Email ──────────────────────────────────────────────────
   await safeEmail(async () => {
     const email = await getUserEmail(order.user);
     if (email) {
@@ -466,7 +479,6 @@ const handleReturnStatus = asyncHandler(async (req, res) => {
 
 const updateOrderStatus = asyncHandler(async (req, res) => {
   const order = await Order.findById(req.params.id);
-
   if (!order) throw new ApiError(404, "Order not found");
 
   const newStatus = req.body.status || req.body.orderStatus;
@@ -487,13 +499,18 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
   if (newStatus === "Delivered") {
     order.deliveredAt = new Date();
     order.isDelivered = true;
-    order.isPaid = true;
+
+    if (order.paymentMethod === "COD") {
+      order.isPaid = true;
+      order.paymentStatus = "Paid";
+      order.paidAt = new Date();
+    }
   }
 
   if (newStatus === "Cancelled") {
     await handleCancellation(order);
+    order.stockReduced = false;
 
-    // ── Admin Cancel Email ─────────────────────────────────────────────────
     await safeEmail(async () => {
       const email = await getUserEmail(order.user);
       if (email) {
@@ -542,7 +559,6 @@ const getMyOrders = asyncHandler(async (req, res) => {
 
 const cancelOrder = asyncHandler(async (req, res) => {
   const order = await Order.findById(req.params.id);
-
   if (!order) throw new ApiError(404, "Order not found");
   verifyOrderOwnership(order, req.user._id);
 
@@ -555,9 +571,9 @@ const cancelOrder = asyncHandler(async (req, res) => {
 
   await handleCancellation(order);
   order.orderStatus = "Cancelled";
+  order.stockReduced = false;
   await order.save();
 
-  // ── User Cancel Email ────────────────────────────────────────────────────
   await safeEmail(async () => {
     const email = await getUserEmail(order.user);
     if (email) {
@@ -580,11 +596,9 @@ const cancelOrder = asyncHandler(async (req, res) => {
 
 const getAllOrders = asyncHandler(async (req, res) => {
   const filter = {};
-
   if (req.query.returnRequested === "true") {
     filter["returnInfo.isReturnRequested"] = true;
   }
-
   if (req.query.status) {
     filter.orderStatus = req.query.status;
   }
@@ -602,7 +616,6 @@ const getAllOrders = asyncHandler(async (req, res) => {
 const deleteOrder = asyncHandler(async (req, res) => {
   const order = await Order.findById(req.params.id);
   if (!order) throw new ApiError(404, "Order not found");
-
   await order.deleteOne();
   res.status(200).json({ success: true, message: "Order removed" });
 });

@@ -12,7 +12,7 @@ const api = axios.create({
 });
 
 let storeRef = null;
-let isRedirecting = false; // ← loop rokne ka flag
+let isRedirecting = false; 
 
 export const injectStore = (store) => {
   storeRef = store;
@@ -21,18 +21,18 @@ export const injectStore = (store) => {
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    // Cancel ya network error — ignore
+   
     if (axios.isCancel(error) || error.code === "ERR_CANCELED") {
       return Promise.reject(error);
     }
 
     if (error.response?.status === 401) {
-      // Yeh routes pe 401 aaye toh redirect mat karo
+      
       const ignoredEndpoints = [
         "/api/auth/login",
         "/api/auth/register",
         "/api/auth/google-auth",
-        "/api/auth/me", // ← important — loop rokta hai
+        "/api/auth/me", 
         "/api/auth/logout",
       ];
 
@@ -40,10 +40,7 @@ api.interceptors.response.use(
         error.config?.url?.includes(ep),
       );
 
-      // Sirf tab redirect karo jab:
-      // 1. Ignored route nahi hai
-      // 2. Store available hai
-      // 3. Pehle se redirect nahi ho raha
+     
       if (!isIgnored && storeRef && !isRedirecting) {
         isRedirecting = true;
         storeRef.dispatch({ type: "auth/clearUser" });
@@ -55,7 +52,7 @@ api.interceptors.response.use(
   },
 );
 
-// Request logging — sirf development mein
+
 if (import.meta.env.DEV) {
   api.interceptors.request.use((config) => {
     console.log(`🔗 ${config.method?.toUpperCase()} ${config.url}`);

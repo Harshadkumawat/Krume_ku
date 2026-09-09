@@ -46,8 +46,6 @@ const sendResetEmail = async (userEmail, resetUrl) => {
         </div>
       `,
     });
-
-    console.log(`✅ Reset email sent to ${userEmail}`);
   } catch (error) {
     console.error("❌ Reset Email Error:", error.message);
   }

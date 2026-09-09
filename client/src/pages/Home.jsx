@@ -1,50 +1,28 @@
-import React, {
-  useEffect,
-  useMemo,
-  useState,
-  useRef,
-  useCallback,
-} from "react";
+import React, { useEffect, useMemo, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import { motion } from "framer-motion";
 import {
-  ArrowRight,
   Zap,
   Star,
   Truck,
   ShieldCheck,
   RotateCcw,
   Scissors,
-  Crown,
-  X,
   ChevronLeft,
   ChevronRight,
-  Sparkles,
 } from "lucide-react";
+
+// Redux Actions
 import { getHomeData } from "../features/products/productSlice";
+import { fetchActiveBanners } from "../features/banners/bannerSlice";
+
+// Components
 import ProductCard from "../components/clothes/ProductCard";
 import PageTransition from "../components/PageTransition";
 import SEO from "../components/SEO";
 import { ClothesSkeleton } from "../components/Skeletons";
+import HeroBanner from "../components/home/HeroBanner";
 
-// ── Animation Variants ────────────────────────────────────
-const layoutTransition = { type: "spring", stiffness: 45, damping: 14 };
-
-const fadeInUp = {
-  initial: { opacity: 0, y: 30, filter: "blur(4px)" },
-  animate: { opacity: 1, y: 0, filter: "blur(0px)" },
-  transition: { duration: 0.8, ease: [0.22, 1, 0.36, 1] },
-};
-
-const fadeInUpDelayed = (delay = 0) => ({
-  initial: { opacity: 0, y: 24, filter: "blur(4px)" },
-  whileInView: { opacity: 1, y: 0, filter: "blur(0px)" },
-  viewport: { once: true, margin: "-8%" },
-  transition: { duration: 0.7, ease: [0.22, 1, 0.36, 1], delay },
-});
-
-// ✅ FIX 3: Styles OUTSIDE component
 const PAGE_STYLES = `
   .stroke-text{-webkit-text-stroke:1px white;color:transparent}
   .stroke-text-black{-webkit-text-stroke:1.5px #18181b;color:transparent}
@@ -57,13 +35,13 @@ const PAGE_STYLES = `
 // ── TrustItem Component ───────────────────────────────────
 const TrustItem = ({ icon, title, desc }) => (
   <div className="flex flex-col items-center text-center group cursor-default">
-    <div className="w-16 h-16 rounded-full bg-zinc-50 flex items-center justify-center border border-zinc-200 group-hover:bg-red-600 group-hover:text-white transition-all duration-300 group-hover:-translate-y-2 shadow-sm">
+    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-white to-zinc-50 flex items-center justify-center border-2 border-zinc-200 group-hover:border-red-600 group-hover:bg-red-600 group-hover:text-white transition-colors duration-300">
       {icon}
     </div>
-    <h4 className="text-[11px] font-black uppercase mt-4 text-zinc-900">
+    <h4 className="text-[11px] font-black uppercase mt-4 text-zinc-900 group-hover:text-red-600 transition-colors">
       {title}
     </h4>
-    <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-wide mt-1">
+    <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-wide mt-2">
       {desc}
     </p>
   </div>
@@ -73,17 +51,21 @@ const TrustItem = ({ icon, title, desc }) => (
 const Home = () => {
   const dispatch = useDispatch();
   const { homePageData, isLoading } = useSelector((state) => state.products);
-  // ✅ FIX 1: console.log REMOVED
 
-  const [isExpanded, setIsExpanded] = useState(false);
+  const { activeBanners } = useSelector((state) => state.banners);
+
   const sliderRef = useRef(null);
   const snapTimeoutRef = useRef(null);
   const initTimeoutRef = useRef(null);
 
   useEffect(() => {
     dispatch(getHomeData());
+    dispatch(fetchActiveBanners());
   }, [dispatch]);
 
+  console.log(homePageData);
+
+  // Cleanup timeouts when component unmounts
   useEffect(() => {
     return () => {
       if (snapTimeoutRef.current) clearTimeout(snapTimeoutRef.current);
@@ -91,7 +73,6 @@ const Home = () => {
     };
   }, []);
 
-  // ✅ FIX 2: Use ACTUAL backend fields
   const { newArrivals, featuredProducts, hotDeals, premiumCollection } =
     useMemo(() => {
       if (!homePageData)
@@ -109,9 +90,7 @@ const Home = () => {
       };
     }, [homePageData]);
 
-  // ✅ FIX 2: "Complete Collection" uses real data
   const collectionProducts = useMemo(() => {
-    // Combine hotDeals + premiumCollection, deduplicate, limit to 8
     const combined = [...hotDeals, ...premiumCollection];
     const seen = new Set();
     return combined
@@ -169,16 +148,7 @@ const Home = () => {
         }
       }, 100);
     }
-  }, [loopedFeatured, isExpanded]);
-
-  const handleExpandToggle = () => {
-    if (isExpanded) {
-      sliderRef.current
-        ?.closest("section")
-        ?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-    setIsExpanded((prev) => !prev);
-  };
+  }, [loopedFeatured]);
 
   const scrollSlider = (direction) => {
     if (sliderRef.current) {
@@ -189,8 +159,8 @@ const Home = () => {
     }
   };
 
-  const heroImage =
-    "https://res.cloudinary.com/dftticvtc/image/upload/f_auto,q_auto:eco,w_1920,c_fill,g_auto/Krumeku_jokpig.png";
+  const showFeaturedSection = isLoading || loopedFeatured.length > 0;
+  const showCollectionSection = isLoading || collectionProducts.length > 0;
 
   return (
     <PageTransition>
@@ -199,52 +169,11 @@ const Home = () => {
         description="Premium Custom Embroidery & Apparel Brand."
       />
 
-      {/* ✅ FIX 3: Style outside component */}
       <style dangerouslySetInnerHTML={{ __html: PAGE_STYLES }} />
 
       <div className="bg-white min-h-screen text-zinc-900 overflow-x-hidden pt-[70px] md:pt-[90px]">
-        {/* 1. HERO */}
-        <header className="relative w-full h-[85vh] flex items-center bg-black overflow-hidden group">
-          <div className="absolute inset-0 bg-black">
-            <img
-              src={heroImage}
-              alt="Custom embroidery apparel by Krumeku"
-              className="absolute inset-0 w-full h-full object-cover opacity-60 transition-transform duration-[7000ms] group-hover:scale-105"
-            />
-            <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay pointer-events-none" />
-          </div>
-
-          <div className="relative z-10 max-w-[1500px] mx-auto px-6 w-full">
-            <motion.div
-              initial={fadeInUp.initial}
-              animate={fadeInUp.animate}
-              transition={fadeInUp.transition}
-              className="max-w-[650px]"
-            >
-              <p className="text-[10px] text-red-500 font-black uppercase tracking-[0.4em] mb-4 flex items-center gap-2">
-                <Scissors size={12} /> Made in Indore, India
-              </p>
-              <h1 className="text-6xl md:text-8xl lg:text-[9rem] font-black text-white leading-[0.85] tracking-tight italic mb-8">
-                CUSTOM
-                <br />
-                <span className="text-transparent stroke-text">THREADS</span>
-              </h1>
-              <Link
-                to="/products"
-                className="relative overflow-hidden group px-12 py-5 bg-white text-black text-[11px] font-black uppercase tracking-[0.2em] inline-flex items-center gap-3"
-              >
-                <span className="relative z-10 flex items-center gap-2">
-                  Explore The Craft{" "}
-                  <ArrowRight
-                    size={16}
-                    className="group-hover:translate-x-1 transition-transform"
-                  />
-                </span>
-                <div className="absolute inset-0 bg-red-600 translate-y-full group-hover:translate-y-0 transition-transform duration-500" />
-              </Link>
-            </motion.div>
-          </div>
-        </header>
+        {/* 1. HERO COMPONENT IMPORTED */}
+        <HeroBanner activeBanners={activeBanners} />
 
         {/* 2. MARQUEE */}
         <div className="bg-red-600 text-white py-3 overflow-hidden flex w-full">
@@ -262,214 +191,169 @@ const Home = () => {
           </div>
         </div>
 
-        {/* 3. SIGNATURE / FEATURED PIECES */}
-        {!isLoading && loopedFeatured.length > 0 && (
-          <section className="py-24 bg-black text-white relative overflow-hidden">
-            <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10 mix-blend-overlay pointer-events-none" />
+        {/* 3. SIGNATURE PIECES */}
+        {showFeaturedSection && (
+          <section className="py-20 max-w-[1600px] mx-auto px-6 relative">
+            <h2 className="text-center text-2xl md:text-3xl font-black uppercase tracking-wide text-zinc-900 mb-10">
+              Signature Pieces
+            </h2>
 
-            <div className="max-w-[1600px] mx-auto relative z-10 px-4 md:px-8">
-              <motion.div
-                layout
-                transition={layoutTransition}
-                className={`flex ${
-                  isExpanded
-                    ? "flex-col items-center"
-                    : "flex-col lg:flex-row items-center gap-8 lg:gap-12"
-                }`}
-              >
-                <motion.div
-                  layout
-                  transition={layoutTransition}
-                  className={`flex flex-col shrink-0 ${
-                    isExpanded
-                      ? "w-full items-center text-center mb-4"
-                      : "w-full lg:w-[35%] items-start text-left mb-6 lg:mb-0"
-                  }`}
+            {isLoading ? (
+              <ClothesSkeleton />
+            ) : (
+              <div className="relative group/slider">
+                <button
+                  onClick={() => scrollSlider("left")}
+                  aria-label="Scroll left"
+                  className="absolute -left-4 md:-left-5 top-1/2 -translate-y-1/2 z-20 w-9 h-9 md:w-10 md:h-10 bg-white text-zinc-900 rounded-full border border-zinc-200 shadow-md flex items-center justify-center hover:bg-zinc-900 hover:text-white transition-colors"
                 >
-                  <motion.div layout transition={layoutTransition}>
-                    <Crown
-                      className="text-yellow-500 mb-4 w-8 h-8"
-                      aria-hidden="true"
-                    />
-                  </motion.div>
-                  <motion.h2
-                    layout
-                    transition={layoutTransition}
-                    className="text-5xl md:text-6xl font-black uppercase italic mb-4 leading-none"
-                  >
-                    Signature{" "}
-                    <br className={isExpanded ? "hidden" : "hidden lg:block"} />
-                    <span className="text-transparent stroke-text">Pieces</span>
-                  </motion.h2>
-                  <motion.p
-                    layout
-                    transition={layoutTransition}
-                    className="text-[10px] font-bold text-zinc-400 uppercase tracking-[0.3em] leading-relaxed max-w-[300px] mb-8"
-                  >
-                    Swipe left and right endlessly to explore the designs that
-                    define our aesthetic.
-                  </motion.p>
-                  <motion.button
-                    layout
-                    transition={layoutTransition}
-                    onClick={handleExpandToggle}
-                    className="flex items-center gap-2 px-8 py-4 bg-white text-black rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-colors outline-none shadow-xl"
-                  >
-                    {isExpanded ? (
-                      <>
-                        <X size={16} /> Collapse Gallery
-                      </>
-                    ) : (
-                      <>
-                        Expand Gallery <ArrowRight size={16} />
-                      </>
-                    )}
-                  </motion.button>
-                </motion.div>
+                  <ChevronLeft size={20} />
+                </button>
 
-                <motion.div
-                  layout
-                  transition={layoutTransition}
-                  className={`relative group/slider ${isExpanded ? "w-full" : "w-full lg:w-[65%]"}`}
+                <div
+                  ref={sliderRef}
+                  onScroll={handleInfiniteScroll}
+                  className="flex items-stretch overflow-x-auto no-scrollbar snap-x snap-mandatory gap-4 md:gap-6 py-2"
                 >
-                  <button
-                    onClick={() => scrollSlider("left")}
-                    aria-label="Scroll left"
-                    className={`absolute left-0 top-1/2 -translate-y-1/2 z-20 w-14 h-14 bg-white/10 backdrop-blur-md border border-white/20 text-white rounded-full hidden md:flex items-center justify-center opacity-0 group-hover/slider:opacity-100 hover:bg-white hover:text-black transition-all shadow-2xl ${
-                      isExpanded ? "ml-4" : "-ml-6"
-                    }`}
-                  >
-                    <ChevronLeft size={24} />
-                  </button>
+                  {loopedFeatured.map((product) => (
+                    <div
+                      key={product.uniqueKey}
+                      className="shrink-0 snap-start w-[45%] sm:w-[30%] md:w-[23%]"
+                    >
+                      <ProductCard product={product} />
+                    </div>
+                  ))}
+                </div>
 
-                  <div
-                    ref={sliderRef}
-                    onScroll={handleInfiniteScroll}
-                    className="flex items-center overflow-x-auto no-scrollbar snap-x snap-mandatory gap-4 md:gap-6 py-4"
-                  >
-                    {loopedFeatured.map((product) => (
-                      <motion.div
-                        layout="position"
-                        transition={layoutTransition}
-                        key={product.uniqueKey}
-                        className={`shrink-0 snap-center ${
-                          isExpanded
-                            ? "w-[240px] md:w-[300px]"
-                            : "w-[200px] md:w-[240px]"
-                        }`}
-                      >
-                        <div className="bg-white rounded-xl overflow-hidden p-1 shadow-[0_20px_50px_rgba(0,0,0,0.5)] hover:scale-[1.02] transition-transform duration-300">
-                          <ProductCard product={product} />
-                        </div>
-                      </motion.div>
-                    ))}
-                  </div>
-
-                  <button
-                    onClick={() => scrollSlider("right")}
-                    aria-label="Scroll right"
-                    className={`absolute right-0 top-1/2 -translate-y-1/2 z-20 w-14 h-14 bg-white/10 backdrop-blur-md border border-white/20 text-white rounded-full hidden md:flex items-center justify-center opacity-0 group-hover/slider:opacity-100 hover:bg-white hover:text-black transition-all shadow-2xl ${
-                      isExpanded ? "mr-4" : "-mr-4"
-                    }`}
-                  >
-                    <ChevronRight size={24} />
-                  </button>
-                </motion.div>
-              </motion.div>
-            </div>
+                <button
+                  onClick={() => scrollSlider("right")}
+                  aria-label="Scroll right"
+                  className="absolute -right-4 md:-right-5 top-1/2 -translate-y-1/2 z-20 w-9 h-9 md:w-10 md:h-10 bg-white text-zinc-900 rounded-full border border-zinc-200 shadow-md flex items-center justify-center hover:bg-zinc-900 hover:text-white transition-colors"
+                >
+                  <ChevronRight size={20} />
+                </button>
+              </div>
+            )}
           </section>
         )}
 
         {/* 4. NEW ARRIVALS */}
-        <section className="py-24 max-w-[1600px] mx-auto px-6">
-          <div className="flex justify-between items-end mb-12">
-            <motion.div {...fadeInUpDelayed(0)}>
-              <p className="text-[10px] font-black text-red-600 uppercase tracking-[0.2em] mb-2 flex items-center gap-2">
-                <Sparkles size={11} /> Fresh Off The Machine
-              </p>
+        <section className="py-28 max-w-[1600px] mx-auto px-6 relative">
+          <div className="absolute top-0 right-1/3 w-80 h-80 bg-red-600/5 rounded-full blur-3xl pointer-events-none" />
+
+          <div className="flex justify-between items-end mb-16 relative z-10">
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-2 h-2 bg-red-600 rounded-full animate-pulse" />
+                <p className="text-[10px] font-black text-red-600 uppercase tracking-[0.2em]">
+                  Fresh Off The Machine
+                </p>
+              </div>
               <h2 className="text-5xl font-black uppercase italic leading-none">
                 New <span className="stroke-text-black">Arrivals</span>
               </h2>
-            </motion.div>
-            <Link
-              to="/products?newArrival=true"
-              className="text-[10px] font-black uppercase border-b border-black pb-1 hover:text-red-600 transition-colors"
-            >
-              View All
-            </Link>
+            </div>
+            <div>
+              <Link
+                to="/products?newArrival=true"
+                className="text-[10px] font-black uppercase border-b-2 border-black pb-1 hover:text-red-600 hover:border-red-600 transition-colors"
+              >
+                View All →
+              </Link>
+            </div>
           </div>
 
           {isLoading ? (
             <ClothesSkeleton />
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-16">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-16 relative z-10">
               {newArrivals.slice(0, 4).map((p) => (
-                <ProductCard key={p._id} product={p} />
+                <div key={p._id}>
+                  <ProductCard product={p} />
+                </div>
               ))}
             </div>
           )}
         </section>
 
-        {/* 5. COMPLETE COLLECTION — ✅ FIX 2: Uses real data */}
-        {collectionProducts.length > 0 && (
-          <section className="py-28 bg-zinc-50 border-y border-zinc-200">
-            <div className="max-w-[1600px] mx-auto px-6">
-              <motion.div className="text-center mb-20" {...fadeInUpDelayed(0)}>
-                <Star className="mx-auto text-red-600 mb-4 animate-pulse w-6 h-6" />
+        {/* 5. COMPLETE COLLECTION */}
+        {showCollectionSection && (
+          <section className="py-32 bg-gradient-to-b from-zinc-50 via-white to-zinc-50 border-y-2 border-zinc-200 relative">
+            <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-3 mix-blend-overlay pointer-events-none" />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-red-600/8 rounded-full blur-3xl pointer-events-none" />
+
+            <div className="max-w-[1600px] mx-auto px-6 relative z-10">
+              <div className="text-center mb-20">
+                <div className="inline-flex items-center justify-center mb-6">
+                  <div className="relative">
+                    <Star className="text-red-600 animate-pulse w-7 h-7" />
+                    <Star
+                      className="text-red-600/40 absolute inset-0 w-7 h-7 animate-spin"
+                      style={{ animationDuration: "4s" }}
+                    />
+                  </div>
+                </div>
                 <h2 className="text-5xl md:text-6xl font-black uppercase italic mb-4">
                   THE <span className="stroke-text-black">COMPLETE</span>{" "}
                   COLLECTION
                 </h2>
-                <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.3em]">
-                  Premium designs crafted with threadwork
+                <p className="text-[11px] font-bold text-zinc-600 uppercase tracking-[0.3em]">
+                  Premium designs crafted with precision threadwork
                 </p>
-              </motion.div>
+              </div>
 
               {isLoading ? (
                 <ClothesSkeleton />
               ) : (
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 md:gap-x-8 gap-y-16">
-                  {collectionProducts.map((p) => (
-                    <ProductCard key={p._id} product={p} />
-                  ))}
-                </div>
-              )}
+                <>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 md:gap-x-8 gap-y-16">
+                    {collectionProducts.map((p) => (
+                      <div key={p._id}>
+                        <ProductCard product={p} />
+                      </div>
+                    ))}
+                  </div>
 
-              <div className="mt-16 flex justify-center">
-                <Link
-                  to="/products"
-                  className="px-10 py-4 bg-black text-white text-[10px] font-black uppercase tracking-[0.2em] hover:bg-red-600 transition-colors"
-                >
-                  View Archive
-                </Link>
-              </div>
+                  <div className="mt-20 flex justify-center">
+                    <Link
+                      to="/products"
+                      className="px-12 py-5 bg-black text-white text-[10px] font-black uppercase tracking-[0.2em] hover:bg-red-600 transition-colors duration-300 shadow-lg hover:shadow-red-600/50"
+                    >
+                      View Complete Archive
+                    </Link>
+                  </div>
+                </>
+              )}
             </div>
           </section>
         )}
 
         {/* 6. TRUST SIGNALS */}
-        <section className="py-20 bg-white">
-          <div className="max-w-[1400px] mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-12">
-            <TrustItem
-              icon={<Scissors size={22} />}
-              title="In-House Embroidery"
-              desc="Precision Crafted"
-            />
-            <TrustItem
-              icon={<ShieldCheck size={22} />}
-              title="Heavy Fabrics"
-              desc="Export Quality"
-            />
-            <TrustItem
-              icon={<Truck size={22} />}
-              title="Fast Delivery"
-              desc="Pan India Shipping"
-            />
-            <TrustItem
-              icon={<RotateCcw size={22} />}
-              title="Easy Returns"
-              desc="7 Day Exchange"
-            />
+        <section className="py-28 bg-white relative overflow-hidden">
+          <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-2 mix-blend-overlay pointer-events-none" />
+          <div className="max-w-[1400px] mx-auto px-6 relative z-10">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12">
+              <TrustItem
+                icon={<Scissors size={24} className="text-black" />}
+                title="In-House Embroidery"
+                desc="Precision Crafted"
+              />
+              <TrustItem
+                icon={<ShieldCheck size={24} className="text-black" />}
+                title="Heavy Fabrics"
+                desc="Export Quality"
+              />
+              <TrustItem
+                icon={<Truck size={24} className="text-black" />}
+                title="Fast Delivery"
+                desc="Pan India Shipping"
+              />
+              <TrustItem
+                icon={<RotateCcw size={24} className="text-black" />}
+                title="Easy Returns"
+                desc="7 Day Exchange"
+              />
+            </div>
           </div>
         </section>
       </div>

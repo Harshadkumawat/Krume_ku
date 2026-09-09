@@ -62,13 +62,14 @@ const limiter = rateLimit({
 });
 app.use("/api/", limiter);
 
-// Request logging for development
 if (process.env.NODE_ENV !== "production") {
   app.use((req, res, next) => {
     console.log(`${req.method} ${req.originalUrl}`);
     next();
   });
 }
+
+app.use("/api/payment/webhook", express.raw({ type: "application/json" }));
 
 // 📦 BODY PARSERS
 app.use(express.json({ limit: "1mb" }));
@@ -105,6 +106,7 @@ const routes = {
   orders: require("./Routes/orderRoutes"),
   shipping: require("./Routes/shippingRoutes"),
   payment: require("./Routes/paymentRoutes"),
+  banners: require("./Routes/bannerRoutes"),
 };
 
 Object.entries(routes).forEach(([path, route]) =>

@@ -1,5 +1,6 @@
 import React, { memo } from "react";
-import { Check, X } from "lucide-react";
+import { Check, X, ChevronRight } from "lucide-react";
+import { motion } from "framer-motion";
 
 const FilterSidebar = memo(
   ({

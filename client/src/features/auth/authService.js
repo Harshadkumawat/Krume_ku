@@ -6,6 +6,7 @@ import api from "../../utils/api";
 
 const authRegister = async (data) => {
   const response = await api.post("/api/auth/register", data);
+  console.log(response.data);
   return response.data;
 };
 

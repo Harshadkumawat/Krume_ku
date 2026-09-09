@@ -20,6 +20,7 @@ import {
 import { cldImage } from "../../utils/imageHelper";
 import { formatDate, formatId, formatPrice } from "../../utils/formatters";
 import StatusBadge from "../../components/ui/StatusBadge";
+import DeleteModal from "../../components/ui/DeleteModal";
 
 const VALID_TRANSITIONS = {
   Processing: ["Confirmed", "Cancelled"],
@@ -69,6 +70,9 @@ const AdminOrders = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedOrder, setSelectedOrder] = useState(null);
 
+  // Delete modal state
+  const [deleteTarget, setDeleteTarget] = useState(null);
+
   useEffect(() => {
     dispatch(getAllOrders());
   }, [dispatch]);
@@ -89,19 +93,24 @@ const AdminOrders = () => {
   );
 
   const handleDelete = useCallback(
-    (id) => {
+    (order) => {
       if (isMutating) return;
-      if (
-        window.confirm(
-          "Permanently delete this order record? This cannot be undone.",
-        )
-      ) {
-        dispatch(deleteOrder(id));
-        if (selectedOrder?._id === id) setSelectedOrder(null);
-      }
+      setDeleteTarget(order);
     },
-    [dispatch, selectedOrder, isMutating],
+    [isMutating],
   );
+
+  const confirmDelete = useCallback(() => {
+    if (deleteTarget) {
+      dispatch(deleteOrder(deleteTarget._id));
+      if (selectedOrder?._id === deleteTarget._id) setSelectedOrder(null);
+      setDeleteTarget(null);
+    }
+  }, [dispatch, deleteTarget, selectedOrder]);
+
+  const cancelDelete = useCallback(() => {
+    setDeleteTarget(null);
+  }, []);
 
   const filteredOrders = useMemo(() => {
     if (!searchTerm) return orders;
@@ -176,6 +185,17 @@ const AdminOrders = () => {
 
   return (
     <div className="space-y-6 md:space-y-8 animate-in fade-in duration-500 pb-20 overflow-x-hidden">
+      {/* Delete Modal */}
+      <DeleteModal
+        isOpen={!!deleteTarget}
+        title="Confirm deletion"
+        itemName={deleteTarget ? `Order ${formatId(deleteTarget._id)}` : ""}
+        warning="This order record will be permanently removed. This cannot be undone."
+        onConfirm={confirmDelete}
+        onCancel={cancelDelete}
+        confirmText="Yes, delete"
+      />
+
       {/* ── Header & Search ── */}
       <div className="bg-black text-white p-6 md:p-10 rounded-[1.5rem] md:rounded-[2.5rem] shadow-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-6 relative overflow-hidden">
         <div
@@ -287,7 +307,7 @@ const AdminOrders = () => {
                             <Eye size={16} />
                           </button>
                           <button
-                            onClick={() => handleDelete(order._id)}
+                            onClick={() => handleDelete(order)}
                             disabled={isMutating}
                             aria-label={`Delete order ${formatId(order._id)}`}
                             className="p-3 bg-red-50 text-red-600 hover:bg-red-600 hover:text-white rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
@@ -348,7 +368,7 @@ const AdminOrders = () => {
                     <Eye size={14} /> View
                   </button>
                   <button
-                    onClick={() => handleDelete(order._id)}
+                    onClick={() => handleDelete(order)}
                     disabled={isMutating}
                     className="w-12 py-3 bg-red-50 text-red-600 rounded-xl flex items-center justify-center active:scale-95 disabled:opacity-50"
                     aria-label="Delete order"

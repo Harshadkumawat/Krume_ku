@@ -130,7 +130,7 @@ const initialState = {
   message: "",
 };
 
-// ── Helper: Apply cart response to state ────────
+
 const applyCartData = (state, action) => {
   const { items, billDetails, appliedCoupon, couponRemoved } = extractCartData(
     action.payload,

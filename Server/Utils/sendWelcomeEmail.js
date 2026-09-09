@@ -94,7 +94,6 @@ const sendWelcomeEmail = async (userEmail, userName) => {
     };
 
     await mailer.sendMail(mailOptions);
-    console.log(`✅ Welcome email sent to ${userEmail}`);
   } catch (error) {
     console.error("❌ Welcome Email Error:", error.message);
   }

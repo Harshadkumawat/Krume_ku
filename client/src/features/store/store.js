@@ -8,6 +8,7 @@ import wishlist from "../wishlist/wishlistSlice";
 import order from "../orders/orderSlice";
 import coupon from "../coupon/couponSlice";
 import shipping from "../shipping/shippingSlice";
+import banners from "../banners/bannerSlice";
 import { injectStore } from "../../utils/api";
 
 const store = configureStore({
@@ -20,6 +21,7 @@ const store = configureStore({
     wishlist,
     order,
     shipping,
+    banners,
   },
 
   middleware: (getDefaultMiddleware) =>
@@ -29,7 +31,6 @@ const store = configureStore({
 
   devTools: import.meta.env.DEV,
 });
-
 
 injectStore(store);
 

@@ -2,14 +2,17 @@ import React, { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-toastify";
+import { motion } from "framer-motion";
 import {
   ArrowRight,
   ShoppingBag,
   ShieldCheck,
   RotateCcw,
   Scissors,
-  Loader2,
+  Loader as Loader2,
   ArrowLeft,
+  Sparkles,
+  Zap,
 } from "lucide-react";
 
 import {

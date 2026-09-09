@@ -1,14 +1,15 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import { motion } from "framer-motion";
 import {
-  Instagram,
-  Twitter,
+  Drama as Instagram,
+  Battery as Twitter,
   ArrowRight,
   CreditCard,
   Smartphone,
   ShieldCheck,
   Globe,
-  Youtube,
+  Route as Youtube,
   Scissors,
 } from "lucide-react";
 
@@ -19,8 +20,9 @@ const Footer = () => {
 
   // 🔥 FIX: Changed bg-white to bg-[#F8F8F8] and added a crisp top border
   return (
-    <footer className="bg-[#F8F8F8] border-t border-zinc-200 text-gray-600 font-sans mt-auto selection:bg-black selection:text-white">
-      <div className="max-w-[1600px] mx-auto px-4 md:px-12 pt-16 md:pt-24 pb-8 md:pb-12">
+    <footer className="bg-gradient-to-b from-white to-zinc-50 border-t-2 border-zinc-200 text-gray-600 font-sans mt-auto selection:bg-black selection:text-white relative overflow-hidden">
+      <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-2 mix-blend-overlay pointer-events-none" />
+      <div className="max-w-[1600px] mx-auto px-4 md:px-12 pt-20 md:pt-28 pb-10 md:pb-16 relative z-10">
         {/* Main Footer Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-10 md:gap-16 lg:gap-8 mb-16 md:mb-24">
           {/* 1. BRAND IDENTITY */}

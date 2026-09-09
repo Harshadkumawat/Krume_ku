@@ -29,7 +29,6 @@ export default function PlaceOrder() {
   const { billDetails, shippingAddress, cartItems } = useSelector(
     (state) => state.cart,
   );
-
   const { orderCreated, isLoading, isError, message } = useSelector(
     (state) => state.order,
   );
@@ -41,135 +40,209 @@ export default function PlaceOrder() {
   const subtotalWithTax =
     (billDetails?.finalTotal || 0) - (billDetails?.shipping || 0);
 
+  // ── Guards ─────────────────────────────────────────────────────────────────
   useEffect(() => {
     dispatch(resetOrderState());
-
     if (!shippingAddress?.address) {
       navigate("/shipping");
     } else if (cartItems.length === 0 && !isOrderPlaced.current) {
       navigate("/products");
     }
-
     return () => {
       dispatch(resetOrderState());
     };
   }, [dispatch, shippingAddress, cartItems.length, navigate]);
 
-  const dispatchCreateOrder = useCallback(
-    (paymentInfo = null) => {
-      if (cartItems.length === 0) {
-        toast.error("Cart is empty. Please add items first.");
-        return;
-      }
-
-      isOrderPlaced.current = true;
-
-      dispatch(
-        createOrder({
-          shippingAddress: {
-            fullName: shippingAddress?.fullName || "",
-            phone: shippingAddress?.phone || "",
-            pincode: shippingAddress?.pincode || "",
-            city: shippingAddress?.city || "",
-            state: shippingAddress?.state || "",
-            address: shippingAddress?.address || "",
-            landmark: shippingAddress?.landmark || "",
-            country: "India",
-          },
-          paymentMethod: selectedPayment,
-          isPaid: !!paymentInfo,
-          paidAt: paymentInfo ? new Date().toISOString() : null,
-          paymentResult: paymentInfo || {},
-        }),
-      );
-    },
-    [cartItems.length, dispatch, shippingAddress, selectedPayment],
-  );
-
-  const loadRazorpay = useCallback(async () => {
-    const razorpayKey = import.meta.env.VITE_RAZORPAY_KEY_ID;
-    if (!razorpayKey) {
-      toast.error("Payment configuration missing. Please contact support.");
-      return;
-    }
-
-    const initRazorpay = async () => {
-      try {
-        const orderData = await paymentService.createRazorpayOrder();
-
-        const options = {
-          key: razorpayKey,
-          amount: orderData.order.amount,
-          currency: orderData.order.currency,
-          name: "Krumeku",
-          description: "Premium Crafted Apparel",
-          order_id: orderData.order.id,
-          handler: async function (response) {
-            try {
-              const verifyRes = await paymentService.verifyPayment({
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_signature: response.razorpay_signature,
-              });
-
-              if (verifyRes.success) {
-                dispatchCreateOrder({
-                  id: response.razorpay_payment_id,
-                  status: "success",
-                  update_time: new Date().toISOString(),
-                });
-              }
-            } catch {
-              toast.error("Payment Verification Failed!");
-            }
-          },
-          prefill: { contact: shippingAddress?.phone || "" },
-          theme: { color: "#000000" },
-        };
-
-        const rzp = new window.Razorpay(options);
-        rzp.open();
-      } catch (error) {
-        toast.error(
-          error.response?.data?.message || "Failed to initiate payment.",
-        );
-      }
-    };
-
-    if (razorpayScriptLoaded.current || window.Razorpay) {
-      razorpayScriptLoaded.current = true;
-      await initRazorpay();
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.src = "https://checkout.razorpay.com/v1/checkout.js";
-    script.onerror = () => toast.error("Razorpay SDK failed to load.");
-    script.onload = async () => {
-      razorpayScriptLoaded.current = true;
-      await initRazorpay();
-    };
-    document.body.appendChild(script);
-  }, [dispatchCreateOrder, shippingAddress?.phone]);
-
-  const placeOrderHandler = useCallback(() => {
-    if (isLoading) return;
-    selectedPayment === "Online" ? loadRazorpay() : dispatchCreateOrder();
-  }, [isLoading, selectedPayment, loadRazorpay, dispatchCreateOrder]);
-
+  // ── Order success / error handle ───────────────────────────────────────────
   useEffect(() => {
     if (orderCreated) {
       dispatch(clearCart());
       dispatch(resetOrderState());
       navigate("/orders");
     }
-
     if (isError) {
       toast.error(message || "Something went wrong!");
       isOrderPlaced.current = false;
       dispatch(resetOrderState());
     }
   }, [orderCreated, isError, message, navigate, dispatch]);
+
+  // ── COD: seedha order create karo ─────────────────────────────────────────
+  const handleCOD = useCallback(() => {
+    if (cartItems.length === 0) {
+      toast.error("Cart is empty. Please add items first.");
+      return;
+    }
+    isOrderPlaced.current = true;
+
+    dispatch(
+      createOrder({
+        shippingAddress: {
+          fullName: shippingAddress?.fullName || "",
+          phone: shippingAddress?.phone || "",
+          pincode: shippingAddress?.pincode || "",
+          city: shippingAddress?.city || "",
+          state: shippingAddress?.state || "",
+          address: shippingAddress?.address || "",
+          landmark: shippingAddress?.landmark || "",
+          country: "India",
+        },
+        paymentMethod: "COD",
+        // ✅ COD ke liye razorpayOrderId nahi bhejte
+      }),
+    );
+  }, [cartItems.length, dispatch, shippingAddress]);
+
+  // ── Online: correct sequence — create order → verify ──────────────────────
+  //
+  // CORRECT FLOW:
+  //   1. createRazorpayOrder()   → Razorpay order ID lo (cart abhi delete nahi)
+  //   2. Razorpay checkout open  → User payment kare
+  //   3. addOrderItems()         → DB mein order banao (razorpayOrderId saath bhejo)
+  //   4. verifyPayment()         → orderId saath verify karo
+  //
+  // GALAT FLOW (pehle tha):
+  //   createRazorpayOrder → verify → addOrderItems
+  //   Problem: verifyPayment ko orderId chahiye jo tab tak bana hi nahi hota
+  //
+  const handleOnline = useCallback(async () => {
+    const razorpayKey = import.meta.env.VITE_RAZORPAY_KEY_ID;
+    if (!razorpayKey) {
+      toast.error("Payment configuration missing. Please contact support.");
+      return;
+    }
+    if (cartItems.length === 0) {
+      toast.error("Cart is empty. Please add items first.");
+      return;
+    }
+
+    // ── Razorpay script load karo (agar pehle nahi hua) ──────────────────
+    const loadScript = () =>
+      new Promise((resolve, reject) => {
+        if (razorpayScriptLoaded.current || window.Razorpay) {
+          razorpayScriptLoaded.current = true;
+          return resolve();
+        }
+        const script = document.createElement("script");
+        script.src = "https://checkout.razorpay.com/v1/checkout.js";
+        script.onload = () => {
+          razorpayScriptLoaded.current = true;
+          resolve();
+        };
+        script.onerror = () => reject(new Error("Razorpay SDK failed to load"));
+        document.body.appendChild(script);
+      });
+
+    try {
+      await loadScript();
+    } catch {
+      toast.error("Razorpay SDK failed to load. Please try again.");
+      return;
+    }
+
+    // ── STEP 1: Razorpay order ID lo ──────────────────────────────────────
+    // Cart abhi delete nahi hoti — sirf amount calculate ke liye
+    let rzpOrderData;
+    try {
+      rzpOrderData = await paymentService.createRazorpayOrder();
+    } catch (error) {
+      toast.error(
+        error.response?.data?.message || "Failed to initiate payment.",
+      );
+      return;
+    }
+
+    const razorpayOrderId = rzpOrderData.order.id; // ← frontend pe store karo
+
+    // ── STEP 2: Razorpay checkout open karo ──────────────────────────────
+    const options = {
+      key: razorpayKey,
+      amount: rzpOrderData.order.amount,
+      currency: rzpOrderData.order.currency,
+      name: "Krumeku",
+      description: "Premium Crafted Apparel",
+      order_id: razorpayOrderId,
+
+      handler: async function (response) {
+        // User ne payment complete ki — ab STEP 3 + 4 chalao
+
+        // ── STEP 3: DB mein order banao ─────────────────────────────────
+        // razorpayOrderId saath bhejo — backend isko store karega
+        // Verify step mein isi se order dhundha jaayega
+        let createdOrderId;
+        try {
+          const orderRes = await paymentService.createOrderInDB({
+            shippingAddress: {
+              fullName: shippingAddress?.fullName || "",
+              phone: shippingAddress?.phone || "",
+              pincode: shippingAddress?.pincode || "",
+              city: shippingAddress?.city || "",
+              state: shippingAddress?.state || "",
+              address: shippingAddress?.address || "",
+              landmark: shippingAddress?.landmark || "",
+              country: "India",
+            },
+            paymentMethod: "Online",
+            razorpayOrderId, // ← razorpay order ID saath bhejo
+          });
+          createdOrderId = orderRes.data._id;
+        } catch (error) {
+          toast.error(
+            error.response?.data?.message ||
+              "Order could not be saved. Contact support with your payment ID: " +
+                response.razorpay_payment_id,
+          );
+          return;
+        }
+
+        // ── STEP 4: Payment verify karo ──────────────────────────────────
+        // orderId ab available hai — backend verify kar sakta hai
+        try {
+          const verifyRes = await paymentService.verifyPayment({
+            razorpay_order_id: response.razorpay_order_id,
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_signature: response.razorpay_signature,
+            orderId: createdOrderId, // ← yeh pehle missing tha
+          });
+
+          if (verifyRes.success) {
+            // ✅ Verify success — cart clear karo aur orders page pe jao
+            isOrderPlaced.current = true;
+            dispatch(clearCart());
+            toast.success("Payment successful! Order confirmed.");
+            navigate("/orders");
+          }
+        } catch {
+          toast.error(
+            "Payment done but verification failed. Our team will confirm your order. Payment ID: " +
+              response.razorpay_payment_id,
+          );
+          // Webhook backup hai — order eventually confirm ho jaayega
+          navigate("/orders");
+        }
+      },
+
+      prefill: { contact: shippingAddress?.phone || "" },
+      theme: { color: "#000000" },
+
+      modal: {
+        ondismiss: () => {
+          // User ne checkout band kiya — kuch nahi karna
+          // razorpayOrderId expire ho jaayega Razorpay ki taraf se
+          toast.info("Payment cancelled.");
+        },
+      },
+    };
+
+    const rzp = new window.Razorpay(options);
+    rzp.open();
+  }, [cartItems.length, dispatch, navigate, shippingAddress]);
+
+  // ── Main handler ───────────────────────────────────────────────────────────
+  const placeOrderHandler = useCallback(() => {
+    if (isLoading) return;
+    selectedPayment === "Online" ? handleOnline() : handleCOD();
+  }, [isLoading, selectedPayment, handleOnline, handleCOD]);
 
   const validCartItems = cartItems.filter((item) => item.product != null);
 
@@ -203,6 +276,7 @@ export default function PlaceOrder() {
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
           <div className="lg:col-span-8 space-y-6">
+            {/* Delivery Address */}
             <section
               className="bg-white p-6 rounded-2xl border border-zinc-100 shadow-sm"
               aria-labelledby="delivery-heading"
@@ -233,6 +307,7 @@ export default function PlaceOrder() {
               </p>
             </section>
 
+            {/* Payment Method */}
             <section
               className="bg-white p-6 rounded-2xl border border-zinc-100 shadow-sm"
               aria-labelledby="payment-heading"
@@ -296,9 +371,7 @@ export default function PlaceOrder() {
                         </span>
                       </div>
                       <p
-                        className={`text-[10px] font-medium ${
-                          isSelected ? "text-zinc-400" : "text-zinc-500"
-                        }`}
+                        className={`text-[10px] font-medium ${isSelected ? "text-zinc-400" : "text-zinc-500"}`}
                       >
                         {method.sub}
                       </p>
@@ -315,6 +388,7 @@ export default function PlaceOrder() {
               </div>
             </section>
 
+            {/* Review Items */}
             <section
               className="bg-white p-6 rounded-2xl border border-zinc-100 shadow-sm"
               aria-labelledby="review-heading"
@@ -391,6 +465,7 @@ export default function PlaceOrder() {
             </section>
           </div>
 
+          {/* Price Breakdown */}
           <div className="lg:col-span-4 lg:sticky lg:top-28">
             <div
               className="bg-white p-6 rounded-3xl border border-zinc-100 shadow-2xl"

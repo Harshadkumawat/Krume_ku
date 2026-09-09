@@ -50,6 +50,7 @@ const UserManagement = lazy(() => import("./pages/Admin/UserManagement"));
 const AdminReturnRequests = lazy(
   () => import("./pages/Admin/AdminReturnRequests"),
 );
+const Banners = lazy(() => import("./pages/Admin/Banners")); // 🔥 naya banner admin page
 
 // ── Auth Pages (No Navbar/Footer) ─────────────────────
 const AUTH_PATHS = ["/login", "/register", "/forgot", "/reset-password"];
@@ -108,6 +109,8 @@ const AppLayout = () => {
                   <Route path="products" element={<AllProducts />} />
                   <Route path="product/new" element={<ProductForm />} />
                   <Route path="product/:id" element={<ProductForm />} />
+                  <Route path="banners" element={<Banners />} />{" "}
+                  {/* 🔥 naya route */}
                   <Route path="orders" element={<AdminOrders />} />
                   <Route path="coupon" element={<CouponManager />} />
                   <Route path="users" element={<UserManagement />} />

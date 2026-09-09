@@ -166,7 +166,6 @@ const sendOrderEmail = async (userEmail, orderDetails) => {
     };
 
     await mailer.sendMail(mailOptions);
-    console.log(`✅ Order email sent to ${userEmail}`);
   } catch (error) {
     console.error("❌ Email Error:", error.message);
   }

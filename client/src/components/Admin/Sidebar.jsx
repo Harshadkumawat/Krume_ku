@@ -11,6 +11,7 @@ import {
   TicketPercent,
   Users,
   RotateCcw,
+  Image, // 🔥 Banners ke liye icon
   Menu, // 🔥 Mobile ke liye hamburger icon
   X, // 🔥 Mobile ke liye close icon
 } from "lucide-react";
@@ -48,6 +49,11 @@ const Sidebar = () => {
       name: "Add Product",
       path: "/admin/product/new",
       icon: <PlusCircle size={20} />,
+    },
+    {
+      name: "Banners",
+      path: "/admin/banners",
+      icon: <Image size={20} />,
     },
     {
       name: "Orders",

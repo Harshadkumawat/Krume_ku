@@ -51,7 +51,6 @@ const Login = () => {
     [],
   );
 
-  // ✅ FIX 3: Double click protection
   const handleGoogleLogin = async () => {
     if (googleLoading) return;
     setGoogleLoading(true);

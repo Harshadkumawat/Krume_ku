@@ -1,5 +1,6 @@
 import React, { memo } from "react";
 import { Link } from "react-router-dom";
+import { motion } from "framer-motion";
 import { Minus, Plus, Trash2, ChevronDown } from "lucide-react";
 import { cldImage } from "../../utils/imageHelper";
 import { formatPrice } from "../../utils/formatters";
@@ -54,7 +55,6 @@ const CartItem = memo(
     const onInc = () => handleQuantity(_id, "inc");
 
     return (
-     
       <div className="cart-item-wrap py-5 flex gap-4 md:gap-6 group">
         {/* IMAGE */}
         <Link

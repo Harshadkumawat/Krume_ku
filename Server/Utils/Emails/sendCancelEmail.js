@@ -137,8 +137,6 @@ const sendCancelEmail = async (userEmail, orderDetails) => {
         </html>
       `,
     });
-
-    console.log(`✅ Cancel email sent to ${userEmail}`);
   } catch (error) {
     console.error("❌ Cancel Email Error:", error.message);
   }

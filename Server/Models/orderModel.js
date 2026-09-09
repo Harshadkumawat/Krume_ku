@@ -40,14 +40,22 @@ const orderSchema = mongoose.Schema(
       enum: ["COD", "Online"],
       default: "COD",
     },
+
+    // ── Payment Result ─────────────────────────────────────────────────────
     paymentResult: {
       id: { type: String },
       status: { type: String },
       update_time: { type: String },
       email_address: { type: String },
+      razorpayOrderId: { type: String },
+      razorpayPaymentId: { type: String },
     },
 
-    // ── Pricing ────────────────────────────────────────
+    // ── Razorpay Order ID ──────────────────────────────────────────────────
+
+    razorpayOrderId: { type: String, default: null },
+
+    // ── Pricing ───────────────────────────────────────────────────────────
     itemsPrice: { type: Number, required: true, default: 0, min: 0 },
     taxPrice: { type: Number, required: true, default: 0, min: 0 },
     shippingPrice: { type: Number, required: true, default: 0, min: 0 },
@@ -60,14 +68,23 @@ const orderSchema = mongoose.Schema(
       default: null,
     },
 
-    // ── Payment Status ─────────────────────────────────
+    // ── Payment Status ────────────────────────────────────────────────────
     isPaid: { type: Boolean, required: true, default: false },
     paidAt: { type: Date },
 
-    // ── Delivery Status ────────────────────────────────
+    // ── Future-ready: paymentStatus ───────────────────────────────────────
+
+    paymentStatus: {
+      type: String,
+      enum: ["Pending", "Paid", "Failed", "Refunded"],
+      default: "Pending",
+    },
+
+    // ── Delivery Status ───────────────────────────────────────────────────
     isDelivered: { type: Boolean, required: true, default: false },
     deliveredAt: { type: Date },
 
+    // ── Order Status ──────────────────────────────────────────────────────
     orderStatus: {
       type: String,
       required: true,
@@ -85,7 +102,7 @@ const orderSchema = mongoose.Schema(
       ],
     },
 
-    // ── Return Info ────────────────────────────────────
+    // ── Return Info ───────────────────────────────────────────────────────
     returnInfo: {
       isReturnRequested: { type: Boolean, default: false },
       reason: { type: String },
@@ -101,15 +118,23 @@ const orderSchema = mongoose.Schema(
       adminComment: { type: String },
     },
 
-    // ── Tracking ───────────────────────────────────────
+    // ── Tracking ──────────────────────────────────────────────────────────
     shiprocketOrderId: { type: String },
     shiprocketShipmentId: { type: String },
+
+    // ── Duplicate Prevention Guards ───────────────────────────────────────
+
+    confirmationEmailSent: { type: Boolean, default: false },
+    stockReduced: { type: Boolean, default: false },
   },
   { timestamps: true },
 );
 
+// ── Indexes ────────────────────────────────────────────────────────────────
 orderSchema.index({ orderStatus: 1 });
 orderSchema.index({ createdAt: -1 });
 orderSchema.index({ user: 1, createdAt: -1 });
+
+orderSchema.index({ razorpayOrderId: 1 }, { unique: true, sparse: true });
 
 module.exports = mongoose.model("Order", orderSchema);

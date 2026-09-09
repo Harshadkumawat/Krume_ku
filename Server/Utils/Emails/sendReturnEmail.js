@@ -160,8 +160,6 @@ const sendReturnEmail = async (userEmail, orderDetails, status) => {
         </html>
       `,
     });
-
-    console.log(`✅ Return ${status} email sent to ${userEmail}`);
   } catch (error) {
     console.error("❌ Return Email Error:", error.message);
   }
