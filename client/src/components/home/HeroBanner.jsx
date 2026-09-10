@@ -84,7 +84,7 @@ const HeroBanner = ({ activeBanners }) => {
   const heroCtaText = activeBanner?.ctaText || "Explore The Craft";
 
   return (
-    <header className="relative w-full bg-black overflow-hidden group">
+    <header className="relative w-full bg-black group">
       <div className="relative w-full">
         <div key={activeBanner?._id || heroIndex} className="w-full">
           <Link
@@ -92,14 +92,14 @@ const HeroBanner = ({ activeBanners }) => {
             className="block w-full"
             aria-label="Go to featured product"
           >
-            {/* Responsive height so the image doesn't get too tall/short across
-                phones, tablets and desktops — object-cover keeps it filled. */}
+            {/* Natural aspect ratio — width scales with screen, height follows
+                the image's own ratio, so it NEVER gets cropped on any device. */}
             <img
               src={heroImage}
               alt={
                 activeBanner?.title || "Custom embroidery apparel by Krumeku"
               }
-              className="w-full h-[55vh] sm:h-[65vh] md:h-[80vh] lg:h-[85vh] object-cover object-center block"
+              className="w-full h-auto block"
             />
             <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay pointer-events-none" />
             <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/60" />

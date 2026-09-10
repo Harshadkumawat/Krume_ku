@@ -63,8 +63,6 @@ const Home = () => {
     dispatch(fetchActiveBanners());
   }, [dispatch]);
 
-  console.log(homePageData);
-
   // Cleanup timeouts when component unmounts
   useEffect(() => {
     return () => {
@@ -171,7 +169,15 @@ const Home = () => {
 
       <style dangerouslySetInnerHTML={{ __html: PAGE_STYLES }} />
 
-      <div className="bg-white min-h-screen text-zinc-900 overflow-x-hidden pt-[70px] md:pt-[90px]">
+      {/* 🔥 FIX: hardcoded pt-[70px] md:pt-[90px] hata kar navbar ki
+          real measured height (Navbar.jsx me set hoti hai --navbar-height
+          CSS var ke through) use kar rahe hain — isse navbar aur hero
+          banner ke beech ka gap khatam ho jata hai, kisi bhi screen size
+          ya scroll state pe. */}
+      <div
+        className="bg-white min-h-screen text-zinc-900 overflow-x-hidden"
+        style={{ paddingTop: "var(--navbar-height, 64px)" }}
+      >
         {/* 1. HERO COMPONENT IMPORTED */}
         <HeroBanner activeBanners={activeBanners} />
 

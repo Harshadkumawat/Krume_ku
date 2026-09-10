@@ -423,6 +423,7 @@ export default function Navbar() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const headerRef = useRef(null);
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -437,7 +438,6 @@ export default function Navbar() {
   const wishlistCount = wishlistItems?.length || 0;
   const isAdmin = user?.role === "admin";
 
-  // ── Nav Links
   // ── Nav Links
   const navLinks = useMemo(
     () => [
@@ -515,6 +515,30 @@ export default function Navbar() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []); // ← empty deps = mount once only
 
+  // ── Measure real navbar height and expose it as a CSS var ─
+  // so every page can set `padding-top: var(--navbar-height)`
+  // instead of guessing a fixed px value (which caused the gap/
+  // overlap mismatch since the header's real height shifts a
+  // little between the scrolled/unscrolled padding states).
+  useEffect(() => {
+    const el = headerRef.current;
+    if (!el) return;
+
+    const setVar = () => {
+      document.documentElement.style.setProperty(
+        "--navbar-height",
+        `${el.offsetHeight}px`,
+      );
+    };
+
+    setVar();
+
+    const resizeObserver = new ResizeObserver(setVar);
+    resizeObserver.observe(el);
+
+    return () => resizeObserver.disconnect();
+  }, [scrolled, isAdmin]);
+
   // ── Callbacks ────────────────────────────────────────────
   const openMenu = useCallback(() => setOpen(true), []);
   const closeMenu = useCallback(() => setOpen(false), []);
@@ -566,7 +590,7 @@ export default function Navbar() {
   return (
     <>
       {/* ─── HEADER BAR ──────────────────────────────────── */}
-      <header className={headerClass}>
+      <header ref={headerRef} className={headerClass}>
         <div className="max-w-[1800px] mx-auto px-4 md:px-8 flex items-center justify-between">
           {/* LEFT */}
           <div className="flex-1 flex items-center gap-4 md:gap-6">
