@@ -29,8 +29,12 @@ const ProductCard = memo(({ product, label, labelColor = "bg-black" }) => {
   } = product;
 
   const isAvailable = inStock === true || (countInStock || 0) > 0;
-  const displayImage = cldImage(images?.[0], 500);
-  const hoverImage = images?.[1] ? cldImage(images[1], 500) : displayImage;
+  // 🔥 FIX: Lighthouse ne flag kiya tha ki cards 500px chaudi image
+  // download kar rahe the jabki display size sirf ~376px hai. Width
+  // 400 pe le aaye — DPR headroom ke liye display size se thodi zyada,
+  // par 500 jitni waste nahi.
+  const displayImage = cldImage(images?.[0], 400);
+  const hoverImage = images?.[1] ? cldImage(images[1], 400) : displayImage;
 
   const viewerCount = Math.floor(Math.random() * 45) + 5;
   const rating = (Math.random() * 1 + 4.2).toFixed(1);

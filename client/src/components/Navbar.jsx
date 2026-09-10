@@ -87,7 +87,11 @@ const Logo = memo(() => (
   >
     <div className="relative w-7 h-7 md:w-10 md:h-10 flex items-center justify-center overflow-hidden">
       <img
-        src="https://res.cloudinary.com/dftticvtc/image/upload/v1772809985/logo_et7xbt.png"
+        // 🔥 FIX: pehle URL mein koi width transform nahi tha — poori
+        // original image (271x286, ~65KB) download hoti thi jabki logo
+        // display sirf 33-40px hota hai. f_auto (WebP/AVIF) + w_80
+        // (2x retina headroom for the 40px desktop size) laga diya.
+        src="https://res.cloudinary.com/dftticvtc/image/upload/f_auto,q_auto,w_80/v1772809985/logo_et7xbt.png"
         alt="Krumeku Logo"
         className="w-full h-full object-contain group-hover:rotate-6 transition-transform duration-500"
         loading="eager"

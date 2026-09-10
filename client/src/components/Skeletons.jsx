@@ -4,20 +4,49 @@ const SkeletonBase = ({ className }) => (
   <div className={`animate-pulse bg-zinc-100 rounded-md ${className}`} />
 );
 
-export const ClothesSkeleton = () => {
-  return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-8 p-4 md:p-10">
-      {[...Array(8)].map((_, i) => (
-        <div key={i} className="flex flex-col gap-4">
-          {/* Image Box */}
-          <SkeletonBase className="aspect-[3/4] rounded-[1.5rem] md:rounded-[2.5rem] w-full" />
+// 🔥 FIX: Real ProductCard ke image ke NEECHE 3 cheezein hoti hain —
+// star rating row, product title (2 lines tak line-clamp), price. Pehle
+// skeleton sirf 2 chhoti placeholder lines dikhata tha, jisse real
+// content load hone par height badh jati thi aur CLS create hota tha.
+// Ab dono skeletons (grid + slider) isi shared shape ko use karte hain,
+// jo ProductCard ke asli structure se match karta hai.
+const ProductCardSkeleton = () => (
+  <div className="flex flex-col gap-4">
+    <SkeletonBase className="aspect-[3/4] rounded-lg w-full" />
+    <div className="flex flex-col gap-2 px-1">
+      {/* rating row placeholder */}
+      <SkeletonBase className="h-3 w-16 rounded-full" />
+      {/* title — 2 line placeholder (line-clamp-2 ke liye) */}
+      <SkeletonBase className="h-3 w-full rounded-full" />
+      <SkeletonBase className="h-3 w-2/3 rounded-full" />
+      {/* price placeholder */}
+      <SkeletonBase className="h-4 w-1/3 rounded-full" />
+    </div>
+  </div>
+);
 
-          <div className="space-y-3 px-1">
-            {/* Title Line */}
-            <SkeletonBase className="h-3 w-3/4 rounded-full" />
-            {/* Price Line */}
-            <SkeletonBase className="h-3 w-1/4 rounded-full" />
-          </div>
+export const ClothesSkeleton = ({
+  count = 8,
+  className = "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-8 p-4 md:p-10",
+}) => {
+  return (
+    <div className={className}>
+      {[...Array(count)].map((_, i) => (
+        <ProductCardSkeleton key={i} />
+      ))}
+    </div>
+  );
+};
+
+// Signature Pieces section mein real content ek single-row horizontal
+// slider hai — yahi shape yahan bhi use karte hain, bas item wrapper
+// alag width leta hai.
+export const SignatureSliderSkeleton = () => {
+  return (
+    <div className="flex items-stretch overflow-x-hidden gap-4 md:gap-6 py-2">
+      {[...Array(4)].map((_, i) => (
+        <div key={i} className="shrink-0 w-[45%] sm:w-[30%] md:w-[23%]">
+          <ProductCardSkeleton />
         </div>
       ))}
     </div>
@@ -57,12 +86,8 @@ export const DetailsSkeleton = () => {
 
 export function ProductSkeleton() {
   return (
-    <div className="flex flex-col gap-4 w-full h-full animate-pulse">
-      <SkeletonBase className="aspect-[3/4] w-full rounded-2xl" />
-      <div className="space-y-2 px-1">
-        <SkeletonBase className="h-3 w-3/4 rounded-full" />
-        <SkeletonBase className="h-3 w-1/4 rounded-full" />
-      </div>
+    <div className="w-full h-full animate-pulse">
+      <ProductCardSkeleton />
     </div>
   );
 }

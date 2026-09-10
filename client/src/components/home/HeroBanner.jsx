@@ -13,7 +13,48 @@ const HERO_AUTOPLAY_INTERVAL = 5000;
 
 // fallback static image — jab tak admin ne koi banner add nahi kiya ho
 const FALLBACK_HERO_IMAGE =
-  "https://res.cloudinary.com/dftticvtc/image/upload/f_auto,q_auto:eco,w_1920,c_fill,g_auto/Krumeku_jokpig.png";
+  "https://res.cloudinary.com/dftticvtc/image/upload/Krumeku_jokpig.png";
+
+// ── Cloudinary responsive srcSet helper ─────────────────────
+// 🔥 FIX: pehle hero image (fallback ho ya admin-uploaded banner) apni
+// poori original size download hoti thi (1920px ya 1536px) chahe
+// mobile ho ya desktop — Lighthouse ne 234KB+ waste flag kiya tha.
+// Ye helper Cloudinary URL se koi bhi baked-in transform hata ke, kai
+// widths ka srcSet banata hai — browser khud decide karega ki uski
+// screen ke hisaab se kaunsi size download karni hai.
+const CLOUDINARY_UPLOAD_MARKER = "/upload/";
+const HERO_WIDTHS = [480, 768, 1080, 1440, 1920];
+
+const getCloudinaryBasePath = (url) => {
+  if (!url || !url.includes(CLOUDINARY_UPLOAD_MARKER)) return null;
+  const [prefix, afterUpload] = url.split(CLOUDINARY_UPLOAD_MARKER);
+  // Public-id path shuru hota hai version segment (v12345/...) se agar
+  // wo maujood hai, warna kisi bhi pehle se lagi transformation ke
+  // baad wale hisse se.
+  const versionMatch = afterUpload.match(/v\d+\/.*/);
+  const publicPath = versionMatch
+    ? versionMatch[0]
+    : afterUpload.replace(/^[^/]+\//, "");
+  return { prefix, publicPath };
+};
+
+const buildHeroSrcSet = (url) => {
+  const base = getCloudinaryBasePath(url);
+  if (!base) return undefined;
+  // f_auto,q_auto:eco,w_<width> — sirf width diya hai, koi crop mode
+  // (c_fill/c_crop) nahi — is se image apne aap original aspect ratio
+  // maintain karte hue proportionally scale hoti hai, kabhi crop nahi hoti.
+  return HERO_WIDTHS.map(
+    (w) =>
+      `${base.prefix}${CLOUDINARY_UPLOAD_MARKER}f_auto,q_auto:eco,w_${w}/${base.publicPath} ${w}w`,
+  ).join(", ");
+};
+
+const buildHeroFallbackSrc = (url) => {
+  const base = getCloudinaryBasePath(url);
+  if (!base) return url;
+  return `${base.prefix}${CLOUDINARY_UPLOAD_MARKER}f_auto,q_auto:eco,w_1080/${base.publicPath}`;
+};
 
 const HeroBanner = ({ activeBanners }) => {
   const heroSlides = useMemo(() => {
@@ -93,9 +134,14 @@ const HeroBanner = ({ activeBanners }) => {
             aria-label="Go to featured product"
           >
             {/* Natural aspect ratio — width scales with screen, height follows
-                the image's own ratio, so it NEVER gets cropped on any device. */}
+                the image's own ratio, so it NEVER gets cropped on any device.
+                srcSet browser ko sahi size choose karne deta hai (mobile pe
+                480w, desktop pe 1920w) — poori 1920px image mobile pe
+                download nahi hogi. */}
             <img
-              src={heroImage}
+              src={buildHeroFallbackSrc(heroImage)}
+              srcSet={buildHeroSrcSet(heroImage)}
+              sizes="100vw"
               alt={
                 activeBanner?.title || "Custom embroidery apparel by Krumeku"
               }

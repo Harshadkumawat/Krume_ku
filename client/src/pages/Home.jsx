@@ -20,7 +20,10 @@ import { fetchActiveBanners } from "../features/banners/bannerSlice";
 import ProductCard from "../components/clothes/ProductCard";
 import PageTransition from "../components/PageTransition";
 import SEO from "../components/SEO";
-import { ClothesSkeleton } from "../components/Skeletons";
+import {
+  ClothesSkeleton,
+  SignatureSliderSkeleton,
+} from "../components/Skeletons";
 import HeroBanner from "../components/home/HeroBanner";
 
 const PAGE_STYLES = `
@@ -205,7 +208,7 @@ const Home = () => {
             </h2>
 
             {isLoading ? (
-              <ClothesSkeleton />
+              <SignatureSliderSkeleton />
             ) : (
               <div className="relative group/slider">
                 <button
@@ -270,7 +273,10 @@ const Home = () => {
           </div>
 
           {isLoading ? (
-            <ClothesSkeleton />
+            <ClothesSkeleton
+              count={4}
+              className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-16 relative z-10"
+            />
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-16 relative z-10">
               {newArrivals.slice(0, 4).map((p) => (
@@ -309,7 +315,7 @@ const Home = () => {
               </div>
 
               {isLoading ? (
-                <ClothesSkeleton />
+                <ClothesSkeleton className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 md:gap-x-8 gap-y-16" />
               ) : (
                 <>
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 md:gap-x-8 gap-y-16">

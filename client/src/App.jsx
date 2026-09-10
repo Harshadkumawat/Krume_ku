@@ -161,8 +161,6 @@ const App = () => {
     }
   }, [user?._id, isAppReady, dispatch]);
 
-  if (!isAppReady) return <GlobalLoader />;
-
   return (
     <Router>
       <ScrollToTop />
