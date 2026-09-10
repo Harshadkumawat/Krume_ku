@@ -92,13 +92,14 @@ const HeroBanner = ({ activeBanners }) => {
             className="block w-full"
             aria-label="Go to featured product"
           >
-            {/* 🔥 FIX YAHAN HAI: h-auto hatakar h-[60vh] md:h-[85vh] aur object-cover add kiya */}
+            {/* Responsive height so the image doesn't get too tall/short across
+                phones, tablets and desktops — object-cover keeps it filled. */}
             <img
               src={heroImage}
               alt={
                 activeBanner?.title || "Custom embroidery apparel by Krumeku"
               }
-              className="w-full h-[60vh] md:h-[85vh] object-cover object-center block"
+              className="w-full h-[55vh] sm:h-[65vh] md:h-[80vh] lg:h-[85vh] object-cover object-center block"
             />
             <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay pointer-events-none" />
             <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/60" />
@@ -106,33 +107,36 @@ const HeroBanner = ({ activeBanners }) => {
         </div>
 
         <div className="absolute inset-0 flex items-center z-10">
-          <div className="max-w-[1500px] mx-auto px-6 w-full pointer-events-none">
-            <div key={activeBanner?._id || heroIndex} className="max-w-[650px]">
-              <p className="text-[10px] text-red-400 font-black uppercase tracking-[0.4em] mb-6 flex items-center gap-3">
-                <span className="w-2 h-2 bg-red-400 rounded-full animate-pulse" />
+          <div className="max-w-[1500px] mx-auto px-4 sm:px-6 w-full pointer-events-none">
+            <div
+              key={activeBanner?._id || heroIndex}
+              className="max-w-full sm:max-w-[500px] md:max-w-[650px]"
+            >
+              <p className="text-[8px] sm:text-[10px] text-red-400 font-black uppercase tracking-[0.2em] sm:tracking-[0.4em] mb-3 sm:mb-6 flex items-center gap-2 sm:gap-3">
+                <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-red-400 rounded-full animate-pulse shrink-0" />
                 Made in Indore, India
               </p>
-              <h1 className="text-6xl md:text-8xl lg:text-[9rem] font-black text-white leading-[0.85] tracking-tight italic mb-8 drop-shadow-2xl">
+              <h1 className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl xl:text-[9rem] font-black text-white leading-[0.9] sm:leading-[0.85] tracking-tight italic mb-4 sm:mb-6 md:mb-8 drop-shadow-2xl break-words">
                 {heroTitleLine}
                 <br />
                 <span className="text-transparent stroke-text">
                   {heroSubtitleLine}
                 </span>
               </h1>
-              <p className="text-[13px] text-white/80 font-light tracking-widest mb-8 max-w-[500px]">
+              <p className="hidden sm:block text-[12px] md:text-[13px] text-white/80 font-light tracking-widest mb-6 md:mb-8 max-w-[500px]">
                 Precision embroidered apparel crafted with premium fabrics. Each
                 piece tells your story.
               </p>
               <div className="pointer-events-auto">
                 <Link
                   to={heroLink}
-                  className="relative overflow-hidden group px-12 py-5 bg-white text-black text-[11px] font-black uppercase tracking-[0.2em] inline-flex items-center gap-3 shadow-2xl hover:shadow-red-600/50"
+                  className="relative overflow-hidden group px-6 py-3 sm:px-8 sm:py-4 md:px-12 md:py-5 bg-white text-black text-[10px] sm:text-[11px] font-black uppercase tracking-[0.15em] sm:tracking-[0.2em] inline-flex items-center gap-2 sm:gap-3 shadow-2xl hover:shadow-red-600/50"
                 >
                   <span className="relative z-10 flex items-center gap-2">
                     {heroCtaText}{" "}
                     <ArrowRight
-                      size={16}
-                      className="group-hover:translate-x-1 transition-transform"
+                      size={14}
+                      className="sm:w-4 sm:h-4 group-hover:translate-x-1 transition-transform"
                     />
                   </span>
                   <div className="absolute inset-0 bg-red-600 translate-y-full group-hover:translate-y-0 transition-transform duration-500" />
@@ -148,32 +152,32 @@ const HeroBanner = ({ activeBanners }) => {
             <button
               onClick={goToPrevHeroSlide}
               aria-label="Previous banner"
-              className="absolute left-4 md:left-8 top-1/2 -translate-y-1/2 z-20 w-11 h-11 md:w-12 md:h-12 bg-white/15 backdrop-blur-xl border border-white/30 text-white rounded-full flex items-center justify-center hover:bg-white hover:text-black transition-colors"
+              className="absolute left-2 sm:left-4 md:left-8 top-1/2 -translate-y-1/2 z-20 w-9 h-9 sm:w-11 sm:h-11 md:w-12 md:h-12 bg-white/15 backdrop-blur-xl border border-white/30 text-white rounded-full flex items-center justify-center hover:bg-white hover:text-black transition-colors"
             >
-              <ChevronLeft size={22} />
+              <ChevronLeft size={18} className="sm:w-[22px] sm:h-[22px]" />
             </button>
             <button
               onClick={goToNextHeroSlide}
               aria-label="Next banner"
-              className="absolute right-4 md:right-8 top-1/2 -translate-y-1/2 z-20 w-11 h-11 md:w-12 md:h-12 bg-white/15 backdrop-blur-xl border border-white/30 text-white rounded-full flex items-center justify-center hover:bg-white hover:text-black transition-colors"
+              className="absolute right-2 sm:right-4 md:right-8 top-1/2 -translate-y-1/2 z-20 w-9 h-9 sm:w-11 sm:h-11 md:w-12 md:h-12 bg-white/15 backdrop-blur-xl border border-white/30 text-white rounded-full flex items-center justify-center hover:bg-white hover:text-black transition-colors"
             >
-              <ChevronRight size={22} />
+              <ChevronRight size={18} className="sm:w-[22px] sm:h-[22px]" />
             </button>
           </>
         )}
 
         {/* Dot indicators */}
         {heroSlides.length > 1 && (
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2">
+          <div className="absolute bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 sm:gap-2">
             {heroSlides.map((slide, i) => (
               <button
                 key={slide._id || i}
                 onClick={() => goToHeroSlide(i)}
                 aria-label={`Show banner ${i + 1}`}
-                className={`h-1.5 rounded-full transition-all duration-300 ${
+                className={`h-1 sm:h-1.5 rounded-full transition-all duration-300 ${
                   i === heroIndex
-                    ? "w-8 bg-white"
-                    : "w-4 bg-white/40 hover:bg-white/70"
+                    ? "w-6 sm:w-8 bg-white"
+                    : "w-3 sm:w-4 bg-white/40 hover:bg-white/70"
                 }`}
               />
             ))}
